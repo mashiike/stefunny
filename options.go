@@ -1,5 +1,7 @@
 package sffle
 
+import "io"
+
 const dryRunStr = "DRY RUN"
 
 type DeployOption struct {
@@ -11,4 +13,8 @@ func (opt DeployOption) DryRunString() string {
 		return dryRunStr
 	}
 	return ""
+}
+
+type RenderOption struct {
+	Writer io.Writer
 }

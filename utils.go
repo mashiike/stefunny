@@ -1,6 +1,7 @@
 package sffle
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/Cside/jsondiff"
@@ -29,4 +30,12 @@ func jsonDiffString(j1, j2 string) string {
 		c.Fprint(&builder, str, "\n")
 	}
 	return builder.String()
+}
+
+func definitionToMap(def string) (map[string]interface{}, error) {
+	var m map[string]interface{}
+	if err := json.Unmarshal([]byte(def), &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }

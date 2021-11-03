@@ -64,6 +64,11 @@ func main() {
 				},
 			},
 			{
+				Name:   "render",
+				Usage:  "render state machie defienion(the Amazon States Language) as a dot file",
+				Action: render,
+			},
+			{
 				Name:  "version",
 				Usage: "show version info.",
 				Action: func(c *cli.Context) error {
@@ -118,4 +123,29 @@ func deply(c *cli.Context) error {
 			DryRun: c.Bool("dry-run"),
 		},
 	)
+}
+
+func render(c *cli.Context) error {
+	setLogLevel(c)
+	app, err := createApp(c)
+	if err != nil {
+		return err
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
+	defer cancel()
+	args := c.Args()
+	opt := sffle.RenderOption{
+		Writer: os.Stdin,
+	}
+	if args.Len() > 0 {
+		path := args.First()
+		log.Printf("[notice] output to %s", path)
+		fp, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+		if err != nil {
+			return err
+		}
+		defer fp.Close()
+		opt.Writer = fp
+	}
+	return app.Render(ctx, opt)
 }

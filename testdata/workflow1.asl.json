@@ -1,0 +1,86 @@
+{
+    "Comment": "A description of my state machine",
+    "StartAt": "Choice",
+    "States": {
+      "Choice": {
+        "Type": "Choice",
+        "Choices": [
+          {
+            "Variable": "$.hoge.key",
+            "StringMatches": "hoge",
+            "Next": "Pass"
+          },
+          {
+            "Variable": "$.hoge",
+            "StringMatches": "hoge",
+            "Next": "Map"
+          }
+        ],
+        "Default": "Default"
+      },
+      "Default": {
+        "Type": "Pass",
+        "Next": "Pass"
+      },
+      "Pass": {
+        "Type": "Pass",
+        "Next": "Parallel"
+      },
+      "Parallel": {
+        "Type": "Parallel",
+        "Next": "Success",
+        "Branches": [
+          {
+            "StartAt": "pass2",
+            "States": {
+              "pass2": {
+                "Type": "Pass",
+                "End": true
+              }
+            }
+          },
+          {
+            "StartAt": "pass3",
+            "States": {
+              "pass3": {
+                "Type": "Pass",
+                "End": true
+              }
+            }
+          }
+        ]
+      },
+      "Success": {
+        "Type": "Succeed"
+      },
+      "Map": {
+        "Type": "Map",
+        "Iterator": {
+          "StartAt": "Map1",
+          "States": {
+            "Map1": {
+              "Type": "Pass",
+              "End": true
+            }
+          }
+        },
+        "Catch": [
+          {
+            "ErrorEquals": [
+              "States.ALL"
+            ],
+            "Next": "Pass"
+          }
+        ],
+        "Next": "Wait"
+      },
+      "Wait": {
+        "Type": "Wait",
+        "Seconds": 5,
+        "Next": "Fail"
+      },
+      "Fail": {
+        "Type": "Fail"
+      }
+    }
+  }

@@ -4,6 +4,7 @@ go 1.17
 
 require (
 	github.com/Cside/jsondiff v0.0.0-20180209072652-0e50d980b458
+	github.com/awalterschulze/gographviz v2.0.3+incompatible
 	github.com/aws/aws-sdk-go-v2 v1.10.0
 	github.com/aws/aws-sdk-go-v2/config v1.9.0
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.8.0
@@ -13,7 +14,8 @@ require (
 	github.com/google/go-jsonnet v0.17.0
 	github.com/hashicorp/go-version v1.3.0
 	github.com/kayac/go-config v0.6.0
-	github.com/stretchr/testify v1.4.0
+	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
+	github.com/stretchr/testify v1.5.1
 	github.com/urfave/cli/v2 v2.3.0
 )
 
@@ -31,11 +33,13 @@ require (
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/onsi/ginkgo v1.16.5 // indirect
+	github.com/onsi/gomega v1.16.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/russross/blackfriday/v2 v2.0.1 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
-	gopkg.in/yaml.v2 v2.3.0 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

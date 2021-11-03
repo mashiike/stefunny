@@ -2,9 +2,5 @@ required_version: ">v0.0.0"
 
 state_machine:
   name: Hello
-  type: hoge
-  definition: hello_world.asl.jsonnet
+  definition: workflow1.asl.json
   role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
-  logging:
-    destination:
-      log_group: /steps/hello

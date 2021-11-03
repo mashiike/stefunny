@@ -1,0 +1,10 @@
+digraph hello {
+	hello_start->Hello[ arrowhead=vee ];
+	Hello->World[ arrowhead=vee ];
+	World->hello_end[ arrowhead=vee ];
+	Hello [ shape="box", style="rounded,filled" ];
+	World [ shape="box", style="rounded,filled" ];
+	hello_end [ shape="ellipse", style="filled" ];
+	hello_start [ shape="ellipse", style="filled" ];
+
+}

@@ -17,17 +17,17 @@ func TestConfigLoadValid(t *testing.T) {
 		{
 			casename:    "default_config",
 			path:        "testdata/default.yaml",
-			expectedDef: loadString(t, "testdata/hello_world.json"),
+			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "jsonnet_config",
 			path:        "testdata/jsonnet.yaml",
-			expectedDef: loadString(t, "testdata/hello_world.json"),
+			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "log_level_off",
 			path:        "testdata/logging_off.yaml",
-			expectedDef: loadString(t, "testdata/hello_world.json"),
+			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
 		},
 	}
 
