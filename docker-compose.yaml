@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  app:
+    image: golang:1.17
+    volumes:
+      - .:/go/src/github.com/mashiike/sffle:delegated
+    environment:
+      USE_SFN_LOCAL: "true"
+    depends_on:
+      - sfn_local
+
+  sfn_local:
+    image: amazon/aws-stepfunctions-local:1.7.9
