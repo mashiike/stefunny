@@ -29,6 +29,11 @@ func TestConfigLoadValid(t *testing.T) {
 			path:        "testdata/logging_off.yaml",
 			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
 		},
+		{
+			casename:    "tfstate_read",
+			path:        "testdata/tfstate.yaml",
+			expectedDef: loadString(t, "testdata/tfstate.asl.json"),
+		},
 	}
 
 	for _, c := range cases {

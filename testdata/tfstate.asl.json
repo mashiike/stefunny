@@ -1,0 +1,18 @@
+{
+    "Comment": "A Hello World example of the Amazon States Language using Pass states",
+    "StartAt": "Hello",
+    "States": {
+        "Hello": {
+            "Type": "Pass",
+            "Next": "World"
+        },
+        "World": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+            "Parameters": {
+                "Bucket": "test-hoge"
+            },
+            "End": true
+        }
+    }
+}

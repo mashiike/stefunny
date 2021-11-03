@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/fujiwara/tfstate-lookup/tfstate"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
@@ -21,9 +22,12 @@ type Config struct {
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
 
+	TFState string `yaml:"tfstate,omitempty"`
+
 	//private field
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
 	dir                string         `yaml:"-,omitempty"`
+	loader             *gc.Loader     `yaml:"-,omitempty"`
 }
 
 type StateMachineConfig struct {
@@ -74,6 +78,13 @@ func (cfg *Config) Restrict() error {
 	}
 	if err := cfg.StateMachine.Restrict(); err != nil {
 		return fmt.Errorf("state_machine.%w", err)
+	}
+	if cfg.TFState != "" {
+		funcs, err := tfstate.FuncMap(filepath.Join(cfg.dir, cfg.TFState))
+		if err != nil {
+			return fmt.Errorf("tfstate %w", err)
+		}
+		cfg.loader.Funcs(funcs)
 	}
 	return nil
 }
@@ -232,6 +243,7 @@ func NewDefaultConfig() *Config {
 				Enabled: aws.Bool(false),
 			},
 		},
+		loader: gc.New(),
 	}
 }
 
@@ -240,18 +252,18 @@ var jsonnetVM = jsonnet.MakeVM()
 func (cfg *Config) LoadDefinition() (string, error) {
 	path := filepath.Join(cfg.dir, cfg.StateMachine.Definition)
 	log.Printf("[debug] try load definition `%s`\n", path)
-	bs, err := loadDefinition(path)
+	bs, err := cfg.loadDefinition(path)
 	return string(bs), err
 }
 
-func loadDefinition(path string) ([]byte, error) {
+func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 	switch filepath.Ext(path) {
 	case ".jsonnet":
 		jsonStr, err := jsonnetVM.EvaluateFile(path)
 		if err != nil {
 			return nil, err
 		}
-		return gc.ReadWithEnvBytes([]byte(jsonStr))
+		return cfg.loader.ReadWithEnvBytes([]byte(jsonStr))
 	}
-	return gc.ReadWithEnv(path)
+	return cfg.loader.ReadWithEnv(path)
 }

@@ -1,13 +1,20 @@
 version: "3.8"
 services:
-  app:
-    image: golang:1.17
-    volumes:
-      - .:/go/src/github.com/mashiike/sffle:delegated
-    environment:
-      USE_SFN_LOCAL: "true"
-    depends_on:
-      - sfn_local
-
   sfn_local:
     image: amazon/aws-stepfunctions-local:1.7.9
+    ports:
+      - "8083:8083"
+    environment:
+      - LAMBDA_ENDPOINT=http://host.docker.internal:4566
+      - S3_ENDPOINT=http://host.docker.internal:4566
+  localstack:
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+      - "4571:4571"
+    environment:
+      - SERVICES=lambda,s3,iam,sts
+      - LAMBDA_EXECUTOR=docker
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
