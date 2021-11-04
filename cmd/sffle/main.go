@@ -11,7 +11,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/fujiwara/logutils"
-	"github.com/mashiike/sffle"
+	"github.com/mashiike/stefunny"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,7 +34,7 @@ var filter = &logutils.LevelFilter{
 
 func main() {
 	app := &cli.App{
-		Name:  "sffle",
+		Name:  "stefunny",
 		Usage: "A command line tool for deployment StepFunctions",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -42,13 +42,13 @@ func main() {
 				Aliases:     []string{"c"},
 				DefaultText: "config.yaml",
 				Usage:       "Load configuration from `FILE`",
-				EnvVars:     []string{"SFFLE_CONFIG"},
+				EnvVars:     []string{"stefunny_CONFIG"},
 			},
 			&cli.StringFlag{
 				Name:        "log-level",
 				DefaultText: "info",
 				Usage:       "Set log level (debug, info, notice, warn, error)",
-				EnvVars:     []string{"SFFLE_LOG_LEVEL"},
+				EnvVars:     []string{"stefunny_LOG_LEVEL"},
 			},
 		},
 		Commands: []*cli.Command{
@@ -73,7 +73,7 @@ func main() {
 				Usage: "show version info.",
 				Action: func(c *cli.Context) error {
 					setLogLevel(c)
-					log.Printf("[info] sffle version     : %s", Version)
+					log.Printf("[info] stefunny version     : %s", Version)
 					log.Printf("[info] go runtime version: %s", runtime.Version())
 					return nil
 				},
@@ -97,15 +97,15 @@ func setLogLevel(c *cli.Context) {
 	log.Println("[debug] Setting log level to", level)
 }
 
-func createApp(c *cli.Context) (*sffle.App, error) {
-	cfg := sffle.NewDefaultConfig()
+func createApp(c *cli.Context) (*stefunny.App, error) {
+	cfg := stefunny.NewDefaultConfig()
 	if err := cfg.Load(c.String("config")); err != nil {
 		return nil, err
 	}
 	if err := cfg.ValidateVersion(Version); err != nil {
 		os.Exit(1)
 	}
-	return sffle.New(context.Background(), cfg)
+	return stefunny.New(context.Background(), cfg)
 }
 
 func deply(c *cli.Context) error {
@@ -119,7 +119,7 @@ func deply(c *cli.Context) error {
 
 	return app.Deploy(
 		ctx,
-		sffle.DeployOption{
+		stefunny.DeployOption{
 			DryRun: c.Bool("dry-run"),
 		},
 	)
@@ -134,7 +134,7 @@ func render(c *cli.Context) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
 	defer cancel()
 	args := c.Args()
-	opt := sffle.RenderOption{
+	opt := stefunny.RenderOption{
 		Writer: os.Stdin,
 	}
 	if args.Len() > 0 {

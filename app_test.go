@@ -1,4 +1,4 @@
-package sffle_test
+package stefunny_test
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mashiike/sffle"
+	"github.com/mashiike/stefunny"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,14 +35,14 @@ func TestAppRender(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			cfg := sffle.NewDefaultConfig()
+			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.NoError(t, err)
 			ctx := context.Background()
-			app, err := sffle.New(ctx, cfg)
+			app, err := stefunny.New(ctx, cfg)
 			require.NoError(t, err)
 			var buf bytes.Buffer
-			app.Render(ctx, sffle.RenderOption{
+			app.Render(ctx, stefunny.RenderOption{
 				Writer: &buf,
 			})
 			require.ElementsMatch(t, strings.Split(c.expected, "\n"), strings.Split(buf.String(), "\n"))

@@ -1,4 +1,4 @@
-package sffle
+package stefunny
 
 import "io"
 

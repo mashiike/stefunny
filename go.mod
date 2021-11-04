@@ -1,4 +1,4 @@
-module github.com/mashiike/sffle
+module github.com/mashiike/stefunny
 
 go 1.17
 

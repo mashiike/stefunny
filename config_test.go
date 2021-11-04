@@ -1,10 +1,10 @@
-package sffle_test
+package stefunny_test
 
 import (
 	"testing"
 
 	gc "github.com/kayac/go-config"
-	"github.com/mashiike/sffle"
+	"github.com/mashiike/stefunny"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,7 +38,7 @@ func TestConfigLoadValid(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			cfg := sffle.NewDefaultConfig()
+			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.NoError(t, err)
 			def, err := cfg.LoadDefinition()
@@ -73,7 +73,7 @@ func TestConfigLoadInValid(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			cfg := sffle.NewDefaultConfig()
+			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.Error(t, err)
 			if c.expected != "" {
