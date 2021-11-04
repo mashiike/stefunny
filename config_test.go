@@ -3,8 +3,8 @@ package stefunny_test
 import (
 	"testing"
 
-	gc "github.com/kayac/go-config"
 	"github.com/mashiike/stefunny"
+	"github.com/mashiike/stefunny/internal/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,26 +13,33 @@ func TestConfigLoadValid(t *testing.T) {
 		casename    string
 		path        string
 		expectedDef string
+		isYaml      bool
 	}{
 		{
 			casename:    "default_config",
 			path:        "testdata/default.yaml",
-			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "jsonnet_config",
 			path:        "testdata/jsonnet.yaml",
-			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "log_level_off",
 			path:        "testdata/logging_off.yaml",
-			expectedDef: loadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "tfstate_read",
 			path:        "testdata/tfstate.yaml",
-			expectedDef: loadString(t, "testdata/tfstate.asl.json"),
+			expectedDef: testutils.LoadString(t, "testdata/tfstate.asl.json"),
+		},
+		{
+			casename:    "yaml",
+			path:        "testdata/yaml_def.yaml",
+			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
+			isYaml:      true,
 		},
 	}
 
@@ -43,6 +50,9 @@ func TestConfigLoadValid(t *testing.T) {
 			require.NoError(t, err)
 			def, err := cfg.LoadDefinition()
 			require.NoError(t, err)
+			if c.isYaml {
+				def = testutils.Yaml2Json(t, def)
+			}
 			require.JSONEq(t, c.expectedDef, def)
 		})
 	}
@@ -82,13 +92,4 @@ func TestConfigLoadInValid(t *testing.T) {
 		})
 	}
 
-}
-
-func loadString(t *testing.T, path string) string {
-	t.Helper()
-	bs, err := gc.ReadWithEnv(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(bs)
 }

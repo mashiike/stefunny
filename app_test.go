@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
+	"github.com/mashiike/stefunny/internal/testutils"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,17 +20,17 @@ func TestAppRender(t *testing.T) {
 		{
 			casename: "default_config",
 			path:     "testdata/default.yaml",
-			expected: loadString(t, "testdata/hello_world.dot"),
+			expected: testutils.LoadString(t, "testdata/hello_world.dot"),
 		},
 		{
 			casename: "jsonnet_config",
 			path:     "testdata/jsonnet.yaml",
-			expected: loadString(t, "testdata/hello_world.dot"),
+			expected: testutils.LoadString(t, "testdata/hello_world.dot"),
 		},
 		{
 			casename: "full_def",
 			path:     "testdata/full_def.yaml",
-			expected: loadString(t, "testdata/workflow1.dot"),
+			expected: testutils.LoadString(t, "testdata/workflow1.dot"),
 		},
 	}
 
