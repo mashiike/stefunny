@@ -1,10 +1,13 @@
-package testutils
+package testutil
 
 import (
+	"bytes"
 	"encoding/json"
+	"os"
 	"testing"
 
 	gc "github.com/kayac/go-config"
+	"github.com/mashiike/stefunny/internal/logger"
 	"gopkg.in/yaml.v3"
 )
 
@@ -28,4 +31,13 @@ func Yaml2Json(t *testing.T, str string) string {
 		t.Fatal(err)
 	}
 	return string(bs)
+}
+
+func LoggerSetup(t *testing.T, minLevel string) func() {
+	var buf bytes.Buffer
+	logger.Setup(&buf, minLevel)
+	return func() {
+		logger.Setup(os.Stderr, minLevel)
+		t.Log(buf.String())
+	}
 }

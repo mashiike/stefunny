@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutils"
+	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,40 +18,41 @@ func TestConfigLoadValid(t *testing.T) {
 		{
 			casename:    "default_config",
 			path:        "testdata/default.yaml",
-			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "jsonnet_config",
 			path:        "testdata/jsonnet.yaml",
-			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "log_level_off",
 			path:        "testdata/logging_off.yaml",
-			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "tfstate_read",
 			path:        "testdata/tfstate.yaml",
-			expectedDef: testutils.LoadString(t, "testdata/tfstate.asl.json"),
+			expectedDef: testutil.LoadString(t, "testdata/tfstate.asl.json"),
 		},
 		{
 			casename:    "yaml",
 			path:        "testdata/yaml_def.yaml",
-			expectedDef: testutils.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
 			isYaml:      true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
+			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.NoError(t, err)
 			def, err := cfg.LoadDefinition()
 			require.NoError(t, err)
 			if c.isYaml {
-				def = testutils.Yaml2Json(t, def)
+				def = testutil.Yaml2Json(t, def)
 			}
 			require.JSONEq(t, c.expectedDef, def)
 		})
@@ -83,6 +84,7 @@ func TestConfigLoadInValid(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
+			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.Error(t, err)

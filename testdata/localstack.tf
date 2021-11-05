@@ -1,6 +1,6 @@
 provider "aws" {
-  region     = "ap-northeast-1"
-  access_key = "mock_access_key"
+  region                      = "ap-northeast-1"
+  access_key                  = "mock_access_key"
   s3_force_path_style         = true
   secret_key                  = "mock_secret_key"
   skip_credentials_validation = true
@@ -11,6 +11,7 @@ provider "aws" {
     apigateway     = "http://localhost:4566"
     cloudformation = "http://localhost:4566"
     cloudwatch     = "http://localhost:4566"
+    cloudwatchlogs = "http://localhost:4566"
     dynamodb       = "http://localhost:4566"
     es             = "http://localhost:4566"
     firehose       = "http://localhost:4566"
@@ -25,7 +26,7 @@ provider "aws" {
     sns            = "http://localhost:4566"
     sqs            = "http://localhost:4566"
     ssm            = "http://localhost:4566"
-    stepfunctions  = "http://localhost:4566"
+    stepfunctions  = "http://localhost:8083"
     sts            = "http://localhost:4566"
   }
 }
@@ -51,4 +52,8 @@ resource "aws_s3_bucket" "hoge" {
   bucket        = "test-hoge"
   acl           = "private"
   force_destroy = false
+}
+
+resource "aws_cloudwatch_log_group" "test" {
+  name = "test"
 }

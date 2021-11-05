@@ -56,21 +56,22 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		}
 		input.RoleArn = &app.cfg.StateMachine.RoleArn
 	}
+
+	newLogging, err := app.LoadLoggingConfiguration(ctx)
+	if err != nil {
+		return err
+	}
 	logging := stateMachine.LoggingConfiguration
-	if logging.Level != app.cfg.StateMachine.Logging.logLevel {
-		if opt.DryRun {
+	if opt.DryRun {
+		if logging.Level != newLogging.Level {
 			log.Printf(
 				"[notice] change state machine log level `%s`\n\n%s\n%s\n",
 				opt.DryRunString(),
 				color.RedString("-log_level:%s", logging.Level),
-				color.GreenString("+log_level:%s", app.cfg.StateMachine.Logging.logLevel),
+				color.GreenString("+log_level:%s", newLogging.Level),
 			)
 		}
-		logging.Level = app.cfg.StateMachine.Logging.logLevel
-	}
-
-	if logging.IncludeExecutionData != *app.cfg.StateMachine.Logging.IncludeExecutionData {
-		if opt.DryRun {
+		if logging.IncludeExecutionData != *app.cfg.StateMachine.Logging.IncludeExecutionData {
 			log.Printf(
 				"[notice] change state machine loogging.include_exection_data `%s`\n\n%s\n%s\n",
 				opt.DryRunString(),
@@ -78,29 +79,24 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 				color.GreenString("+include_exection_data:%v", *app.cfg.StateMachine.Logging.IncludeExecutionData),
 			)
 		}
-		logging.IncludeExecutionData = *app.cfg.StateMachine.Logging.IncludeExecutionData
-	}
-	if app.cfg.StateMachine.Logging.Destination != nil {
-		logGroupArn, err := app.cwlogs.GetLogGroupArn(ctx, app.cfg.StateMachine.Logging.Destination.LogGroup)
-		if err != nil {
-			return fmt.Errorf("failed to get log group arn: %w", err)
-		}
-		if len(logging.Destinations) != 0 {
-			nowLogGroupArn := *logging.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn
-			if nowLogGroupArn != logGroupArn {
-				if opt.DryRun {
-					log.Printf(
-						"[notice] change state machine loogging.log_group `%s`\n\n%s\n%s\n",
-						opt.DryRunString(),
-						color.RedString("-log_group:%s", nowLogGroupArn),
-						color.GreenString("+log_group:%s", logGroupArn),
-					)
-				}
-				logging.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn = &logGroupArn
+		var changeDestinations bool
+		if len(logging.Destinations) != len(newLogging.Destinations) {
+			changeDestinations = true
+		} else if len(logging.Destinations) != 0 {
+			if *logging.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn != *newLogging.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn {
+				changeDestinations = true
 			}
 		}
+		if changeDestinations {
+			log.Printf(
+				"[notice] change state machine loogging.destinations `%s`\n\n%s\n%s\n",
+				opt.DryRunString(),
+				color.RedString("-destinations:%#v", marshalJSONString(logging.Destinations)),
+				color.GreenString("+destinations:%#v", marshalJSONString(newLogging.Destinations)),
+			)
+		}
 	}
-	input.LoggingConfiguration = logging
+	input.LoggingConfiguration = newLogging
 	tracing := stateMachine.TracingConfiguration
 	if tracing.Enabled != *app.cfg.StateMachine.Tracing.Enabled {
 		if opt.DryRun {

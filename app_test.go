@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutils"
+	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,22 +20,23 @@ func TestAppRender(t *testing.T) {
 		{
 			casename: "default_config",
 			path:     "testdata/default.yaml",
-			expected: testutils.LoadString(t, "testdata/hello_world.dot"),
+			expected: testutil.LoadString(t, "testdata/hello_world.dot"),
 		},
 		{
 			casename: "jsonnet_config",
 			path:     "testdata/jsonnet.yaml",
-			expected: testutils.LoadString(t, "testdata/hello_world.dot"),
+			expected: testutil.LoadString(t, "testdata/hello_world.dot"),
 		},
 		{
 			casename: "full_def",
 			path:     "testdata/full_def.yaml",
-			expected: testutils.LoadString(t, "testdata/workflow1.dot"),
+			expected: testutil.LoadString(t, "testdata/workflow1.dot"),
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
+			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.NoError(t, err)

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny/asl"
-	"github.com/mashiike/stefunny/internal/testutils"
+	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,7 +130,7 @@ func TestParse(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.path, func(t *testing.T) {
-			stateMachine, err := asl.Parse(testutils.LoadString(t, c.path))
+			stateMachine, err := asl.Parse(testutil.LoadString(t, c.path))
 			require.NoError(t, err)
 			require.EqualValues(t, c.expected, stateMachine)
 		})

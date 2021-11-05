@@ -9,7 +9,10 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/fujiwara/tfstate-lookup/tfstate"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
@@ -22,7 +25,8 @@ type Config struct {
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
 
-	TFState string `yaml:"tfstate,omitempty"`
+	TFState   string           `yaml:"tfstate,omitempty"`
+	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
 
 	//private field
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
@@ -54,6 +58,12 @@ type StateMachineLoggingDestinationConfig struct {
 
 type StateMachineTracingConfig struct {
 	Enabled *bool `yaml:"enabled,omitempty"`
+}
+
+type EndpointsConfig struct {
+	StepFunctions  string `yaml:"stepfunctions,omitempty"`
+	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty"`
+	STS            string `yaml:"sts,omitempty"`
 }
 
 func (cfg *Config) Load(path string) error {
@@ -256,6 +266,12 @@ func (cfg *Config) LoadDefinition() (string, error) {
 	return string(bs), err
 }
 
+func (cfg *StateMachineConfig) LoadTracingConfiguration() *sfntypes.TracingConfiguration {
+	return &sfntypes.TracingConfiguration{
+		Enabled: *cfg.Tracing.Enabled,
+	}
+}
+
 func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 	switch filepath.Ext(path) {
 	case ".jsonnet":
@@ -266,4 +282,43 @@ func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 		return cfg.loader.ReadWithEnvBytes([]byte(jsonStr))
 	}
 	return cfg.loader.ReadWithEnv(path)
+}
+
+func (cfg *Config) EndpointResolver() (aws.EndpointResolver, bool) {
+	if cfg.Endpoints == nil {
+		return nil, false
+	}
+	return aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+		if cfg.AWSRegion != region {
+			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+		}
+		switch service {
+		case sfn.ServiceID:
+			if cfg.Endpoints.StepFunctions != "" {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           cfg.Endpoints.StepFunctions,
+					SigningRegion: cfg.AWSRegion,
+				}, nil
+			}
+		case cloudwatchlogs.ServiceID:
+			if cfg.Endpoints.StepFunctions != "" {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           cfg.Endpoints.CloudWatchLogs,
+					SigningRegion: cfg.AWSRegion,
+				}, nil
+			}
+		case sts.ServiceID:
+			if cfg.Endpoints.StepFunctions != "" {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           cfg.Endpoints.STS,
+					SigningRegion: cfg.AWSRegion,
+				}, nil
+			}
+		}
+		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+
+	}), true
 }
