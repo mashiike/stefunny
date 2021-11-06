@@ -15,6 +15,18 @@ func (opt CreateOption) DryRunString() string {
 	return ""
 }
 
+type DeleteOption struct {
+	DryRun bool
+	Force  bool
+}
+
+func (opt DeleteOption) DryRunString() string {
+	if opt.DryRun {
+		return dryRunStr
+	}
+	return ""
+}
+
 type DeployOption struct {
 	DryRun bool
 }

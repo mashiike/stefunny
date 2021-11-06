@@ -2,10 +2,13 @@ package stefunny
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/Cside/jsondiff"
+	"github.com/Songmu/prompter"
 	"github.com/fatih/color"
 )
 
@@ -78,4 +81,20 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 		}
 	}
 	return v
+}
+
+func prompt(ctx context.Context, msg string, defaultInput string) (string, error) {
+	var input string
+	ch := make(chan struct{})
+	go func() {
+		input = prompter.Prompt(msg, defaultInput)
+		close(ch)
+	}()
+	select {
+	case <-ctx.Done():
+		fmt.Print("\n")
+		return defaultInput, ctx.Err()
+	case <-ch:
+		return input, nil
+	}
 }

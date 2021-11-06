@@ -1,0 +1,10 @@
+required_version: ">v0.0.0"
+
+state_machine:
+  name: Deleting
+  definition: hello_world.asl.json
+  role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
+  logging:
+    level: ALL
+    destination:
+      log_group: /steps/hello

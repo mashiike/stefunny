@@ -28,14 +28,22 @@ func New(ctx context.Context, cfg *Config) (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewWithClient(cfg, sfn.NewFromConfig(awsCfg), cloudwatchlogs.NewFromConfig(awsCfg))
+	return NewWithClient(cfg, AWSClients{
+		SFnClient:    sfn.NewFromConfig(awsCfg),
+		CWLogsClient: cloudwatchlogs.NewFromConfig(awsCfg),
+	})
 }
 
-func NewWithClient(cfg *Config, sfnClient SFnClient, logsClient CWLogsClient) (*App, error) {
+type AWSClients struct {
+	SFnClient
+	CWLogsClient
+}
+
+func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 	return &App{
 		cfg:    cfg,
-		sfn:    NewSFnService(sfnClient),
-		cwlogs: NewCWLogsService(logsClient),
+		sfn:    NewSFnService(clients.SFnClient),
+		cwlogs: NewCWLogsService(clients.CWLogsClient),
 	}, nil
 }
 

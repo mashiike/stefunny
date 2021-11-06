@@ -55,6 +55,26 @@ func main() {
 				},
 			},
 			{
+				Name:  "delete",
+				Usage: "delete StepFunctions StateMachine.",
+				Action: func(c *cli.Context) error {
+					return app.Delete(c.Context, stefunny.DeleteOption{
+						DryRun: c.Bool("dry-run"),
+						Force:  c.Bool("force"),
+					})
+				},
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "dry-run",
+						Usage: "dry run",
+					},
+					&cli.BoolFlag{
+						Name:  "force",
+						Usage: "delete without confirmation",
+					},
+				},
+			},
+			{
 				Name:  "deploy",
 				Usage: "deploy StepFunctions StateMachine.",
 				Action: func(c *cli.Context) error {
