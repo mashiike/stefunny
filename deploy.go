@@ -17,6 +17,9 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	if err := app.deployStateMachine(ctx, opt); err != nil {
 		return err
 	}
+	if err := app.putSchedule(ctx, opt.DryRun); err != nil {
+		return err
+	}
 	log.Println("[info] finish deploy", opt.DryRunString())
 	return nil
 }

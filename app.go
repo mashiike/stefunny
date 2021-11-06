@@ -3,12 +3,17 @@ package stefunny
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/fatih/color"
 	"github.com/mashiike/stefunny/asl"
 )
 
@@ -88,4 +93,63 @@ func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.Logging
 		},
 	}
 	return ret, nil
+}
+
+func (app *App) putSchedule(ctx context.Context, dryRun bool) error {
+	if app.cfg.Schedule == nil {
+		log.Println("[debug] schedule is not set")
+		return nil
+	}
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	if err != nil {
+		return err
+	}
+	ruleName := getScheduleRuleName(app.cfg.StateMachine.Name)
+	putRuleInput := &eventbridge.PutRuleInput{
+		Name:               &ruleName,
+		Description:        aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn)),
+		ScheduleExpression: &app.cfg.Schedule.Expression,
+		Tags: []eventbridgetypes.Tag{
+			{
+				Key:   aws.String(tagManagedBy),
+				Value: aws.String(appName),
+			},
+		},
+	}
+	if output, err := app.aws.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}); err == nil {
+		if dryRun {
+			var builder strings.Builder
+			builder.WriteString(colorRestString(" {\n"))
+			fmt.Fprintf(&builder, `   "Name":"%s",`+"\n", ruleName)
+			if *putRuleInput.Description == *output.Description {
+				fmt.Fprintf(&builder, `   "Description":"%s",`+"\n", *putRuleInput.Description)
+			} else {
+				fmt.Fprint(&builder, color.RedString(`-  "Description":"%s",`+"\n", *output.Description))
+				fmt.Fprint(&builder, color.GreenString(`+  "Description":"%s,"`+"\n", *putRuleInput.Description))
+			}
+			if *putRuleInput.ScheduleExpression == *output.ScheduleExpression {
+				fmt.Fprintf(&builder, `   "ScheduleExpression":"%s",`+"\n", *putRuleInput.ScheduleExpression)
+			} else {
+				fmt.Fprint(&builder, color.RedString(`-  "ScheduleExpression":"%s",`+"\n", *output.ScheduleExpression))
+				fmt.Fprint(&builder, color.GreenString(`+  "ScheduleExpression":"%s",`+"\n", *putRuleInput.ScheduleExpression))
+			}
+			fmt.Fprintf(&builder, `   "State":"%s",`+"\n", output.State)
+			fmt.Fprint(&builder, ` }`)
+
+			log.Printf("[notice] update event bridge rule %s\n %s", dryRunStr, builder.String())
+		} else {
+			putRuleInput.State = output.State
+		}
+	} else {
+		putRuleInput.State = eventbridgetypes.RuleStateEnabled
+	}
+	if dryRun {
+		return nil
+	}
+	output, err := app.aws.PutRule(ctx, putRuleInput)
+	if err != nil {
+		return err
+	}
+	log.Printf("[notice] update event bridge rule arn `%s`", *output.RuleArn)
+	return nil
 }
