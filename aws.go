@@ -19,44 +19,34 @@ type SFnClient interface {
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
 
-type SFnService struct {
-	SFnClient
-	cacheArnByName map[string]string
-}
-
 type CWLogsClient interface {
 	cloudwatchlogs.DescribeLogGroupsAPIClient
 }
-
-type CWLogsService struct {
-	CWLogsClient
-	cacheArnByGroupName map[string]string
-}
-
 type EventBridgeClient interface {
 	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
 }
 
-type EventBridgeService struct {
+type AWSClients struct {
+	SFnClient
+	CWLogsClient
 	EventBridgeClient
 }
-
-func NewSFnService(client SFnClient) *SFnService {
-	return &SFnService{
-		SFnClient:      client,
-		cacheArnByName: make(map[string]string),
-	}
+type AWSService struct {
+	SFnClient
+	CWLogsClient
+	EventBridgeClient
+	cacheArnByGroupName        map[string]string
+	cacheStateMachineArnByName map[string]string
 }
-func NewCWLogsService(client CWLogsClient) *CWLogsService {
-	return &CWLogsService{
-		CWLogsClient:        client,
+
+func NewAWSService(clients AWSClients) *AWSService {
+	return &AWSService{
+		SFnClient:           clients.SFnClient,
+		CWLogsClient:        clients.CWLogsClient,
+		EventBridgeClient:   clients.EventBridgeClient,
 		cacheArnByGroupName: make(map[string]string),
-	}
-}
 
-func NewEventBridgeService(client EventBridgeClient) *EventBridgeService {
-	return &EventBridgeService{
-		EventBridgeClient: client,
+		cacheStateMachineArnByName: make(map[string]string),
 	}
 }
 
@@ -65,7 +55,7 @@ var (
 	ErrLogGroupNotFound     = errors.New("log group not found")
 )
 
-func (svc *SFnService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
+func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
 	arn, err := svc.GetStateMachineArn(ctx, name, optFns...)
 	if err != nil {
 		return nil, err
@@ -75,8 +65,8 @@ func (svc *SFnService) DescribeStateMachine(ctx context.Context, name string, op
 	}, optFns...)
 }
 
-func (svc *SFnService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
-	if arn, ok := svc.cacheArnByName[name]; ok {
+func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
+	if arn, ok := svc.cacheStateMachineArnByName[name]; ok {
 		return arn, nil
 	}
 	p := sfn.NewListStateMachinesPaginator(svc.SFnClient, &sfn.ListStateMachinesInput{
@@ -89,15 +79,15 @@ func (svc *SFnService) GetStateMachineArn(ctx context.Context, name string, optF
 		}
 		for _, m := range output.StateMachines {
 			if *m.Name == name {
-				svc.cacheArnByName[name] = *m.StateMachineArn
-				return svc.cacheArnByName[name], nil
+				svc.cacheStateMachineArnByName[name] = *m.StateMachineArn
+				return svc.cacheStateMachineArnByName[name], nil
 			}
 		}
 	}
 	return "", ErrStateMachineNotFound
 }
 
-func (svc *CWLogsService) GetLogGroupArn(ctx context.Context, name string, optFns ...func(*cloudwatchlogs.Options)) (string, error) {
+func (svc *AWSService) GetLogGroupArn(ctx context.Context, name string, optFns ...func(*cloudwatchlogs.Options)) (string, error) {
 	if arn, ok := svc.cacheArnByGroupName[name]; ok {
 		return arn, nil
 	}

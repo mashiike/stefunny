@@ -18,10 +18,8 @@ const (
 )
 
 type App struct {
-	cfg         *Config
-	sfn         *SFnService
-	cwlogs      *CWLogsService
-	eventbridge *EventBridgeService
+	cfg *Config
+	aws *AWSService
 }
 
 func New(ctx context.Context, cfg *Config) (*App, error) {
@@ -42,18 +40,10 @@ func New(ctx context.Context, cfg *Config) (*App, error) {
 	})
 }
 
-type AWSClients struct {
-	SFnClient
-	CWLogsClient
-	EventBridgeClient
-}
-
 func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 	return &App{
-		cfg:         cfg,
-		sfn:         NewSFnService(clients.SFnClient),
-		cwlogs:      NewCWLogsService(clients.CWLogsClient),
-		eventbridge: NewEventBridgeService(clients.EventBridgeClient),
+		cfg: cfg,
+		aws: NewAWSService(clients),
 	}, nil
 }
 
@@ -86,7 +76,7 @@ func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.Logging
 		return ret, nil
 	}
 	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
-	arn, err := app.cwlogs.GetLogGroupArn(ctx, cfg.Logging.Destination.LogGroup)
+	arn, err := app.aws.GetLogGroupArn(ctx, cfg.Logging.Destination.LogGroup)
 	if err != nil {
 		return nil, fmt.Errorf("get log group arn: %w", err)
 	}

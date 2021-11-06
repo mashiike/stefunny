@@ -13,7 +13,7 @@ import (
 
 func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
-	stateMachine, err := app.sfn.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
@@ -36,7 +36,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 			return errors.New("confirmation failed")
 		}
 	}
-	_, err = app.sfn.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
+	_, err = app.aws.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 	})
 	if err != nil {

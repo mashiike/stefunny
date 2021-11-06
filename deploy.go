@@ -26,7 +26,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return fmt.Errorf("can not load state machine definition: %w", err)
 	}
-	stateMachine, err := app.sfn.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
@@ -119,13 +119,13 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if opt.DryRun {
 		return nil
 	}
-	output, err := app.sfn.UpdateStateMachine(ctx, input)
+	output, err := app.aws.UpdateStateMachine(ctx, input)
 	if err != nil {
 		return err
 	}
 	log.Printf("[info] updated state machine `%s`(at `%s`)\n", app.cfg.StateMachine.Name, *output.UpdateDate)
 
-	_, err = app.sfn.TagResource(ctx, &sfn.TagResourceInput{
+	_, err = app.aws.TagResource(ctx, &sfn.TagResourceInput{
 		ResourceArn: stateMachine.StateMachineArn,
 		Tags: []sfntypes.Tag{
 			{

@@ -54,7 +54,7 @@ func (app *App) createStateMachine(ctx context.Context, opt CreateOption) error 
 	}
 
 	input.Definition = &definition
-	output, err := app.sfn.CreateStateMachine(ctx, input)
+	output, err := app.aws.CreateStateMachine(ctx, input)
 	if err != nil {
 		return fmt.Errorf("create failed: %w", err)
 	}
@@ -66,12 +66,13 @@ func (app *App) createStateMachine(ctx context.Context, opt CreateOption) error 
 func (app *App) createSchedule(ctx context.Context, opt CreateOption) error {
 	if app.cfg.Schedule == nil {
 		log.Println("[debug] schedule is not set")
+		return nil
 	}
-	stateMachineArn, err := app.sfn.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
 		return err
 	}
-	output, err := app.eventbridge.PutRule(ctx, &eventbridge.PutRuleInput{
+	output, err := app.aws.PutRule(ctx, &eventbridge.PutRuleInput{
 		Name:               aws.String(getScheduleRuleName(app.cfg.StateMachine.Name)),
 		Description:        aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn)),
 		ScheduleExpression: &app.cfg.Schedule.Expression,
