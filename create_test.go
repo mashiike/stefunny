@@ -4,33 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	logstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
-	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCreate(t *testing.T) {
-	client := &mockAWSClient{
-		CreateStateMachineFunc: func(_ context.Context, _ *sfn.CreateStateMachineInput, _ ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
-			return &sfn.CreateStateMachineOutput{
-				StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-			}, nil
-		},
-		DescribeLogGroupsFunc: func(_ context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-			return &cloudwatchlogs.DescribeLogGroupsOutput{
-				LogGroups: []logstypes.LogGroup{
-					{
-						LogGroupName: params.LogGroupNamePrefix,
-						Arn:          aws.String("arn:aws:logs:us-east-1:123456789012:log-group:" + *params.LogGroupNamePrefix),
-					},
-				},
-			}, nil
-		},
-	}
+	client := getDefaultMock()
 	cases := []struct {
 		casename          string
 		path              string

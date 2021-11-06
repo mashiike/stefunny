@@ -2,13 +2,8 @@ package stefunny_test
 
 import (
 	"context"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/service/sfn"
-	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
@@ -16,36 +11,7 @@ import (
 
 func TestDelete(t *testing.T) {
 
-	client := &mockAWSClient{
-		ListStateMachinesFunc: func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error) {
-			return &sfn.ListStateMachinesOutput{
-				StateMachines: []sfntypes.StateMachineListItem{
-					{
-						Name:            aws.String("Hello"),
-						StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-					},
-					{
-						Name:            aws.String("Deleting"),
-						StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Deleting"),
-					},
-				},
-			}, nil
-		},
-		DescribeStateMachineFunc: func(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
-			status := sfntypes.StateMachineStatusActive
-			if strings.HasSuffix(*params.StateMachineArn, "Deleting") {
-				status = sfntypes.StateMachineStatusDeleting
-			}
-			return &sfn.DescribeStateMachineOutput{
-				CreationDate:    aws.Time(time.Now()),
-				StateMachineArn: params.StateMachineArn,
-				Status:          status,
-			}, nil
-		},
-		DeleteStateMachineFunc: func(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error) {
-			return &sfn.DeleteStateMachineOutput{}, nil
-		},
-	}
+	client := getDefaultMock()
 	cases := []struct {
 		casename          string
 		path              string
