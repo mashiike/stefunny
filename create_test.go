@@ -10,7 +10,7 @@ import (
 )
 
 func TestCreate(t *testing.T) {
-	client := getDefaultMock()
+	client := getDefaultMock(t)
 	cases := []struct {
 		casename          string
 		path              string

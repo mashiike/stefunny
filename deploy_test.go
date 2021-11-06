@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDelete(t *testing.T) {
+func TestDeploy(t *testing.T) {
 
 	client := getDefaultMock(t)
 	cases := []struct {
@@ -25,7 +25,8 @@ func TestDelete(t *testing.T) {
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:    1,
 				DescribeStateMachine: 1,
-				DeleteStateMachine:   0,
+				DescribeLogGroups:    1,
+				UpdateStateMachine:   0,
 			},
 		},
 		{
@@ -35,17 +36,8 @@ func TestDelete(t *testing.T) {
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:    1,
 				DescribeStateMachine: 1,
-				DeleteStateMachine:   1,
-			},
-		},
-		{
-			casename: "deleting",
-			path:     "testdata/deleting.yaml",
-			DryRun:   false,
-			expectedCallCount: mockClientCallCount{
-				ListStateMachines:    1,
-				DescribeStateMachine: 1,
-				DeleteStateMachine:   0,
+				DescribeLogGroups:    1,
+				UpdateStateMachine:   1,
 			},
 		},
 	}
@@ -63,9 +55,8 @@ func TestDelete(t *testing.T) {
 				SFnClient:    client,
 			})
 			require.NoError(t, err)
-			err = app.Delete(context.Background(), stefunny.DeleteOption{
+			err = app.Deploy(context.Background(), stefunny.DeployOption{
 				DryRun: c.DryRun,
-				Force:  true,
 			})
 			require.NoError(t, err)
 			require.EqualValues(t, c.expectedCallCount, client.CallCount)

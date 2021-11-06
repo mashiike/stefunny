@@ -28,7 +28,6 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
-	log.Println("[notice]", *stateMachine.LoggingConfiguration.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn)
 	if stateMachine.Type != app.cfg.StateMachine.stateMachineType {
 		return errors.New("state machine type is not match. replace state machine deploy not implemented")
 	}
