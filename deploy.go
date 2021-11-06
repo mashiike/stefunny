@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/fatih/color"
 )
 
@@ -97,6 +99,11 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	}
 	input.LoggingConfiguration = newLogging
 	tracing := stateMachine.TracingConfiguration
+	if tracing == nil {
+		tracing = &sfntypes.TracingConfiguration{
+			Enabled: false,
+		}
+	}
 	if tracing.Enabled != *app.cfg.StateMachine.Tracing.Enabled {
 		if opt.DryRun {
 			log.Printf(
@@ -117,5 +124,18 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		return err
 	}
 	log.Printf("[info] updated state machine `%s`(at `%s`)\n", app.cfg.StateMachine.Name, *output.UpdateDate)
+
+	_, err = app.sfn.TagResource(ctx, &sfn.TagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		Tags: []sfntypes.Tag{
+			{
+				Key:   aws.String(tagManagedBy),
+				Value: aws.String(appName),
+			},
+		},
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }

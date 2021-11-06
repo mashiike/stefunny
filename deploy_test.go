@@ -27,6 +27,7 @@ func TestDeploy(t *testing.T) {
 				DescribeStateMachine: 1,
 				DescribeLogGroups:    1,
 				UpdateStateMachine:   0,
+				TagResource:          0,
 			},
 		},
 		{
@@ -38,6 +39,7 @@ func TestDeploy(t *testing.T) {
 				DescribeStateMachine: 1,
 				DescribeLogGroups:    1,
 				UpdateStateMachine:   1,
+				TagResource:          1,
 			},
 		},
 	}

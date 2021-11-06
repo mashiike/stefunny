@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 )
 
 func (app *App) Create(ctx context.Context, opt CreateOption) error {
@@ -32,6 +34,12 @@ func (app *App) createStateMachine(ctx context.Context, opt CreateOption) error 
 		RoleArn:              &app.cfg.StateMachine.RoleArn,
 		LoggingConfiguration: logging,
 		TracingConfiguration: app.cfg.StateMachine.LoadTracingConfiguration(),
+		Tags: []sfntypes.Tag{
+			{
+				Key:   aws.String("ManagedBy"),
+				Value: aws.String(appName),
+			},
+		},
 	}
 	if opt.DryRun {
 		log.Printf("[notice] create parameters %s\n%s", opt.DryRunString(), colorRestString(marshalJSONString(input)))

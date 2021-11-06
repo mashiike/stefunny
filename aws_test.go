@@ -25,6 +25,7 @@ type mockAWSClient struct {
 	DeleteStateMachineFunc   func(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
 	ListStateMachinesFunc    func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error)
 	UpdateStateMachineFunc   func(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
+	TagResourceFunc          func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 
 	stefunny.CWLogsClient
 	DescribeLogGroupsFunc func(context.Context, *cloudwatchlogs.DescribeLogGroupsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
@@ -37,6 +38,7 @@ type mockClientCallCount struct {
 	DescribeLogGroups    int
 	ListStateMachines    int
 	UpdateStateMachine   int
+	TagResource          int
 }
 
 func (m *mockClientCallCount) Reset() {
@@ -46,6 +48,7 @@ func (m *mockClientCallCount) Reset() {
 	m.DescribeLogGroups = 0
 	m.ListStateMachines = 0
 	m.UpdateStateMachine = 0
+	m.TagResource = 0
 }
 
 func (m *mockAWSClient) CreateStateMachine(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
@@ -94,6 +97,14 @@ func (m *mockAWSClient) DescribeLogGroups(ctx context.Context, params *cloudwatc
 		return nil, errors.New("unexpected Call DescribeLogGroups")
 	}
 	return m.DescribeLogGroupsFunc(ctx, params, optFns...)
+}
+
+func (m *mockAWSClient) TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
+	m.CallCount.TagResource++
+	if m.TagResourceFunc == nil {
+		return nil, errors.New("unexpected Call TagResource")
+	}
+	return m.TagResourceFunc(ctx, params, optFns...)
 }
 
 func getDefaultMock(t *testing.T) *mockAWSClient {
@@ -150,6 +161,9 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 			return &sfn.UpdateStateMachineOutput{
 				UpdateDate: aws.Time(time.Now()),
 			}, nil
+		},
+		TagResourceFunc: func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
+			return &sfn.TagResourceOutput{}, nil
 		},
 	}
 	return client

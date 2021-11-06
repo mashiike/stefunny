@@ -11,6 +11,11 @@ import (
 	"github.com/mashiike/stefunny/asl"
 )
 
+const (
+	tagManagedBy = "ManagedBy"
+	appName      = "stefunny"
+)
+
 type App struct {
 	cfg    *Config
 	sfn    *SFnService
