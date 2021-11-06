@@ -6,6 +6,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 )
 
@@ -32,6 +33,14 @@ type CWLogsService struct {
 	cacheArnByGroupName map[string]string
 }
 
+type EventBridgeClient interface {
+	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
+}
+
+type EventBridgeService struct {
+	EventBridgeClient
+}
+
 func NewSFnService(client SFnClient) *SFnService {
 	return &SFnService{
 		SFnClient:      client,
@@ -42,6 +51,12 @@ func NewCWLogsService(client CWLogsClient) *CWLogsService {
 	return &CWLogsService{
 		CWLogsClient:        client,
 		cacheArnByGroupName: make(map[string]string),
+	}
+}
+
+func NewEventBridgeService(client EventBridgeClient) *EventBridgeService {
+	return &EventBridgeService{
+		EventBridgeClient: client,
 	}
 }
 

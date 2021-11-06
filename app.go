@@ -6,6 +6,7 @@ import (
 
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny/asl"
@@ -17,9 +18,10 @@ const (
 )
 
 type App struct {
-	cfg    *Config
-	sfn    *SFnService
-	cwlogs *CWLogsService
+	cfg         *Config
+	sfn         *SFnService
+	cwlogs      *CWLogsService
+	eventbridge *EventBridgeService
 }
 
 func New(ctx context.Context, cfg *Config) (*App, error) {
@@ -34,21 +36,24 @@ func New(ctx context.Context, cfg *Config) (*App, error) {
 		return nil, err
 	}
 	return NewWithClient(cfg, AWSClients{
-		SFnClient:    sfn.NewFromConfig(awsCfg),
-		CWLogsClient: cloudwatchlogs.NewFromConfig(awsCfg),
+		SFnClient:         sfn.NewFromConfig(awsCfg),
+		CWLogsClient:      cloudwatchlogs.NewFromConfig(awsCfg),
+		EventBridgeClient: eventbridge.NewFromConfig(awsCfg),
 	})
 }
 
 type AWSClients struct {
 	SFnClient
 	CWLogsClient
+	EventBridgeClient
 }
 
 func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 	return &App{
-		cfg:    cfg,
-		sfn:    NewSFnService(clients.SFnClient),
-		cwlogs: NewCWLogsService(clients.CWLogsClient),
+		cfg:         cfg,
+		sfn:         NewSFnService(clients.SFnClient),
+		cwlogs:      NewCWLogsService(clients.CWLogsClient),
+		eventbridge: NewEventBridgeService(clients.EventBridgeClient),
 	}, nil
 }
 

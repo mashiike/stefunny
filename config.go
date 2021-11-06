@@ -24,6 +24,7 @@ type Config struct {
 	AWSRegion       string `yaml:"aws_region,omitempty"`
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
+	Schedule     *ScheduleConfig     `yaml:"schedule,omitempty"`
 
 	TFState   string           `yaml:"tfstate,omitempty"`
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
@@ -66,6 +67,10 @@ type EndpointsConfig struct {
 	STS            string `yaml:"sts,omitempty"`
 }
 
+type ScheduleConfig struct {
+	Expression string `yaml:"expression,omitempty"`
+}
+
 func (cfg *Config) Load(path string) error {
 	if err := gc.LoadWithEnv(cfg, path); err != nil {
 		return fmt.Errorf("config load:%w", err)
@@ -89,6 +94,12 @@ func (cfg *Config) Restrict() error {
 	if err := cfg.StateMachine.Restrict(); err != nil {
 		return fmt.Errorf("state_machine.%w", err)
 	}
+	if cfg.Schedule != nil {
+		if err := cfg.Schedule.Restrict(); err != nil {
+			return fmt.Errorf("schdule.%w", err)
+		}
+	}
+
 	if cfg.TFState != "" {
 		funcs, err := tfstate.FuncMap(filepath.Join(cfg.dir, cfg.TFState))
 		if err != nil {
@@ -181,6 +192,16 @@ func (cfg *StateMachineTracingConfig) Restrict() error {
 	}
 	return nil
 }
+
+// Restrict restricts a configuration.
+func (cfg *ScheduleConfig) Restrict() error {
+
+	if cfg.Expression == "" {
+		return errors.New("expression is required")
+	}
+	return nil
+}
+
 func restrictSFnStateMachineType(tstr string) (sfntypes.StateMachineType, error) {
 	t := sfntypes.StateMachineType(strings.ToUpper(tstr))
 	typeValues := t.Values()
