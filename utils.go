@@ -76,10 +76,28 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 	for key, value := range v {
 		if value == nil {
 			delete(v, key)
+			continue
 		}
 		if m, ok := value.(map[string]interface{}); ok {
 			v[key] = deleteNilFromMap(m)
+			continue
 		}
+		s, ok := value.([]interface{})
+		if !ok {
+			continue
+		}
+		replaceSlice := make([]interface{}, 0, len(s))
+		for _, item := range s {
+			if item == nil {
+				continue
+			}
+			if item, ok := item.(map[string]interface{}); ok {
+				replaceSlice = append(replaceSlice, deleteNilFromMap(item))
+				continue
+			}
+			replaceSlice = append(replaceSlice, item)
+		}
+		v[key] = replaceSlice
 	}
 	return v
 }
