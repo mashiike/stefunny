@@ -8,6 +8,7 @@ import (
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny/asl"
@@ -117,4 +118,23 @@ func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
 		},
 	}
 	return stateMachine, nil
+}
+
+func (app *App) LoadScheduleRule(ctx context.Context) (*ScheduleRule, error) {
+
+	rule := &ScheduleRule{
+		PutRuleInput: eventbridge.PutRuleInput{
+			Name:               aws.String(getScheduleRuleName(app.cfg.StateMachine.Name)),
+			ScheduleExpression: &app.cfg.Schedule.Expression,
+			Tags: []eventbridgetypes.Tag{
+				{
+					Key:   aws.String(tagManagedBy),
+					Value: aws.String(appName),
+				},
+			},
+		},
+		TargetRoleArn: app.cfg.Schedule.RoleArn,
+	}
+	rule.SetStateMachineArn("<state machine arn>")
+	return rule, nil
 }

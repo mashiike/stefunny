@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 )
@@ -153,21 +154,28 @@ type DeployStateMachineOutput struct {
 }
 
 func (svc *AWSService) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
+	var output *DeployStateMachineOutput
 	if stateMachine.StateMachineArn == nil {
 		log.Println("[debug] try create state machine")
-		output, err := svc.SFnClient.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
+		createOutput, err := svc.SFnClient.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
 		if err != nil {
 			return nil, fmt.Errorf("create failed: %w", err)
 		}
 		log.Println("[debug] finish create state machine")
-		return &DeployStateMachineOutput{
-			StateMachineArn: output.StateMachineArn,
-			CreationDate:    output.CreationDate,
-			UpdateDate:      output.CreationDate,
-		}, nil
+		output = &DeployStateMachineOutput{
+			StateMachineArn: createOutput.StateMachineArn,
+			CreationDate:    createOutput.CreationDate,
+			UpdateDate:      createOutput.CreationDate,
+		}
 	} else {
-		return svc.updateStateMachine(ctx, stateMachine, optFns...)
+		var err error
+		output, err = svc.updateStateMachine(ctx, stateMachine, optFns...)
+		if err != nil {
+			return nil, err
+		}
 	}
+	svc.cacheStateMachineArnByName[*stateMachine.Name] = *output.StateMachineArn
+	return output, nil
 }
 
 func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
@@ -237,4 +245,103 @@ func (s *StateMachine) configureJSON() string {
 		params["TracingConfiguration"] = s.TracingConfiguration
 	}
 	return marshalJSONString(params)
+}
+
+type ScheduleRule struct {
+	eventbridge.PutRuleInput
+	TargetRoleArn string
+	Targets       []eventbridgetypes.Target
+}
+
+func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
+	describeOutput, err := svc.EventBridgeClient.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
+	if err != nil {
+		log.Printf("[debug] %#v", err)
+		return nil, err
+	}
+	listTargetsOutput, err := svc.EventBridgeClient.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
+		Rule:  &ruleName,
+		Limit: aws.Int32(5),
+	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	rule := &ScheduleRule{
+		PutRuleInput: eventbridge.PutRuleInput{
+			Name:               describeOutput.Name,
+			Description:        describeOutput.Description,
+			EventBusName:       describeOutput.EventBusName,
+			EventPattern:       describeOutput.EventPattern,
+			RoleArn:            describeOutput.RoleArn,
+			ScheduleExpression: describeOutput.ScheduleExpression,
+			State:              describeOutput.State,
+		},
+		Targets: listTargetsOutput.Targets,
+	}
+	return rule, nil
+}
+
+type DeployScheduleRuleOutput struct {
+	RuleArn          *string
+	FailedEntries    []eventbridgetypes.PutTargetsResultEntry
+	FailedEntryCount int32
+}
+
+func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) (*DeployScheduleRuleOutput, error) {
+	putRuleOutput, err := svc.EventBridgeClient.PutRule(ctx, &rule.PutRuleInput, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	putTargetsOutput, err := svc.EventBridgeClient.PutTargets(ctx, &eventbridge.PutTargetsInput{
+		Rule:    rule.Name,
+		Targets: rule.Targets,
+	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	output := &DeployScheduleRuleOutput{
+		RuleArn:          putRuleOutput.RuleArn,
+		FailedEntries:    putTargetsOutput.FailedEntries,
+		FailedEntryCount: putTargetsOutput.FailedEntryCount,
+	}
+	return output, nil
+}
+
+func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
+	rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
+	rule.Targets = []eventbridgetypes.Target{
+		{
+			Arn:     &stateMachineArn,
+			Id:      aws.String(fmt.Sprintf("%s-managed-state-machine", appName)),
+			RoleArn: &rule.TargetRoleArn,
+		},
+	}
+}
+
+func (rule *ScheduleRule) configureJSON() string {
+	params := map[string]interface{}{
+		"Name":               rule.Name,
+		"Description":        rule.Description,
+		"ScheduleExpression": rule.ScheduleExpression,
+		"State":              rule.State,
+	}
+	return marshalJSONString(params)
+}
+
+func (rule *ScheduleRule) String() string {
+	var builder strings.Builder
+	builder.WriteString(colorRestString("ScheduleRule Configure:\n"))
+	builder.WriteString(rule.configureJSON())
+	builder.WriteString(colorRestString("\nScheduleRule Targets:\n"))
+	builder.WriteString(marshalJSONString(rule.Targets))
+	return builder.String()
+}
+
+func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
+	var builder strings.Builder
+	builder.WriteString(colorRestString("ScheduleRule Configure:\n"))
+	builder.WriteString(jsonDiffString(rule.configureJSON(), newRule.configureJSON()))
+	builder.WriteString(colorRestString("\nScheduleRule Targets:\n"))
+	builder.WriteString(jsonDiffString(marshalJSONString(rule.Targets), marshalJSONString(newRule.Targets)))
+	return builder.String()
 }

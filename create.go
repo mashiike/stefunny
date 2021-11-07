@@ -2,6 +2,7 @@ package stefunny
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 )
@@ -12,7 +13,7 @@ func (app *App) Create(ctx context.Context, opt DeployOption) error {
 	if err != nil {
 		return err
 	}
-	if err := app.putSchedule(ctx, opt); err != nil {
+	if err := app.createScheduleRule(ctx, opt); err != nil {
 		return err
 	}
 	log.Println("[info] finish create", opt.DryRunString())
@@ -34,5 +35,34 @@ func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error 
 	}
 
 	log.Printf("[notice] created arn `%s`", *output.StateMachineArn)
+	return nil
+}
+
+func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error {
+	if app.cfg.Schedule == nil {
+		log.Println("[debug] schdule rule is not set")
+		return nil
+	}
+	rule, err := app.LoadScheduleRule(ctx)
+	if err != nil {
+		return err
+	}
+	if opt.DryRun {
+		log.Printf("[notice] create schedule rule %s\n%s", opt.DryRunString(), rule.String())
+		return nil
+	}
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	if err != nil {
+		return fmt.Errorf("failed to get state machine arn: %w", err)
+	}
+	rule.SetStateMachineArn(stateMachineArn)
+	output, err := app.aws.DeployScheduleRule(ctx, rule)
+	if err != nil {
+		return err
+	}
+	log.Printf("[info] deploy schdule rule %s\n", marshalJSONString(output))
+	if output.FailedEntryCount != 0 {
+		return errors.New("failed entry count > 0")
+	}
 	return nil
 }
