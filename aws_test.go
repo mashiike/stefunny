@@ -184,6 +184,7 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 				StateMachines: []sfntypes.StateMachineListItem{
 					newStateMachineListItem("Hello"),
 					newStateMachineListItem("Deleting"),
+					newStateMachineListItem("Scheduled"),
 				},
 			}, nil
 		},
@@ -221,7 +222,13 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 			return &sfn.TagResourceOutput{}, nil
 		},
 		DescribeRuleFunc: func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
-			return &eventbridge.DescribeRuleOutput{}, nil
+			if !strings.Contains(*params.Name, "Scheduled") {
+				return nil, errors.New("ResourceNotFoundException")
+			}
+			return &eventbridge.DescribeRuleOutput{
+				Arn:       aws.String(fmt.Sprintf("arn:aws:events:us-east-1:000000000000:rule/%s", *params.Name)),
+				CreatedBy: aws.String("000000000000"),
+			}, nil
 		},
 	}
 	return client

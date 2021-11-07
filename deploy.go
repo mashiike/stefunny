@@ -30,6 +30,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
+		log.Printf("[debug] %#v", err)
 		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
 			return app.createStateMachine(ctx, opt)
 		}

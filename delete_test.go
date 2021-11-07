@@ -26,6 +26,7 @@ func TestDelete(t *testing.T) {
 				ListStateMachines:    1,
 				DescribeStateMachine: 1,
 				DeleteStateMachine:   0,
+				DescribeRule:         1,
 			},
 		},
 		{
@@ -36,6 +37,7 @@ func TestDelete(t *testing.T) {
 				ListStateMachines:    1,
 				DescribeStateMachine: 1,
 				DeleteStateMachine:   1,
+				DescribeRule:         1,
 			},
 		},
 		{
@@ -46,6 +48,17 @@ func TestDelete(t *testing.T) {
 				ListStateMachines:    1,
 				DescribeStateMachine: 1,
 				DeleteStateMachine:   0,
+			},
+		},
+		{
+			casename: "scheduled",
+			path:     "testdata/schedule.yaml",
+			DryRun:   false,
+			expectedCallCount: mockClientCallCount{
+				ListStateMachines:    1,
+				DescribeStateMachine: 1,
+				DeleteStateMachine:   1,
+				DescribeRule:         1,
 			},
 		},
 	}
