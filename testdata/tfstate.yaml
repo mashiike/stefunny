@@ -3,10 +3,9 @@ required_version: ">v0.0.0"
 state_machine:
   name: Hello
   definition: tfstate.asl.jsonnet
-  role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
+  role_arn: {{ tfstate `aws_iam_role.test.arn` }}
   logging:
     destination:
       level: FATAL
       log_group: /steps/hello
 
-tfstate: terraform.tfstate

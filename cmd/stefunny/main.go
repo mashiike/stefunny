@@ -22,7 +22,7 @@ var (
 func main() {
 	cliApp := &cli.App{
 		Name:  "stefunny",
-		Usage: "A command line tool for deployment StepFunctions",
+		Usage: "A command line tool for deployment StepFunctions and EventBrdige",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "config",
@@ -36,6 +36,12 @@ func main() {
 				DefaultText: "info",
 				Usage:       "Set log level (debug, info, notice, warn, error)",
 				EnvVars:     []string{"STEFUNNY_LOG_LEVEL"},
+			},
+			&cli.StringFlag{
+				Name:        "tfstate",
+				DefaultText: "",
+				Usage:       "URL to terraform.tfstate referenced in config",
+				EnvVars:     []string{"STEFUNNY_TFSTATE"},
 			},
 		},
 		Commands: []*cli.Command{
@@ -128,7 +134,10 @@ func main() {
 		logger.Setup(os.Stderr, c.String("log-level"))
 
 		cfg := stefunny.NewDefaultConfig()
-		if err := cfg.Load(c.String("config")); err != nil {
+		opt := stefunny.LoadConfigOption{
+			TFState: c.String("tfstate"),
+		}
+		if err := cfg.Load(c.String("config"), opt); err != nil {
 			return err
 		}
 		if err := cfg.ValidateVersion(Version); err != nil {

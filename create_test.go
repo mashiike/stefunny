@@ -61,7 +61,9 @@ func TestCreate(t *testing.T) {
 			client.CallCount.Reset()
 
 			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path)
+			err := cfg.Load(c.path, stefunny.LoadConfigOption{
+				TFState: "testdata/terraform.tfstate",
+			})
 			require.NoError(t, err)
 			app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
 				SFnClient:    client,

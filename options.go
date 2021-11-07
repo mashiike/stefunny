@@ -30,3 +30,7 @@ func (opt DeployOption) DryRunString() string {
 type RenderOption struct {
 	Writer io.Writer
 }
+
+type LoadConfigOption struct {
+	TFState string
+}

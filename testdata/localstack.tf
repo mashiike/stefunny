@@ -57,3 +57,21 @@ resource "aws_s3_bucket" "hoge" {
 resource "aws_cloudwatch_log_group" "test" {
   name = "test"
 }
+
+resource "aws_iam_role" "test" {
+  name = "test"
+
+  assume_role_policy = jsonencode(
+    {
+      "Version" = "2012-10-17",
+      "Statement" = [
+        {
+          "Effect" = "Allow",
+          "Principal" = {
+            "Service" = "states.amazonaws.com"
+          },
+          "Action" = "sts:AssumeRole"
+        }
+      ]
+  })
+}

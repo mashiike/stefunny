@@ -47,7 +47,9 @@ func TestConfigLoadValid(t *testing.T) {
 		t.Run(c.casename, func(t *testing.T) {
 			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path)
+			err := cfg.Load(c.path, stefunny.LoadConfigOption{
+				TFState: "testdata/terraform.tfstate",
+			})
 			require.NoError(t, err)
 			def, err := cfg.LoadDefinition()
 			require.NoError(t, err)
@@ -86,7 +88,9 @@ func TestConfigLoadInValid(t *testing.T) {
 		t.Run(c.casename, func(t *testing.T) {
 			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path)
+			err := cfg.Load(c.path, stefunny.LoadConfigOption{
+				TFState: "testdata/terraform.tfstate",
+			})
 			require.Error(t, err)
 			if c.expected != "" {
 				require.EqualError(t, err, c.expected)

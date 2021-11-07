@@ -38,7 +38,9 @@ func TestAppRender(t *testing.T) {
 		t.Run(c.casename, func(t *testing.T) {
 			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path)
+			err := cfg.Load(c.path, stefunny.LoadConfigOption{
+				TFState: "testdata/terraform.tfstate",
+			})
 			require.NoError(t, err)
 			ctx := context.Background()
 			app, err := stefunny.New(ctx, cfg)

@@ -26,7 +26,6 @@ type Config struct {
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
 	Schedule     *ScheduleConfig     `yaml:"schedule,omitempty"`
 
-	TFState   string           `yaml:"tfstate,omitempty"`
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
 
 	//private field
@@ -72,11 +71,21 @@ type ScheduleConfig struct {
 	RoleArn    string `yaml:"role_arn,omitempty"`
 }
 
-func (cfg *Config) Load(path string) error {
-	if err := gc.LoadWithEnv(cfg, path); err != nil {
+func (cfg *Config) Load(path string, opt LoadConfigOption) error {
+
+	loader := gc.New()
+	cfg.dir = filepath.Dir(path)
+	if opt.TFState != "" {
+		funcs, err := tfstate.FuncMap(opt.TFState)
+		if err != nil {
+			return fmt.Errorf("tfstate %w", err)
+		}
+		loader.Funcs(funcs)
+	}
+	if err := loader.LoadWithEnv(cfg, path); err != nil {
 		return fmt.Errorf("config load:%w", err)
 	}
-	cfg.dir = filepath.Dir(path)
+	cfg.loader = loader
 	return cfg.Restrict()
 }
 
@@ -99,14 +108,6 @@ func (cfg *Config) Restrict() error {
 		if err := cfg.Schedule.Restrict(); err != nil {
 			return fmt.Errorf("schdule.%w", err)
 		}
-	}
-
-	if cfg.TFState != "" {
-		funcs, err := tfstate.FuncMap(filepath.Join(cfg.dir, cfg.TFState))
-		if err != nil {
-			return fmt.Errorf("tfstate %w", err)
-		}
-		cfg.loader.Funcs(funcs)
 	}
 	return nil
 }
@@ -278,7 +279,6 @@ func NewDefaultConfig() *Config {
 				Enabled: aws.Bool(false),
 			},
 		},
-		loader: gc.New(),
 	}
 }
 
