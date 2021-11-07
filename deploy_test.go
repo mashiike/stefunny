@@ -73,18 +73,8 @@ func TestDeploy(t *testing.T) {
 				c.client = client
 			}
 			c.client.CallCount.Reset()
-
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-			})
-			require.NoError(t, err)
-			app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
-				CWLogsClient: c.client,
-				SFnClient:    c.client,
-			})
-			require.NoError(t, err)
-			err = app.Deploy(context.Background(), stefunny.DeployOption{
+			app := newMockApp(t, c.path, client)
+			err := app.Deploy(context.Background(), stefunny.DeployOption{
 				DryRun: c.DryRun,
 			})
 			require.NoError(t, err)

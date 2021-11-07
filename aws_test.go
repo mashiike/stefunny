@@ -10,11 +10,13 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 type mockAWSClient struct {
@@ -29,6 +31,13 @@ type mockAWSClient struct {
 
 	stefunny.CWLogsClient
 	DescribeLogGroupsFunc func(context.Context, *cloudwatchlogs.DescribeLogGroupsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
+
+	stefunny.EventBridgeClient
+	PutRuleFunc           func(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
+	DescribeRuleFunc      func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error)
+	ListTargetsByRuleFunc func(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
+	PutTargetsFunc        func(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
+	DeleteRuleFunc        func(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
 }
 
 type mockClientCallCount struct {
@@ -39,6 +48,11 @@ type mockClientCallCount struct {
 	ListStateMachines    int
 	UpdateStateMachine   int
 	TagResource          int
+	PutRule              int
+	DescribeRule         int
+	ListTargetsByRule    int
+	PutTargets           int
+	DeleteRule           int
 }
 
 func (m *mockClientCallCount) Reset() {
@@ -49,6 +63,11 @@ func (m *mockClientCallCount) Reset() {
 	m.ListStateMachines = 0
 	m.UpdateStateMachine = 0
 	m.TagResource = 0
+	m.PutRule = 0
+	m.DescribeRule = 0
+	m.ListTargetsByRule = 0
+	m.PutTargets = 0
+	m.DeleteRule = 0
 }
 
 func (m *mockAWSClient) CreateStateMachine(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
@@ -105,6 +124,42 @@ func (m *mockAWSClient) TagResource(ctx context.Context, params *sfn.TagResource
 		return nil, errors.New("unexpected Call TagResource")
 	}
 	return m.TagResourceFunc(ctx, params, optFns...)
+}
+
+func (m *mockAWSClient) PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error) {
+	m.CallCount.PutRule++
+	if m.PutRuleFunc == nil {
+		return nil, errors.New("unexpected Call PutRule")
+	}
+	return m.PutRuleFunc(ctx, params, optFns...)
+}
+func (m *mockAWSClient) DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
+	m.CallCount.DescribeRule++
+	if m.DescribeRuleFunc == nil {
+		return nil, errors.New("unexpected Call DescribeRule")
+	}
+	return m.DescribeRuleFunc(ctx, params, optFns...)
+}
+func (m *mockAWSClient) ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error) {
+	m.CallCount.ListTargetsByRule++
+	if m.ListTargetsByRuleFunc == nil {
+		return nil, errors.New("unexpected Call ListTargetsByRule")
+	}
+	return m.ListTargetsByRuleFunc(ctx, params, optFns...)
+}
+func (m *mockAWSClient) PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error) {
+	m.CallCount.PutTargets++
+	if m.PutTargetsFunc == nil {
+		return nil, errors.New("unexpected Call PutTargets")
+	}
+	return m.PutTargetsFunc(ctx, params, optFns...)
+}
+func (m *mockAWSClient) DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error) {
+	m.CallCount.DeleteRule++
+	if m.DeleteRuleFunc == nil {
+		return nil, errors.New("unexpected Call DeleteRule")
+	}
+	return m.DeleteRuleFunc(ctx, params, optFns...)
 }
 
 func getDefaultMock(t *testing.T) *mockAWSClient {
@@ -165,6 +220,9 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 		TagResourceFunc: func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
 			return &sfn.TagResourceOutput{}, nil
 		},
+		DescribeRuleFunc: func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
+			return &eventbridge.DescribeRuleOutput{}, nil
+		},
 	}
 	return client
 }
@@ -197,6 +255,22 @@ func (m *mockAWSClient) Overwrite(o *mockAWSClient) *mockAWSClient {
 	if o.DescribeLogGroupsFunc != nil {
 		ret.DescribeLogGroupsFunc = o.DescribeLogGroupsFunc
 	}
+	if o.PutRuleFunc != nil {
+		ret.PutRuleFunc = o.PutRuleFunc
+	}
+	if o.DescribeRuleFunc != nil {
+		ret.DescribeRuleFunc = o.DescribeRuleFunc
+	}
+	if o.ListTargetsByRuleFunc != nil {
+		ret.ListTargetsByRuleFunc = o.ListTargetsByRuleFunc
+	}
+	if o.PutTargetsFunc != nil {
+		ret.PutTargetsFunc = o.PutTargetsFunc
+	}
+	if o.DeleteRuleFunc != nil {
+		ret.DeleteRuleFunc = o.DeleteRuleFunc
+	}
+
 	return ret
 }
 
@@ -206,4 +280,20 @@ func newStateMachineListItem(name string) sfntypes.StateMachineListItem {
 		Name:            aws.String(name),
 		StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:%s", name)),
 	}
+}
+
+func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App {
+	t.Helper()
+	cfg := stefunny.NewDefaultConfig()
+	err := cfg.Load(path, stefunny.LoadConfigOption{
+		TFState: "testdata/terraform.tfstate",
+	})
+	require.NoError(t, err)
+	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
+		SFnClient:         client,
+		CWLogsClient:      client,
+		EventBridgeClient: client,
+	})
+	require.NoError(t, err)
+	return app
 }

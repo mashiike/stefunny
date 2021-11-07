@@ -54,18 +54,8 @@ func TestDelete(t *testing.T) {
 		t.Run(c.casename, func(t *testing.T) {
 			testutil.LoggerSetup(t, "debug")
 			client.CallCount.Reset()
-
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-			})
-			require.NoError(t, err)
-			app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
-				CWLogsClient: client,
-				SFnClient:    client,
-			})
-			require.NoError(t, err)
-			err = app.Delete(context.Background(), stefunny.DeleteOption{
+			app := newMockApp(t, c.path, client)
+			err := app.Delete(context.Background(), stefunny.DeleteOption{
 				DryRun: c.DryRun,
 				Force:  true,
 			})
