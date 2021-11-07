@@ -26,6 +26,7 @@ type Config struct {
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
 	Schedule     *ScheduleConfig     `yaml:"schedule,omitempty"`
+	Tags         map[string]string   `yaml:"tags,omitempty"`
 
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
 
@@ -281,6 +282,7 @@ func NewDefaultConfig() *Config {
 				Enabled: aws.Bool(false),
 			},
 		},
+		Tags: make(map[string]string),
 	}
 }
 

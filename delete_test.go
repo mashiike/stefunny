@@ -23,10 +23,11 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/default.yaml",
 			DryRun:   true,
 			expectedCallCount: mockClientCallCount{
-				ListStateMachines:    1,
-				DescribeStateMachine: 1,
-				DeleteStateMachine:   0,
-				DescribeRule:         1,
+				ListStateMachines:      1,
+				DescribeStateMachine:   1,
+				DeleteStateMachine:     0,
+				DescribeRule:           1,
+				SFnListTagsForResource: 1,
 			},
 		},
 		{
@@ -34,10 +35,11 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/default.yaml",
 			DryRun:   false,
 			expectedCallCount: mockClientCallCount{
-				ListStateMachines:    1,
-				DescribeStateMachine: 1,
-				DeleteStateMachine:   1,
-				DescribeRule:         1,
+				ListStateMachines:      1,
+				DescribeStateMachine:   1,
+				DeleteStateMachine:     1,
+				DescribeRule:           1,
+				SFnListTagsForResource: 1,
 			},
 		},
 		{
@@ -45,10 +47,11 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/deleting.yaml",
 			DryRun:   false,
 			expectedCallCount: mockClientCallCount{
-				ListStateMachines:    1,
-				DescribeStateMachine: 1,
-				DeleteStateMachine:   0,
-				DescribeRule:         1,
+				ListStateMachines:      1,
+				DescribeStateMachine:   1,
+				DeleteStateMachine:     0,
+				DescribeRule:           1,
+				SFnListTagsForResource: 1,
 			},
 		},
 		{
@@ -56,10 +59,11 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/schedule.yaml",
 			DryRun:   false,
 			expectedCallCount: mockClientCallCount{
-				ListStateMachines:    1,
-				DescribeStateMachine: 1,
-				DeleteStateMachine:   1,
-				DescribeRule:         1,
+				ListStateMachines:      1,
+				DescribeStateMachine:   1,
+				DeleteStateMachine:     1,
+				DescribeRule:           1,
+				SFnListTagsForResource: 1,
 			},
 		},
 	}

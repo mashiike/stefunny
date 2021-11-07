@@ -116,7 +116,9 @@ func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
 				},
 			},
 		},
+		Tags: app.cfg.Tags,
 	}
+	stateMachine.Tags[tagManagedBy] = appName
 	return stateMachine, nil
 }
 
@@ -127,15 +129,11 @@ func (app *App) LoadScheduleRule(ctx context.Context) (*ScheduleRule, error) {
 			Name:               aws.String(getScheduleRuleName(app.cfg.StateMachine.Name)),
 			ScheduleExpression: &app.cfg.Schedule.Expression,
 			State:              eventbridgetypes.RuleStateEnabled,
-			Tags: []eventbridgetypes.Tag{
-				{
-					Key:   aws.String(tagManagedBy),
-					Value: aws.String(appName),
-				},
-			},
 		},
 		TargetRoleArn: app.cfg.Schedule.RoleArn,
+		Tags:          app.cfg.Tags,
 	}
+	rule.Tags[tagManagedBy] = appName
 	rule.SetStateMachineArn("[state machine arn]")
 	return rule, nil
 }

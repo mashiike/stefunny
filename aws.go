@@ -22,6 +22,7 @@ type SFnClient interface {
 	DescribeStateMachine(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error)
 	UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
 	DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
+	ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
 
@@ -34,6 +35,7 @@ type EventBridgeClient interface {
 	ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
 	PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
 	DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
+	ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 }
 
 type AWSClients struct {
@@ -71,6 +73,7 @@ type StateMachine struct {
 	CreationDate    *time.Time
 	StateMachineArn *string
 	Status          sfntypes.StateMachineStatus
+	Tags            map[string]string
 }
 
 func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*StateMachine, error) {
@@ -79,12 +82,18 @@ func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, op
 		return nil, err
 	}
 	output, err := svc.SFnClient.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
-		StateMachineArn: aws.String(arn),
+		StateMachineArn: &arn,
 	}, optFns...)
 	if err != nil {
 		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
 			return nil, ErrStateMachineDoesNotExist
 		}
+		return nil, err
+	}
+	tagsOutput, err := svc.SFnClient.ListTagsForResource(ctx, &sfn.ListTagsForResourceInput{
+		ResourceArn: &arn,
+	}, optFns...)
+	if err != nil {
 		return nil, err
 	}
 	stateMachine := &StateMachine{
@@ -95,11 +104,17 @@ func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, op
 			LoggingConfiguration: output.LoggingConfiguration,
 			TracingConfiguration: output.TracingConfiguration,
 			Type:                 output.Type,
+			Tags:                 tagsOutput.Tags,
 		},
 		CreationDate:    output.CreationDate,
 		StateMachineArn: output.StateMachineArn,
 		Status:          output.Status,
 	}
+	tags := make(map[string]string, len(tagsOutput.Tags))
+	for _, tag := range tagsOutput.Tags {
+		tags[*tag.Key] = *tag.Value
+	}
+	stateMachine.Tags = tags
 	return stateMachine, nil
 }
 
@@ -252,6 +267,7 @@ func (s *StateMachine) configureJSON() string {
 			Enabled: false,
 		},
 		"Type": s.Type,
+		"Tags": s.Tags,
 	}
 	if s.TracingConfiguration != nil {
 		params["TracingConfiguration"] = s.TracingConfiguration
@@ -263,6 +279,7 @@ type ScheduleRule struct {
 	eventbridge.PutRuleInput
 	TargetRoleArn string
 	Targets       []eventbridgetypes.Target
+	Tags          map[string]string
 }
 
 func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
@@ -280,6 +297,12 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 	if err != nil {
 		return nil, err
 	}
+	tagsOutput, err := svc.EventBridgeClient.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
+		ResourceARN: describeOutput.Arn,
+	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
 	rule := &ScheduleRule{
 		PutRuleInput: eventbridge.PutRuleInput{
 			Name:               describeOutput.Name,
@@ -289,9 +312,15 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 			RoleArn:            describeOutput.RoleArn,
 			ScheduleExpression: describeOutput.ScheduleExpression,
 			State:              describeOutput.State,
+			Tags:               tagsOutput.Tags,
 		},
 		Targets: listTargetsOutput.Targets,
 	}
+	tags := make(map[string]string, len(tagsOutput.Tags))
+	for _, tag := range tagsOutput.Tags {
+		tags[*tag.Key] = *tag.Value
+	}
+	rule.Tags = tags
 	return rule, nil
 }
 
@@ -347,6 +376,7 @@ func (rule *ScheduleRule) configureJSON() string {
 		"ScheduleExpression": rule.ScheduleExpression,
 		"State":              rule.State,
 		"Targets":            rule.Targets,
+		"Tags":               rule.Tags,
 	}
 	return marshalJSONString(params)
 }

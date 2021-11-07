@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	logstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go/aws"
@@ -20,24 +21,23 @@ import (
 )
 
 type mockAWSClient struct {
-	stefunny.SFnClient
-	CallCount                mockClientCallCount
-	CreateStateMachineFunc   func(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error)
-	DescribeStateMachineFunc func(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error)
-	DeleteStateMachineFunc   func(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
-	ListStateMachinesFunc    func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error)
-	UpdateStateMachineFunc   func(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
-	TagResourceFunc          func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
+	CallCount                  mockClientCallCount
+	CreateStateMachineFunc     func(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error)
+	DescribeStateMachineFunc   func(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error)
+	DeleteStateMachineFunc     func(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
+	ListStateMachinesFunc      func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error)
+	UpdateStateMachineFunc     func(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
+	TagResourceFunc            func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
+	SFnListTagsForResourceFunc func(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
 
-	stefunny.CWLogsClient
 	DescribeLogGroupsFunc func(context.Context, *cloudwatchlogs.DescribeLogGroupsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
 
-	stefunny.EventBridgeClient
-	PutRuleFunc           func(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
-	DescribeRuleFunc      func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error)
-	ListTargetsByRuleFunc func(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
-	PutTargetsFunc        func(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
-	DeleteRuleFunc        func(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
+	PutRuleFunc               func(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
+	DescribeRuleFunc          func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error)
+	ListTargetsByRuleFunc     func(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
+	PutTargetsFunc            func(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
+	DeleteRuleFunc            func(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
+	EBListTagsForResourceFunc func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 }
 
 type mockClientCallCount struct {
@@ -53,6 +53,9 @@ type mockClientCallCount struct {
 	ListTargetsByRule    int
 	PutTargets           int
 	DeleteRule           int
+
+	SFnListTagsForResource int
+	EBListTagsForResource  int
 }
 
 func (m *mockClientCallCount) Reset() {
@@ -68,98 +71,132 @@ func (m *mockClientCallCount) Reset() {
 	m.ListTargetsByRule = 0
 	m.PutTargets = 0
 	m.DeleteRule = 0
+
+	m.SFnListTagsForResource = 0
+	m.EBListTagsForResource = 0
 }
 
-func (m *mockAWSClient) CreateStateMachine(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
-	m.CallCount.CreateStateMachine++
-	if m.CreateStateMachineFunc == nil {
+type mockSFnClient struct {
+	stefunny.SFnClient
+	aws *mockAWSClient
+}
+
+type mockCWLogsClient struct {
+	stefunny.CWLogsClient
+	aws *mockAWSClient
+}
+
+type mockEBClient struct {
+	stefunny.EventBridgeClient
+	aws *mockAWSClient
+}
+
+func (m *mockSFnClient) CreateStateMachine(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
+	m.aws.CallCount.CreateStateMachine++
+	if m.aws.CreateStateMachineFunc == nil {
 		return nil, errors.New("unexpected Call CreateStateMachine")
 	}
-	return m.CreateStateMachineFunc(ctx, params, optFns...)
+	return m.aws.CreateStateMachineFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) DescribeStateMachine(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
-	m.CallCount.DescribeStateMachine++
-	if m.DescribeStateMachineFunc == nil {
+func (m *mockSFnClient) DescribeStateMachine(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
+	m.aws.CallCount.DescribeStateMachine++
+	if m.aws.DescribeStateMachineFunc == nil {
 		return nil, errors.New("unexpected Call DescribeStateMachine")
 	}
-	return m.DescribeStateMachineFunc(ctx, params, optFns...)
+	return m.aws.DescribeStateMachineFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error) {
-	m.CallCount.DeleteStateMachine++
-	if m.DeleteStateMachineFunc == nil {
+func (m *mockSFnClient) DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error) {
+	m.aws.CallCount.DeleteStateMachine++
+	if m.aws.DeleteStateMachineFunc == nil {
 		return nil, errors.New("unexpected Call DeleteStateMachine")
 	}
-	return m.DeleteStateMachineFunc(ctx, params, optFns...)
+	return m.aws.DeleteStateMachineFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) ListStateMachines(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error) {
-	m.CallCount.ListStateMachines++
-	if m.ListStateMachinesFunc == nil {
+func (m *mockSFnClient) ListStateMachines(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error) {
+	m.aws.CallCount.ListStateMachines++
+	if m.aws.ListStateMachinesFunc == nil {
 		return nil, errors.New("unexpected Call ListStateMachines")
 	}
-	return m.ListStateMachinesFunc(ctx, params, optFns...)
+	return m.aws.ListStateMachinesFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error) {
-	m.CallCount.UpdateStateMachine++
-	if m.UpdateStateMachineFunc == nil {
+func (m *mockSFnClient) UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error) {
+	m.aws.CallCount.UpdateStateMachine++
+	if m.aws.UpdateStateMachineFunc == nil {
 		return nil, errors.New("unexpected Call UpdateStateMachine")
 	}
-	return m.UpdateStateMachineFunc(ctx, params, optFns...)
+	return m.aws.UpdateStateMachineFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-	m.CallCount.DescribeLogGroups++
-	if m.DescribeLogGroupsFunc == nil {
+func (m *mockSFnClient) ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error) {
+	m.aws.CallCount.SFnListTagsForResource++
+	if m.aws.SFnListTagsForResourceFunc == nil {
+		return nil, errors.New("unexpected Call ListTagsForResource")
+	}
+	return m.aws.SFnListTagsForResourceFunc(ctx, params, optFns...)
+}
+
+func (m *mockCWLogsClient) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
+	m.aws.CallCount.DescribeLogGroups++
+	if m.aws.DescribeLogGroupsFunc == nil {
 		return nil, errors.New("unexpected Call DescribeLogGroups")
 	}
-	return m.DescribeLogGroupsFunc(ctx, params, optFns...)
+	return m.aws.DescribeLogGroupsFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
-	m.CallCount.TagResource++
-	if m.TagResourceFunc == nil {
+func (m *mockSFnClient) TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
+	m.aws.CallCount.TagResource++
+	if m.aws.TagResourceFunc == nil {
 		return nil, errors.New("unexpected Call TagResource")
 	}
-	return m.TagResourceFunc(ctx, params, optFns...)
+	return m.aws.TagResourceFunc(ctx, params, optFns...)
 }
 
-func (m *mockAWSClient) PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error) {
-	m.CallCount.PutRule++
-	if m.PutRuleFunc == nil {
+func (m *mockEBClient) PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error) {
+	m.aws.CallCount.PutRule++
+	if m.aws.PutRuleFunc == nil {
 		return nil, errors.New("unexpected Call PutRule")
 	}
-	return m.PutRuleFunc(ctx, params, optFns...)
+	return m.aws.PutRuleFunc(ctx, params, optFns...)
 }
-func (m *mockAWSClient) DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
-	m.CallCount.DescribeRule++
-	if m.DescribeRuleFunc == nil {
+func (m *mockEBClient) DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
+	m.aws.CallCount.DescribeRule++
+	if m.aws.DescribeRuleFunc == nil {
 		return nil, errors.New("unexpected Call DescribeRule")
 	}
-	return m.DescribeRuleFunc(ctx, params, optFns...)
+	return m.aws.DescribeRuleFunc(ctx, params, optFns...)
 }
-func (m *mockAWSClient) ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error) {
-	m.CallCount.ListTargetsByRule++
-	if m.ListTargetsByRuleFunc == nil {
+func (m *mockEBClient) ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error) {
+	m.aws.CallCount.ListTargetsByRule++
+	if m.aws.ListTargetsByRuleFunc == nil {
 		return nil, errors.New("unexpected Call ListTargetsByRule")
 	}
-	return m.ListTargetsByRuleFunc(ctx, params, optFns...)
+	return m.aws.ListTargetsByRuleFunc(ctx, params, optFns...)
 }
-func (m *mockAWSClient) PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error) {
-	m.CallCount.PutTargets++
-	if m.PutTargetsFunc == nil {
+func (m *mockEBClient) PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error) {
+	m.aws.CallCount.PutTargets++
+	if m.aws.PutTargetsFunc == nil {
 		return nil, errors.New("unexpected Call PutTargets")
 	}
-	return m.PutTargetsFunc(ctx, params, optFns...)
+	return m.aws.PutTargetsFunc(ctx, params, optFns...)
 }
-func (m *mockAWSClient) DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error) {
-	m.CallCount.DeleteRule++
-	if m.DeleteRuleFunc == nil {
+func (m *mockEBClient) DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error) {
+	m.aws.CallCount.DeleteRule++
+	if m.aws.DeleteRuleFunc == nil {
 		return nil, errors.New("unexpected Call DeleteRule")
 	}
-	return m.DeleteRuleFunc(ctx, params, optFns...)
+	return m.aws.DeleteRuleFunc(ctx, params, optFns...)
+}
+
+func (m *mockEBClient) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
+	m.aws.CallCount.EBListTagsForResource++
+	if m.aws.EBListTagsForResourceFunc == nil {
+		return nil, errors.New("unexpected Call ListTagsForResource")
+	}
+	return m.aws.EBListTagsForResourceFunc(ctx, params, optFns...)
 }
 
 func getDefaultMock(t *testing.T) *mockAWSClient {
@@ -230,6 +267,12 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 				CreatedBy: aws.String("000000000000"),
 			}, nil
 		},
+		SFnListTagsForResourceFunc: func(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error) {
+			return &sfn.ListTagsForResourceOutput{Tags: []sfntypes.Tag{}}, nil
+		},
+		EBListTagsForResourceFunc: func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
+			return &eventbridge.ListTagsForResourceOutput{Tags: []eventbridgetypes.Tag{}}, nil
+		},
 	}
 	return client
 }
@@ -297,9 +340,9 @@ func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App 
 	})
 	require.NoError(t, err)
 	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
-		SFnClient:         client,
-		CWLogsClient:      client,
-		EventBridgeClient: client,
+		SFnClient:         &mockSFnClient{aws: client},
+		CWLogsClient:      &mockCWLogsClient{aws: client},
+		EventBridgeClient: &mockEBClient{aws: client},
 	})
 	require.NoError(t, err)
 	return app
