@@ -75,7 +75,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy schdule rule %s\n", marshalJSONString(output))
+	log.Printf("[info] deploy schdule rule \n%s", marshalJSONString(output))
 	if output.FailedEntryCount != 0 {
 		return errors.New("failed entry count > 0")
 	}

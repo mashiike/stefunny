@@ -307,7 +307,7 @@ func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRul
 	return output, nil
 }
 
-func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
+func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) *ScheduleRule {
 	rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
 	rule.Targets = []eventbridgetypes.Target{
 		{
@@ -316,6 +316,7 @@ func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
 			RoleArn: &rule.TargetRoleArn,
 		},
 	}
+	return rule
 }
 
 func (rule *ScheduleRule) configureJSON() string {
@@ -324,24 +325,19 @@ func (rule *ScheduleRule) configureJSON() string {
 		"Description":        rule.Description,
 		"ScheduleExpression": rule.ScheduleExpression,
 		"State":              rule.State,
+		"Targets":            rule.Targets,
 	}
 	return marshalJSONString(params)
 }
 
 func (rule *ScheduleRule) String() string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString("ScheduleRule Configure:\n"))
 	builder.WriteString(rule.configureJSON())
-	builder.WriteString(colorRestString("\nScheduleRule Targets:\n"))
-	builder.WriteString(marshalJSONString(rule.Targets))
 	return builder.String()
 }
 
 func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString("ScheduleRule Configure:\n"))
 	builder.WriteString(jsonDiffString(rule.configureJSON(), newRule.configureJSON()))
-	builder.WriteString(colorRestString("\nScheduleRule Targets:\n"))
-	builder.WriteString(jsonDiffString(marshalJSONString(rule.Targets), marshalJSONString(newRule.Targets)))
 	return builder.String()
 }
