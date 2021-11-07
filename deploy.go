@@ -9,8 +9,10 @@ import (
 
 func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	log.Println("[info] Starting deploy", opt.DryRunString())
-	if err := app.deployStateMachine(ctx, opt); err != nil {
-		return err
+	if !opt.SkipDeployStateMachine {
+		if err := app.deployStateMachine(ctx, opt); err != nil {
+			return err
+		}
 	}
 	if err := app.deployScheduleRule(ctx, opt); err != nil {
 		return err
@@ -22,7 +24,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
-		if err == ErrStateMachineDoesNotExist {
+		if err == ErrStateMachineDoesNotExist && !opt.SkipDeployStateMachine {
 			return app.createStateMachine(ctx, opt)
 		}
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
@@ -73,6 +75,9 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 			return err
 		}
 		newRule.SetStateMachineArn(stateMachineArn)
+		if opt.ScheduleEnabled != nil {
+			newRule.SetEnalbed(*opt.ScheduleEnabled)
+		}
 	}
 	if opt.DryRun {
 		diffString := rule.DiffString(newRule)

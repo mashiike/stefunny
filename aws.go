@@ -329,7 +329,7 @@ func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRul
 	return err
 }
 
-func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) *ScheduleRule {
+func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
 	rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
 	rule.Targets = []eventbridgetypes.Target{
 		{
@@ -338,7 +338,6 @@ func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) *ScheduleRu
 			RoleArn: &rule.TargetRoleArn,
 		},
 	}
-	return rule
 }
 
 func (rule *ScheduleRule) configureJSON() string {
@@ -362,4 +361,12 @@ func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	var builder strings.Builder
 	builder.WriteString(colorRestString(jsonDiffString(rule.configureJSON(), newRule.configureJSON())))
 	return builder.String()
+}
+
+func (rule *ScheduleRule) SetEnalbed(enabled bool) {
+	if enabled {
+		rule.State = eventbridgetypes.RuleStateEnabled
+	} else {
+		rule.State = eventbridgetypes.RuleStateDisabled
+	}
 }

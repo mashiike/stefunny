@@ -17,7 +17,9 @@ func (opt DeleteOption) DryRunString() string {
 }
 
 type DeployOption struct {
-	DryRun bool
+	DryRun                 bool
+	ScheduleEnabled        *bool
+	SkipDeployStateMachine bool
 }
 
 func (opt DeployOption) DryRunString() string {

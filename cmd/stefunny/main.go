@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"os/signal"
@@ -82,7 +83,7 @@ func main() {
 			},
 			{
 				Name:  "deploy",
-				Usage: "deploy StepFunctions StateMachine.",
+				Usage: "deploy StepFunctions StateMachine and Event Bridge Rule.",
 				Action: func(c *cli.Context) error {
 					return app.Deploy(c.Context, stefunny.DeployOption{
 						DryRun: c.Bool("dry-run"),
@@ -92,6 +93,44 @@ func main() {
 					&cli.BoolFlag{
 						Name:  "dry-run",
 						Usage: "dry run",
+					},
+				},
+			},
+			{
+				Name:  "schedule",
+				Usage: "schedule Bridge Rule without deploy StepFunctions StateMachine.",
+				Action: func(c *cli.Context) error {
+					enabled := c.Bool("enabled")
+					disabled := c.Bool("disabled")
+					var setStatus *bool
+					if enabled && disabled {
+						return errors.New("both enabled and disabled are specified")
+					}
+					if enabled {
+						setStatus = &enabled
+					}
+					if disabled {
+						disabled = false
+						setStatus = &disabled
+					}
+					return app.Deploy(c.Context, stefunny.DeployOption{
+						DryRun:                 c.Bool("dry-run"),
+						ScheduleEnabled:        setStatus,
+						SkipDeployStateMachine: true,
+					})
+				},
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "dry-run",
+						Usage: "dry run",
+					},
+					&cli.BoolFlag{
+						Name:  "enabled",
+						Usage: "set schedule rule enabled",
+					},
+					&cli.BoolFlag{
+						Name:  "disabled",
+						Usage: "set schedule rule disabled",
 					},
 				},
 			},
