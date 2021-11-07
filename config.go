@@ -69,6 +69,7 @@ type EndpointsConfig struct {
 
 type ScheduleConfig struct {
 	Expression string `yaml:"expression,omitempty"`
+	RoleArn    string `yaml:"role_arn,omitempty"`
 }
 
 func (cfg *Config) Load(path string) error {
@@ -198,6 +199,9 @@ func (cfg *ScheduleConfig) Restrict() error {
 
 	if cfg.Expression == "" {
 		return errors.New("expression is required")
+	}
+	if cfg.RoleArn == "" {
+		return errors.New("role_arn is required")
 	}
 	return nil
 }

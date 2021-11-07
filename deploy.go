@@ -243,7 +243,7 @@ func (app *App) putEventBridgeRuleTargets(ctx context.Context, ruleName, stateMa
 		putTargetsInput.Targets[i] = eventbridgetypes.Target{
 			Arn:     &stateMachineArn,
 			Id:      aws.String(fmt.Sprintf("%s-%s-state-machine", appName, app.cfg.StateMachine.Name)),
-			RoleArn: &app.cfg.StateMachine.RoleArn,
+			RoleArn: &app.cfg.Schedule.RoleArn,
 		}
 	}
 	if opt.DryRun {
