@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
@@ -88,4 +89,32 @@ func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.Logging
 		},
 	}
 	return ret, nil
+}
+
+func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
+	definition, err := app.cfg.LoadDefinition()
+	if err != nil {
+		return nil, fmt.Errorf("load definition failed: %w", err)
+	}
+	logging, err := app.LoadLoggingConfiguration(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("load logging config failed: %w", err)
+	}
+	stateMachine := &StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:                 &app.cfg.StateMachine.Name,
+			Type:                 app.cfg.StateMachine.stateMachineType,
+			RoleArn:              &app.cfg.StateMachine.RoleArn,
+			Definition:           &definition,
+			LoggingConfiguration: logging,
+			TracingConfiguration: app.cfg.StateMachine.LoadTracingConfiguration(),
+			Tags: []sfntypes.Tag{
+				{
+					Key:   aws.String(tagManagedBy),
+					Value: aws.String(appName),
+				},
+			},
+		},
+	}
+	return stateMachine, nil
 }

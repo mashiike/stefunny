@@ -2,7 +2,6 @@ package stefunny
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -10,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
-	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/fatih/color"
 )
@@ -35,36 +33,11 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		}
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
-	newDefinition, err := app.cfg.LoadDefinition()
-	if err != nil {
-		return fmt.Errorf("can not load state machine definition: %w", err)
-	}
-	if stateMachine.Type != app.cfg.StateMachine.stateMachineType {
-		return errors.New("state machine type is not match. replace state machine deploy not implemented")
-	}
-	newLogging, err := app.LoadLoggingConfiguration(ctx)
+	newStateMachine, err := app.LoadStateMachine(ctx)
 	if err != nil {
 		return err
 	}
-	newStateMachine := &StateMachine{
-		CreateStateMachineInput: sfn.CreateStateMachineInput{
-			Name:                 &app.cfg.StateMachine.Name,
-			Definition:           &newDefinition,
-			RoleArn:              &app.cfg.StateMachine.RoleArn,
-			LoggingConfiguration: newLogging,
-			TracingConfiguration: &sfntypes.TracingConfiguration{
-				Enabled: *app.cfg.StateMachine.Tracing.Enabled,
-			},
-			Type: app.cfg.StateMachine.stateMachineType,
-			Tags: []sfntypes.Tag{
-				{
-					Key:   aws.String(tagManagedBy),
-					Value: aws.String(appName),
-				},
-			},
-		},
-		StateMachineArn: stateMachine.StateMachineArn,
-	}
+	newStateMachine.StateMachineArn = stateMachine.StateMachineArn
 	if opt.DryRun {
 		diffString := stateMachine.DiffString(newStateMachine)
 		log.Printf("[notice] change state machine %s\n%s", opt.DryRunString(), diffString)
