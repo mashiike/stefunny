@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
@@ -13,6 +15,7 @@ func TestDeploy(t *testing.T) {
 
 	client := getDefaultMock(t)
 	cases := []struct {
+		client            *mockAWSClient
 		casename          string
 		path              string
 		DryRun            bool
@@ -42,26 +45,48 @@ func TestDeploy(t *testing.T) {
 				TagResource:          1,
 			},
 		},
+		{
+			casename: "not_found_and_create",
+			client: client.Overwrite(&mockAWSClient{
+				ListStateMachinesFunc: func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error) {
+					return &sfn.ListStateMachinesOutput{
+						StateMachines: []sfntypes.StateMachineListItem{},
+					}, nil
+				},
+			}),
+			path:   "testdata/default.yaml",
+			DryRun: false,
+			expectedCallCount: mockClientCallCount{
+				ListStateMachines:    1,
+				DescribeStateMachine: 0,
+				DescribeLogGroups:    1,
+				CreateStateMachine:   1,
+				TagResource:          0,
+			},
+		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			testutil.LoggerSetup(t, "debug")
-			client.CallCount.Reset()
+			if c.client == nil {
+				c.client = client
+			}
+			c.client.CallCount.Reset()
 
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path)
 			require.NoError(t, err)
 			app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
-				CWLogsClient: client,
-				SFnClient:    client,
+				CWLogsClient: c.client,
+				SFnClient:    c.client,
 			})
 			require.NoError(t, err)
 			err = app.Deploy(context.Background(), stefunny.DeployOption{
 				DryRun: c.DryRun,
 			})
 			require.NoError(t, err)
-			require.EqualValues(t, c.expectedCallCount, client.CallCount)
+			require.EqualValues(t, c.expectedCallCount, c.client.CallCount)
 		})
 	}
 }

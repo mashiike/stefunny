@@ -169,6 +169,37 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 	return client
 }
 
+func (m *mockAWSClient) Clone() *mockAWSClient {
+	ret := *m
+	return &ret
+}
+
+func (m *mockAWSClient) Overwrite(o *mockAWSClient) *mockAWSClient {
+	ret := m.Clone()
+	if o.CreateStateMachineFunc != nil {
+		ret.CreateStateMachineFunc = o.CreateStateMachineFunc
+	}
+	if o.DescribeStateMachineFunc != nil {
+		ret.DescribeStateMachineFunc = o.DescribeStateMachineFunc
+	}
+	if o.DeleteStateMachineFunc != nil {
+		ret.DeleteStateMachineFunc = o.DeleteStateMachineFunc
+	}
+	if o.ListStateMachinesFunc != nil {
+		ret.ListStateMachinesFunc = o.ListStateMachinesFunc
+	}
+	if o.UpdateStateMachineFunc != nil {
+		ret.UpdateStateMachineFunc = o.UpdateStateMachineFunc
+	}
+	if o.TagResourceFunc != nil {
+		ret.TagResourceFunc = o.TagResourceFunc
+	}
+	if o.DescribeLogGroupsFunc != nil {
+		ret.DescribeLogGroupsFunc = o.DescribeLogGroupsFunc
+	}
+	return ret
+}
+
 func newStateMachineListItem(name string) sfntypes.StateMachineListItem {
 	return sfntypes.StateMachineListItem{
 		CreationDate:    aws.Time(time.Date(2021, 10, 1, 2, 3, 4, 5, time.UTC)),
