@@ -13,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
+	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/fujiwara/tfstate-lookup/tfstate"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
@@ -64,6 +65,7 @@ type EndpointsConfig struct {
 	StepFunctions  string `yaml:"stepfunctions,omitempty"`
 	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty"`
 	STS            string `yaml:"sts,omitempty"`
+	EventBridge    string `yaml:"eventbridge,omitempty"`
 }
 
 type ScheduleConfig struct {
@@ -339,6 +341,14 @@ func (cfg *Config) EndpointResolver() (aws.EndpointResolver, bool) {
 				return aws.Endpoint{
 					PartitionID:   "aws",
 					URL:           cfg.Endpoints.STS,
+					SigningRegion: cfg.AWSRegion,
+				}, nil
+			}
+		case eventbridge.ServiceID:
+			if cfg.Endpoints.StepFunctions != "" {
+				return aws.Endpoint{
+					PartitionID:   "aws",
+					URL:           cfg.Endpoints.EventBridge,
 					SigningRegion: cfg.AWSRegion,
 				}, nil
 			}

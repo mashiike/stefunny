@@ -31,7 +31,7 @@ services:
       - "4571:4571"
     environment:
       - AWS_REGION=ap-northeast-1
-      - SERVICES=lambda,s3,iam,sts,logs
+      - SERVICES=lambda,s3,iam,sts,logs,events
       - LAMBDA_EXECUTOR=docker
       - DOCKER_HOST=unix:///var/run/docker.sock
     volumes:
