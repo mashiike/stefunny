@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -200,4 +201,38 @@ func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *Sta
 		CreationDate:    stateMachine.CreationDate,
 		UpdateDate:      output.UpdateDate,
 	}, nil
+}
+
+func (s *StateMachine) String() string {
+	var builder strings.Builder
+	builder.WriteString(colorRestString("StateMachine Configure:\n"))
+	builder.WriteString(s.configureJSON())
+	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
+	builder.WriteString(*s.Definition)
+	return builder.String()
+}
+
+func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
+	var builder strings.Builder
+	builder.WriteString(colorRestString("StateMachine Configure:\n"))
+	builder.WriteString(jsonDiffString(s.configureJSON(), newStateMachine.configureJSON()))
+	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
+	builder.WriteString(jsonDiffString(*s.Definition, *newStateMachine.Definition))
+	return builder.String()
+}
+
+func (s *StateMachine) configureJSON() string {
+	params := map[string]interface{}{
+		"Name":                 s.Name,
+		"RoleArn":              s.RoleArn,
+		"LoggingConfiguration": s.LoggingConfiguration,
+		"TracingConfiguration": &sfntypes.TracingConfiguration{
+			Enabled: false,
+		},
+		"Type": s.Type,
+	}
+	if s.TracingConfiguration != nil {
+		params["TracingConfiguration"] = s.TracingConfiguration
+	}
+	return marshalJSONString(params)
 }

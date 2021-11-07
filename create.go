@@ -37,6 +37,7 @@ func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error 
 			Name:                 &app.cfg.StateMachine.Name,
 			Type:                 app.cfg.StateMachine.stateMachineType,
 			RoleArn:              &app.cfg.StateMachine.RoleArn,
+			Definition:           &definition,
 			LoggingConfiguration: logging,
 			TracingConfiguration: app.cfg.StateMachine.LoadTracingConfiguration(),
 			Tags: []sfntypes.Tag{
@@ -48,12 +49,9 @@ func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error 
 		},
 	}
 	if opt.DryRun {
-		log.Printf("[notice] create parameters %s\n%s", opt.DryRunString(), colorRestString(marshalJSONString(stateMachine)))
-		log.Printf("[notice] create state machine defeinition %s\n%s", opt.DryRunString(), colorRestString(definition))
+		log.Printf("[notice] create state machine %s\n%s", opt.DryRunString(), stateMachine.String())
 		return nil
 	}
-
-	stateMachine.Definition = &definition
 	output, err := app.aws.DeployStateMachine(ctx, stateMachine)
 	if err != nil {
 		return fmt.Errorf("create failed: %w", err)
