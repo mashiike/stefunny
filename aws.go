@@ -3,6 +3,7 @@ package stefunny
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -59,14 +60,38 @@ var (
 	ErrLogGroupNotFound = errors.New("log group not found")
 )
 
-func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
+type StateMachine struct {
+	sfn.CreateStateMachineInput
+	CreationDate    *time.Time
+	StateMachineArn *string
+	Status          sfntypes.StateMachineStatus
+}
+
+func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*StateMachine, error) {
 	arn, err := svc.GetStateMachineArn(ctx, name, optFns...)
 	if err != nil {
 		return nil, err
 	}
-	return svc.SFnClient.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
+	output, err := svc.SFnClient.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String(arn),
 	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	stateMachine := &StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Definition:           output.Definition,
+			Name:                 output.Name,
+			RoleArn:              output.RoleArn,
+			LoggingConfiguration: output.LoggingConfiguration,
+			TracingConfiguration: output.TracingConfiguration,
+			Type:                 output.Type,
+		},
+		CreationDate:    output.CreationDate,
+		StateMachineArn: output.StateMachineArn,
+		Status:          output.Status,
+	}
+	return stateMachine, nil
 }
 
 func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
