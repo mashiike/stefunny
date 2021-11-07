@@ -136,6 +136,6 @@ func (app *App) LoadScheduleRule(ctx context.Context) (*ScheduleRule, error) {
 		},
 		TargetRoleArn: app.cfg.Schedule.RoleArn,
 	}
-	rule.SetStateMachineArn("<state machine arn>")
+	rule.SetStateMachineArn("[state machine arn]")
 	return rule, nil
 }

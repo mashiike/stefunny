@@ -46,10 +46,6 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error {
-	if app.cfg.Schedule == nil {
-		log.Println("[debug] schdule rule is not set")
-		return nil
-	}
 	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
 		if err == ErrStateMachineDoesNotExist {
@@ -57,27 +53,48 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 		}
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	newRule, err := app.LoadScheduleRule(ctx)
+	ruleName := getScheduleRuleName(app.cfg.StateMachine.Name)
+	rule, err := app.aws.DescribeScheduleRule(ctx, ruleName)
 	if err != nil {
+		if err == ErrScheduleRuleDoesNotExist {
+			if app.cfg.Schedule == nil {
+				return nil
+			} else {
+				return app.createScheduleRule(ctx, opt)
+			}
+		}
 		return err
 	}
-	newRule.SetStateMachineArn(stateMachineArn)
-	rule, err := app.aws.DescribeScheduleRule(ctx, *newRule.Name)
-	if err != nil {
-		return err
+	var newRule *ScheduleRule
+	if app.cfg.Schedule != nil {
+		var err error
+		newRule, err = app.LoadScheduleRule(ctx)
+		if err != nil {
+			return err
+		}
+		newRule.SetStateMachineArn(stateMachineArn)
 	}
 	if opt.DryRun {
 		diffString := rule.DiffString(newRule)
 		log.Printf("[notice] change schedule rule %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}
+	if newRule == nil {
+		err := app.aws.DeleteScheduleRule(ctx, rule)
+		if err != nil {
+			return err
+		}
+		log.Printf("[info] delete schdule rule")
+		return nil
+	}
 	output, err := app.aws.DeployScheduleRule(ctx, newRule)
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy schdule rule \n%s", marshalJSONString(output))
 	if output.FailedEntryCount != 0 {
+		log.Printf("[error] deploy schdule rule with failed entries %s", marshalJSONString(output.FailedEntries))
 		return errors.New("failed entry count > 0")
 	}
+	log.Printf("[info] deploy schdule rule %s", *output.RuleArn)
 	return nil
 }

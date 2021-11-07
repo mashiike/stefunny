@@ -61,6 +61,7 @@ func NewAWSService(clients AWSClients) *AWSService {
 }
 
 var (
+	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
 	ErrLogGroupNotFound         = errors.New("log group not found")
 )
@@ -213,6 +214,17 @@ func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *Sta
 	}, nil
 }
 
+func (svc *AWSService) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
+	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
+		log.Printf("[info] %s aleady deleting...\n", *stateMachine.StateMachineArn)
+		return nil
+	}
+	_, err := svc.SFnClient.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+	}, optFns...)
+	return err
+}
+
 func (s *StateMachine) String() string {
 	var builder strings.Builder
 	builder.WriteString(colorRestString("StateMachine Configure:\n"))
@@ -256,7 +268,9 @@ type ScheduleRule struct {
 func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
 	describeOutput, err := svc.EventBridgeClient.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
 	if err != nil {
-		log.Printf("[debug] %#v", err)
+		if strings.Contains(err.Error(), "ResourceNotFoundException") {
+			return nil, ErrScheduleRuleDoesNotExist
+		}
 		return nil, err
 	}
 	listTargetsOutput, err := svc.EventBridgeClient.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
@@ -307,6 +321,14 @@ func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRul
 	return output, nil
 }
 
+func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
+	_, err := svc.EventBridgeClient.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
+		Name:         rule.Name,
+		EventBusName: rule.EventBusName,
+	}, optFns...)
+	return err
+}
+
 func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) *ScheduleRule {
 	rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
 	rule.Targets = []eventbridgetypes.Target{
@@ -332,12 +354,12 @@ func (rule *ScheduleRule) configureJSON() string {
 
 func (rule *ScheduleRule) String() string {
 	var builder strings.Builder
-	builder.WriteString(rule.configureJSON())
+	builder.WriteString(colorRestString(rule.configureJSON()))
 	return builder.String()
 }
 
 func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	var builder strings.Builder
-	builder.WriteString(jsonDiffString(rule.configureJSON(), newRule.configureJSON()))
+	builder.WriteString(colorRestString(jsonDiffString(rule.configureJSON(), newRule.configureJSON())))
 	return builder.String()
 }
