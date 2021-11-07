@@ -30,7 +30,6 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
-		log.Printf("[debug] %#v", err)
 		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
 			return app.createStateMachine(ctx, opt)
 		}
@@ -52,26 +51,39 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 			diffDef,
 		)
 	}
-	input := &sfn.UpdateStateMachineInput{
-		StateMachineArn: stateMachine.StateMachineArn,
-		Definition:      &newDefinition,
+	newLogging, err := app.LoadLoggingConfiguration(ctx)
+	if err != nil {
+		return err
 	}
-	if *stateMachine.RoleArn != app.cfg.StateMachine.RoleArn {
+	newStateMachine := &StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:                 &app.cfg.StateMachine.Name,
+			Definition:           &newDefinition,
+			RoleArn:              &app.cfg.StateMachine.RoleArn,
+			LoggingConfiguration: newLogging,
+			TracingConfiguration: &sfntypes.TracingConfiguration{
+				Enabled: *app.cfg.StateMachine.Tracing.Enabled,
+			},
+			Tags: []sfntypes.Tag{
+				{
+					Key:   aws.String(tagManagedBy),
+					Value: aws.String(appName),
+				},
+			},
+		},
+		StateMachineArn: stateMachine.StateMachineArn,
+	}
+	if *stateMachine.RoleArn != *newStateMachine.RoleArn {
 		if opt.DryRun {
 			log.Printf(
 				"[notice] change state machine role arn `%s`\n\n%s\n%s\n",
 				opt.DryRunString(),
 				color.RedString("-role_arn:%s", *stateMachine.RoleArn),
-				color.GreenString("+role_arn:%s", app.cfg.StateMachine.RoleArn),
+				color.GreenString("+role_arn:%s", *newStateMachine.RoleArn),
 			)
 		}
-		input.RoleArn = &app.cfg.StateMachine.RoleArn
 	}
 
-	newLogging, err := app.LoadLoggingConfiguration(ctx)
-	if err != nil {
-		return err
-	}
 	logging := stateMachine.LoggingConfiguration
 	if opt.DryRun {
 		if logging.Level != newLogging.Level {
@@ -82,12 +94,12 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 				color.GreenString("+log_level:%s", newLogging.Level),
 			)
 		}
-		if logging.IncludeExecutionData != *app.cfg.StateMachine.Logging.IncludeExecutionData {
+		if logging.IncludeExecutionData != newLogging.IncludeExecutionData {
 			log.Printf(
 				"[notice] change state machine loogging.include_exection_data `%s`\n\n%s\n%s\n",
 				opt.DryRunString(),
 				color.RedString("-include_exection_data:%v", logging.IncludeExecutionData),
-				color.GreenString("+include_exection_data:%v", *app.cfg.StateMachine.Logging.IncludeExecutionData),
+				color.GreenString("+include_exection_data:%v", newLogging.IncludeExecutionData),
 			)
 		}
 		var changeDestinations bool
@@ -107,7 +119,6 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 			)
 		}
 	}
-	input.LoggingConfiguration = newLogging
 	tracing := stateMachine.TracingConfiguration
 	if tracing == nil {
 		tracing = &sfntypes.TracingConfiguration{
@@ -123,30 +134,15 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 				color.GreenString("+tracing.enabled:%v", *app.cfg.StateMachine.Tracing.Enabled),
 			)
 		}
-		tracing.Enabled = *app.cfg.StateMachine.Tracing.Enabled
 	}
-	input.TracingConfiguration = tracing
 	if opt.DryRun {
 		return nil
 	}
-	output, err := app.aws.UpdateStateMachine(ctx, input)
+	output, err := app.aws.DeployStateMachine(ctx, newStateMachine)
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] updated state machine `%s`(at `%s`)\n", app.cfg.StateMachine.Name, *output.UpdateDate)
-
-	_, err = app.aws.TagResource(ctx, &sfn.TagResourceInput{
-		ResourceArn: stateMachine.StateMachineArn,
-		Tags: []sfntypes.Tag{
-			{
-				Key:   aws.String(tagManagedBy),
-				Value: aws.String(appName),
-			},
-		},
-	})
-	if err != nil {
-		return err
-	}
+	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachine.Name, *output.UpdateDate)
 	return nil
 }
 

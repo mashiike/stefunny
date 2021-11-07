@@ -32,27 +32,29 @@ func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return fmt.Errorf("load logging config failed: %w", err)
 	}
-	input := &sfn.CreateStateMachineInput{
-		Name:                 &app.cfg.StateMachine.Name,
-		Type:                 app.cfg.StateMachine.stateMachineType,
-		RoleArn:              &app.cfg.StateMachine.RoleArn,
-		LoggingConfiguration: logging,
-		TracingConfiguration: app.cfg.StateMachine.LoadTracingConfiguration(),
-		Tags: []sfntypes.Tag{
-			{
-				Key:   aws.String(tagManagedBy),
-				Value: aws.String(appName),
+	stateMachine := &StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:                 &app.cfg.StateMachine.Name,
+			Type:                 app.cfg.StateMachine.stateMachineType,
+			RoleArn:              &app.cfg.StateMachine.RoleArn,
+			LoggingConfiguration: logging,
+			TracingConfiguration: app.cfg.StateMachine.LoadTracingConfiguration(),
+			Tags: []sfntypes.Tag{
+				{
+					Key:   aws.String(tagManagedBy),
+					Value: aws.String(appName),
+				},
 			},
 		},
 	}
 	if opt.DryRun {
-		log.Printf("[notice] create parameters %s\n%s", opt.DryRunString(), colorRestString(marshalJSONString(input)))
+		log.Printf("[notice] create parameters %s\n%s", opt.DryRunString(), colorRestString(marshalJSONString(stateMachine)))
 		log.Printf("[notice] create state machine defeinition %s\n%s", opt.DryRunString(), colorRestString(definition))
 		return nil
 	}
 
-	input.Definition = &definition
-	output, err := app.aws.CreateStateMachine(ctx, input)
+	stateMachine.Definition = &definition
+	output, err := app.aws.DeployStateMachine(ctx, stateMachine)
 	if err != nil {
 		return fmt.Errorf("create failed: %w", err)
 	}

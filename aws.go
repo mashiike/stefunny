@@ -3,6 +3,8 @@ package stefunny
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -139,4 +141,63 @@ func (svc *AWSService) GetLogGroupArn(ctx context.Context, name string, optFns .
 		}
 	}
 	return "", ErrLogGroupNotFound
+}
+
+type DeployStateMachineOutput struct {
+	CreationDate    *time.Time
+	UpdateDate      *time.Time
+	StateMachineArn *string
+}
+
+func (svc *AWSService) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
+	if stateMachine.StateMachineArn == nil {
+		log.Println("[debug] try create state machine")
+		output, err := svc.SFnClient.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
+		if err != nil {
+			return nil, fmt.Errorf("create failed: %w", err)
+		}
+		log.Println("[debug] finish create state machine")
+		return &DeployStateMachineOutput{
+			StateMachineArn: output.StateMachineArn,
+			CreationDate:    output.CreationDate,
+			UpdateDate:      output.CreationDate,
+		}, nil
+	} else {
+		return svc.updateStateMachine(ctx, stateMachine, optFns...)
+	}
+}
+
+func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
+	log.Println("[debug] try update state machine")
+	output, err := svc.SFnClient.UpdateStateMachine(ctx, &sfn.UpdateStateMachineInput{
+		StateMachineArn:      stateMachine.StateMachineArn,
+		Definition:           stateMachine.Definition,
+		LoggingConfiguration: stateMachine.LoggingConfiguration,
+		RoleArn:              stateMachine.RoleArn,
+		TracingConfiguration: stateMachine.TracingConfiguration,
+	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	log.Println("[debug] finish update state machine")
+
+	log.Println("[debug] try update state machine tags")
+	_, err = svc.SFnClient.TagResource(ctx, &sfn.TagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		Tags: []sfntypes.Tag{
+			{
+				Key:   aws.String(tagManagedBy),
+				Value: aws.String(appName),
+			},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	log.Println("[debug] finish update state machine tags")
+	return &DeployStateMachineOutput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		CreationDate:    stateMachine.CreationDate,
+		UpdateDate:      output.UpdateDate,
+	}, nil
 }
