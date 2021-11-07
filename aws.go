@@ -60,7 +60,8 @@ func NewAWSService(clients AWSClients) *AWSService {
 }
 
 var (
-	ErrLogGroupNotFound = errors.New("log group not found")
+	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
+	ErrLogGroupNotFound         = errors.New("log group not found")
 )
 
 type StateMachine struct {
@@ -79,6 +80,9 @@ func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, op
 		StateMachineArn: aws.String(arn),
 	}, optFns...)
 	if err != nil {
+		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
+			return nil, ErrStateMachineDoesNotExist
+		}
 		return nil, err
 	}
 	stateMachine := &StateMachine{
@@ -116,9 +120,7 @@ func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optF
 			}
 		}
 	}
-	return "", &sfntypes.StateMachineDoesNotExist{
-		Message: aws.String("ARN could not be searched by Name"),
-	}
+	return "", ErrStateMachineDoesNotExist
 }
 
 func (svc *AWSService) GetLogGroupArn(ctx context.Context, name string, optFns ...func(*cloudwatchlogs.Options)) (string, error) {

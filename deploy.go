@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
-	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/fatih/color"
 )
 
@@ -28,7 +27,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
-		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
+		if err == ErrStateMachineDoesNotExist {
 			return app.createStateMachine(ctx, opt)
 		}
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
