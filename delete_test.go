@@ -48,6 +48,7 @@ func TestDelete(t *testing.T) {
 				ListStateMachines:    1,
 				DescribeStateMachine: 1,
 				DeleteStateMachine:   0,
+				DescribeRule:         1,
 			},
 		},
 		{
