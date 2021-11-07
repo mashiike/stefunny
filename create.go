@@ -10,20 +10,20 @@ import (
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 )
 
-func (app *App) Create(ctx context.Context, opt CreateOption) error {
+func (app *App) Create(ctx context.Context, opt DeployOption) error {
 	log.Println("[info] Starting create", opt.DryRunString())
 	err := app.createStateMachine(ctx, opt)
 	if err != nil {
 		return err
 	}
-	if err := app.putSchedule(ctx, opt.DryRun); err != nil {
+	if err := app.putSchedule(ctx, opt); err != nil {
 		return err
 	}
 	log.Println("[info] finish create", opt.DryRunString())
 	return nil
 }
 
-func (app *App) createStateMachine(ctx context.Context, opt CreateOption) error {
+func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error {
 	definition, err := app.cfg.LoadDefinition()
 	if err != nil {
 		return fmt.Errorf("load definition failed: %w", err)

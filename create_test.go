@@ -68,7 +68,7 @@ func TestCreate(t *testing.T) {
 				CWLogsClient: client,
 			})
 			require.NoError(t, err)
-			err = app.Create(context.Background(), stefunny.CreateOption{
+			err = app.Create(context.Background(), stefunny.DeployOption{
 				DryRun: c.DryRun,
 			})
 			require.NoError(t, err)

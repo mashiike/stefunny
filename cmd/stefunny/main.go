@@ -43,7 +43,7 @@ func main() {
 				Name:  "create",
 				Usage: "create StepFunctions StateMachine.",
 				Action: func(c *cli.Context) error {
-					return app.Create(c.Context, stefunny.CreateOption{
+					return app.Create(c.Context, stefunny.DeployOption{
 						DryRun: c.Bool("dry-run"),
 					})
 				},
