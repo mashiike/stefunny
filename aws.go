@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
+	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 )
 
 type SFnClient interface {
@@ -54,8 +55,7 @@ func NewAWSService(clients AWSClients) *AWSService {
 }
 
 var (
-	ErrStateMachineNotFound = errors.New("state machine not found")
-	ErrLogGroupNotFound     = errors.New("log group not found")
+	ErrLogGroupNotFound = errors.New("log group not found")
 )
 
 func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
@@ -87,7 +87,9 @@ func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optF
 			}
 		}
 	}
-	return "", ErrStateMachineNotFound
+	return "", &sfntypes.StateMachineDoesNotExist{
+		Message: aws.String("ARN could not be searched by Name"),
+	}
 }
 
 func (svc *AWSService) GetLogGroupArn(ctx context.Context, name string, optFns ...func(*cloudwatchlogs.Options)) (string, error) {

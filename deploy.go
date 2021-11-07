@@ -28,13 +28,16 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	if err != nil {
+		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
+			return app.createStateMachine(ctx, opt)
+		}
+		return fmt.Errorf("failed to describe current state machine status: %w", err)
+	}
 	newDefinition, err := app.cfg.LoadDefinition()
 	if err != nil {
 		return fmt.Errorf("can not load state machine definition: %w", err)
-	}
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
-	if err != nil {
-		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
 	if stateMachine.Type != app.cfg.StateMachine.stateMachineType {
 		return errors.New("state machine type is not match. replace state machine deploy not implemented")
