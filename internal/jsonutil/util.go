@@ -3,10 +3,12 @@ package jsonutil
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/Cside/jsondiff"
 	"github.com/fatih/color"
+	"gopkg.in/yaml.v2"
 )
 
 func JSONDiffString(j1, j2 string) string {
@@ -89,4 +91,50 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 		v[key] = replaceSlice
 	}
 	return v
+}
+
+func Yaml2Json(data []byte) ([]byte, error) {
+	var temp map[string]interface{}
+	if err := yaml.Unmarshal(data, &temp); err != nil {
+		return nil, err
+	}
+	m, err := convertKeyString(temp)
+	if err != nil {
+		return nil, err
+	}
+	bs, err := json.Marshal(m)
+	if err != nil {
+		return nil, err
+	}
+	return bs, nil
+}
+
+func convertKeyString(v interface{}) (interface{}, error) {
+	switch cv := v.(type) {
+	case map[string]interface{}:
+		ret := make(map[string]interface{}, len(cv))
+		for key, value := range cv {
+			var err error
+			ret[key], err = convertKeyString(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return ret, nil
+	case map[interface{}]interface{}:
+		ret := make(map[string]interface{}, len(cv))
+		for key, value := range cv {
+			skey, ok := key.(string)
+			if !ok {
+				return errors.New("can not convert key string"), nil
+			}
+			var err error
+			ret[skey], err = convertKeyString(value)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return ret, nil
+	}
+	return v, nil
 }

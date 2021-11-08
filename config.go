@@ -18,6 +18,7 @@ import (
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
+	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 type Config struct {
@@ -309,6 +310,12 @@ func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 			return nil, err
 		}
 		return cfg.loader.ReadWithEnvBytes([]byte(jsonStr))
+	case ".yaml", ".yml":
+		bs, err := cfg.loader.ReadWithEnv(path)
+		if err != nil {
+			return nil, err
+		}
+		return jsonutil.Yaml2Json(bs)
 	}
 	return cfg.loader.ReadWithEnv(path)
 }
