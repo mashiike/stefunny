@@ -11,7 +11,7 @@ import (
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
-	"github.com/mashiike/stefunny/asl"
+	"github.com/mashiike/stefunny/internal/asl"
 )
 
 const (
