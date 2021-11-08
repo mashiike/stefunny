@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+
+	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 func (app *App) Create(ctx context.Context, opt DeployOption) error {
@@ -60,7 +62,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy schdule rule %s\n", marshalJSONString(output))
+	log.Printf("[info] deploy schdule rule %s\n", jsonutil.MarshalJSONString(output))
 	if output.FailedEntryCount != 0 {
 		return errors.New("failed entry count > 0")
 	}

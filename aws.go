@@ -14,6 +14,7 @@ import (
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 type SFnClient interface {
@@ -252,9 +253,9 @@ func (s *StateMachine) String() string {
 func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 	var builder strings.Builder
 	builder.WriteString(colorRestString("StateMachine Configure:\n"))
-	builder.WriteString(jsonDiffString(s.configureJSON(), newStateMachine.configureJSON()))
+	builder.WriteString(jsonutil.jsonutil.JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
 	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
-	builder.WriteString(jsonDiffString(*s.Definition, *newStateMachine.Definition))
+	builder.WriteString(jsonutil.JSONDiffString(*s.Definition, *newStateMachine.Definition))
 	return builder.String()
 }
 
@@ -272,7 +273,7 @@ func (s *StateMachine) configureJSON() string {
 	if s.TracingConfiguration != nil {
 		params["TracingConfiguration"] = s.TracingConfiguration
 	}
-	return marshalJSONString(params)
+	return jsonutil.jsonutil.MarshalJSONString(params)
 }
 
 type ScheduleRule struct {
@@ -378,7 +379,7 @@ func (rule *ScheduleRule) configureJSON() string {
 		"Targets":            rule.Targets,
 		"Tags":               rule.Tags,
 	}
-	return marshalJSONString(params)
+	return jsonutil.MarshalJSONString(params)
 }
 
 func (rule *ScheduleRule) String() string {
@@ -389,7 +390,7 @@ func (rule *ScheduleRule) String() string {
 
 func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString(jsonDiffString(rule.configureJSON(), newRule.configureJSON())))
+	builder.WriteString(colorRestString(jsonutil.JSONDiffString(rule.configureJSON(), newRule.configureJSON())))
 	return builder.String()
 }
 
