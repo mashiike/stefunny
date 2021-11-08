@@ -169,9 +169,14 @@ func main() {
 
 	sort.Sort(cli.FlagsByName(cliApp.Flags))
 	sort.Sort(cli.CommandsByName(cliApp.Commands))
+	cliApp.Version = Version
 	cliApp.Before = func(c *cli.Context) error {
 		logger.Setup(os.Stderr, c.String("log-level"))
-
+		switch c.Args().First() {
+		case "help", "h", "version":
+			return nil
+		default:
+		}
 		cfg := stefunny.NewDefaultConfig()
 		opt := stefunny.LoadConfigOption{
 			TFState: c.String("tfstate"),
