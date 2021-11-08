@@ -3,7 +3,7 @@ package asl_test
 import (
 	"testing"
 
-	"github.com/mashiike/stefunny/asl"
+	"github.com/mashiike/stefunny/internal/asl"
 	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +14,7 @@ func TestParse(t *testing.T) {
 		expected *asl.StateMachine
 	}{
 		{
-			path: "../testdata/hello_world.asl.json",
+			path: "../../testdata/hello_world.asl.json",
 			expected: &asl.StateMachine{
 				StartAt: "Hello",
 				States: map[string]*asl.State{
@@ -30,7 +30,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
-			path: "../testdata/hello_world.asl.yaml",
+			path: "../../testdata/hello_world.asl.yaml",
 			expected: &asl.StateMachine{
 				StartAt: "Hello",
 				States: map[string]*asl.State{
@@ -46,7 +46,7 @@ func TestParse(t *testing.T) {
 			},
 		},
 		{
-			path: "../testdata/workflow1.asl.json",
+			path: "../../testdata/workflow1.asl.json",
 			expected: &asl.StateMachine{
 				StartAt: "Choice",
 				States: map[string]*asl.State{
