@@ -253,7 +253,7 @@ func (s *StateMachine) String() string {
 func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 	var builder strings.Builder
 	builder.WriteString(colorRestString("StateMachine Configure:\n"))
-	builder.WriteString(jsonutil.jsonutil.JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
+	builder.WriteString(jsonutil.JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
 	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
 	builder.WriteString(jsonutil.JSONDiffString(*s.Definition, *newStateMachine.Definition))
 	return builder.String()
@@ -273,7 +273,7 @@ func (s *StateMachine) configureJSON() string {
 	if s.TracingConfiguration != nil {
 		params["TracingConfiguration"] = s.TracingConfiguration
 	}
-	return jsonutil.jsonutil.MarshalJSONString(params)
+	return jsonutil.MarshalJSONString(params)
 }
 
 type ScheduleRule struct {
