@@ -78,7 +78,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 		}
 		newRule.SetStateMachineArn(stateMachineArn)
 		if opt.ScheduleEnabled != nil {
-			newRule.SetEnalbed(*opt.ScheduleEnabled)
+			newRule.SetEnabled(*opt.ScheduleEnabled)
 		}
 	}
 	if opt.DryRun {

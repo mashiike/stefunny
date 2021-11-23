@@ -394,7 +394,7 @@ func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	return builder.String()
 }
 
-func (rule *ScheduleRule) SetEnalbed(enabled bool) {
+func (rule *ScheduleRule) SetEnabled(enabled bool) {
 	if enabled {
 		rule.State = eventbridgetypes.RuleStateEnabled
 	} else {
