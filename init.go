@@ -56,15 +56,9 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 
 	log.Println("[debug] definition path =", input.DefinitionFileName)
 	defPath := input.DefinitionFileName
-	if filepath.IsAbs(defPath) {
-		absConfigDir, err := filepath.Abs(configDir)
-		if err != nil {
-			return fmt.Errorf("failed get abs path rel: %w", err)
-		}
-		defPath, err = filepath.Rel(absConfigDir, defPath)
-		if err != nil {
-			return fmt.Errorf("failed definition path rel: %w", err)
-		}
+	defPath, err = filepath.Rel(configDir, defPath)
+	if err != nil {
+		return fmt.Errorf("failed definition path rel: %w", err)
 	}
 	cfg.StateMachine.Definition = defPath
 	defFullPath := filepath.Join(configDir, defPath)
