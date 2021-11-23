@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	awsarn "github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/google/go-jsonnet/formatter"
 	"github.com/mashiike/stefunny/internal/jsonutil"
 	"gopkg.in/yaml.v3"
@@ -107,8 +108,8 @@ func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
 }
 
 func extractLogGroupName(arn string) string {
-	parts := strings.Split(arn, "/")
-	return parts[len(parts)-1]
+	logGroupARN, _ := awsarn.Parse(arn)
+	return strings.TrimRight(strings.TrimPrefix(logGroupARN.Resource, "log-group:"), ":*")
 }
 
 func createDefinitionFile(path string, definition string) error {
