@@ -42,7 +42,7 @@ func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error 
 
 func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error {
 	if app.cfg.Schedule == nil {
-		log.Println("[debug] schdule rule is not set")
+		log.Println("[debug] schedule rule is not set")
 		return nil
 	}
 	rule, err := app.LoadScheduleRule(ctx)
@@ -62,7 +62,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy schdule rule %s\n", jsonutil.MarshalJSONString(output))
+	log.Printf("[info] deploy schedule rule %s\n", jsonutil.MarshalJSONString(output))
 	if output.FailedEntryCount != 0 {
 		return errors.New("failed entry count > 0")
 	}
