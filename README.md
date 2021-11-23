@@ -5,7 +5,7 @@
 [![Go Report Card](https://goreportcard.com/badge/mashiike/stefunny)](https://goreportcard.com/report/mashiike/stefunny)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/mashiike/stefunny/blob/master/LICENSE)
 
-stefunny is a deployment tool for [AWS StepFunctions](https://aws.amazon.com/step-functions/) state machine and the accompanying [AWS EventBrdige](https://aws.amazon.com/eventbridge/) rule.
+stefunny is a deployment tool for [AWS StepFunctions](https://aws.amazon.com/step-functions/) state machine and the accompanying [AWS EventBridge](https://aws.amazon.com/eventbridge/) rule.
 
 stefunny does,
 
@@ -46,7 +46,7 @@ $ brew install mashiike/tap/stefunny
 
 ```console
 NAME:
-   stefunny - A command line tool for deployment StepFunctions and EventBrdige
+   stefunny - A command line tool for deployment StepFunctions and EventBridge
 
 USAGE:
    stefunny [global options] command [command options] [arguments...]

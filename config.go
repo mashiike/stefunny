@@ -110,7 +110,7 @@ func (cfg *Config) Restrict() error {
 	}
 	if cfg.Schedule != nil {
 		if err := cfg.Schedule.Restrict(); err != nil {
-			return fmt.Errorf("schdule.%w", err)
+			return fmt.Errorf("schedule.%w", err)
 		}
 	}
 	return nil
