@@ -232,7 +232,7 @@ func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *Sta
 
 func (svc *AWSService) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
 	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
-		log.Printf("[info] %s aleady deleting...\n", *stateMachine.StateMachineArn)
+		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
 		return nil
 	}
 	_, err := svc.SFnClient.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
