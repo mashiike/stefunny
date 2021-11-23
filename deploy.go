@@ -65,6 +65,8 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	newRules.SetStateMachineArn(stateMachineArn)
 	if opt.ScheduleEnabled != nil {
 		newRules.SetEnabled(*opt.ScheduleEnabled)
+	} else {
+		newRules.SyncState(rules)
 	}
 	if len(rules) == 0 && len(newRules) == 0 {
 		log.Println("[debug] no thing to do")

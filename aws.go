@@ -529,6 +529,19 @@ func (rules ScheduleRules) SetEnabled(enabled bool) {
 	}
 }
 
+func (rules ScheduleRules) SyncState(other ScheduleRules) {
+	otherMap := make(map[string]*ScheduleRule, len(other))
+
+	for _, r := range other {
+		otherMap[*r.Name] = r
+	}
+	for _, r := range rules {
+		if o, ok := otherMap[*r.Name]; ok {
+			r.State = o.State
+		}
+	}
+}
+
 func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 	addRuleName := make([]string, 0)
 	deleteRuleName := make([]string, 0)
