@@ -16,7 +16,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	}
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
-	ruleName := getScheduleRuleName(app.cfg.StateMachine.Name)
+	ruleName := app.cfg.Schedule.RuleName
 	rule, err := app.aws.DescribeScheduleRule(ctx, ruleName)
 	var ruleExists bool
 

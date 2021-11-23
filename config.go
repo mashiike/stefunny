@@ -19,6 +19,7 @@ import (
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
 	"github.com/mashiike/stefunny/internal/jsonutil"
+	"github.com/serenize/snaker"
 )
 
 type Config struct {
@@ -71,6 +72,7 @@ type EndpointsConfig struct {
 }
 
 type ScheduleConfig struct {
+	RuleName   string `yaml:"rule_name,omitempty"`
 	Expression string `yaml:"expression,omitempty"`
 	RoleArn    string `yaml:"role_arn,omitempty"`
 }
@@ -109,7 +111,7 @@ func (cfg *Config) Restrict() error {
 		return fmt.Errorf("state_machine.%w", err)
 	}
 	if cfg.Schedule != nil {
-		if err := cfg.Schedule.Restrict(); err != nil {
+		if err := cfg.Schedule.Restrict(cfg.StateMachine.Name); err != nil {
 			return fmt.Errorf("schedule.%w", err)
 		}
 	}
@@ -200,8 +202,11 @@ func (cfg *StateMachineTracingConfig) Restrict() error {
 }
 
 // Restrict restricts a configuration.
-func (cfg *ScheduleConfig) Restrict() error {
-
+func (cfg *ScheduleConfig) Restrict(stateMachineName string) error {
+	if cfg.RuleName == "" {
+		middle := snaker.CamelToSnake(stateMachineName)
+		cfg.RuleName = fmt.Sprintf("%s-%s-schedule", appName, middle)
+	}
 	if cfg.Expression == "" {
 		return errors.New("expression is required")
 	}

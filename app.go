@@ -126,7 +126,7 @@ func (app *App) LoadScheduleRule(ctx context.Context) (*ScheduleRule, error) {
 
 	rule := &ScheduleRule{
 		PutRuleInput: eventbridge.PutRuleInput{
-			Name:               aws.String(getScheduleRuleName(app.cfg.StateMachine.Name)),
+			Name:               aws.String(app.cfg.Schedule.RuleName),
 			ScheduleExpression: &app.cfg.Schedule.Expression,
 			State:              eventbridgetypes.RuleStateEnabled,
 		},

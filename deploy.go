@@ -57,7 +57,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 		}
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	ruleName := getScheduleRuleName(app.cfg.StateMachine.Name)
+	ruleName := app.cfg.Schedule.RuleName
 	rule, err := app.aws.DescribeScheduleRule(ctx, ruleName)
 	if err != nil {
 		if err == ErrScheduleRuleDoesNotExist {
