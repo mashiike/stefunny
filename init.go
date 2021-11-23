@@ -17,6 +17,7 @@ import (
 
 type InitInput struct {
 	Version            string
+	AWSRegion          string
 	StateMachineName   string
 	ConfigPath         string
 	DefinitionFileName string
@@ -34,6 +35,7 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 	if input.Version != "current" && input.Version != "" {
 		cfg.RequiredVersion = ">=" + input.Version
 	}
+	cfg.AWSRegion = input.AWSRegion
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, input.StateMachineName)
 	if err != nil {
 		return fmt.Errorf("failed describe state machine: %w", err)

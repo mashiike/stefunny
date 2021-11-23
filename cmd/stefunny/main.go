@@ -51,12 +51,14 @@ func main() {
 				UsageText: "stefunny init [options] --state-machine <state machine name>",
 				Action: func(c *cli.Context) error {
 					cfg := stefunny.NewDefaultConfig()
+					cfg.AWSRegion = c.String("region")
 					app, err := stefunny.New(c.Context, cfg)
 					if err != nil {
 						return err
 					}
 					return app.Init(c.Context, &stefunny.InitInput{
 						Version:            Version,
+						AWSRegion:          c.String("region"),
 						ConfigPath:         c.String("config"),
 						DefinitionFileName: c.String("definition"),
 						StateMachineName:   c.String("state-machine"),
@@ -64,6 +66,10 @@ func main() {
 					})
 				},
 				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "region",
+						EnvVars: []string{"AWS_REGION", "AWS_DEAULT_REGION"},
+					},
 					&cli.StringFlag{
 						Name:    "config",
 						Aliases: []string{"c"},
