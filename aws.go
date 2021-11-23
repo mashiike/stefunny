@@ -513,6 +513,15 @@ func (rule *ScheduleRule) SetEnabled(enabled bool) {
 	}
 }
 
+func (rule *ScheduleRule) HasTagKeyValue(otherKey, otherValue string) bool {
+	for key, value := range rule.Tags {
+		if key == otherKey && value == otherValue {
+			return true
+		}
+	}
+	return false
+}
+
 func (rules ScheduleRules) SetStateMachineArn(stateMachineArn string) {
 	for _, rule := range rules {
 		rule.SetStateMachineArn(stateMachineArn)
@@ -546,6 +555,34 @@ func (rules ScheduleRules) SyncState(other ScheduleRules) {
 			r.State = o.State
 		}
 	}
+}
+
+//Things that are in rules but not in other
+func (rules ScheduleRules) Subtract(other ScheduleRules) ScheduleRules {
+	nothing := make(ScheduleRules, 0, len(rules))
+	otherMap := make(map[string]*ScheduleRule, len(other))
+	for _, r := range other {
+		otherMap[*r.Name] = r
+	}
+	for _, r := range rules {
+		if _, ok := otherMap[*r.Name]; !ok {
+			nothing = append(nothing, r)
+		}
+	}
+	return nothing
+}
+
+func (rules ScheduleRules) Exclude(other ScheduleRules) ScheduleRules {
+	otherMap := make(map[string]*ScheduleRule, len(other))
+	for _, r := range other {
+		otherMap[*r.Name] = r
+	}
+	for i, r := range rules {
+		if _, ok := otherMap[*r.Name]; ok {
+			rules = append(rules[:i], rules[i+1:]...)
+		}
+	}
+	return rules
 }
 
 func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {

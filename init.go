@@ -50,7 +50,8 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 		for _, rule := range rules {
 			s, err := newScheduleConfigFromSchedule(rule)
 			if err != nil {
-				return err
+				log.Printf("[warn] schedule rule can not managed by %s skip this rule: %s", appName, err)
+				continue
 			}
 			cfg.Schedule = append(cfg.Schedule, s)
 		}
