@@ -23,7 +23,7 @@ var (
 func main() {
 	cliApp := &cli.App{
 		Name:  "stefunny",
-		Usage: "A command line tool for deployment StepFunctions and EventBrdige",
+		Usage: "A command line tool for deployment StepFunctions and EventBridge",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:        "config",
@@ -136,7 +136,7 @@ func main() {
 			},
 			{
 				Name:  "render",
-				Usage: "render state machie defienion(the Amazon States Language) as a dot file",
+				Usage: "render state machie definition(the Amazon States Language) as a dot file",
 				Action: func(c *cli.Context) error {
 					args := c.Args()
 					opt := stefunny.RenderOption{
