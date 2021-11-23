@@ -66,6 +66,7 @@ func NewAWSService(clients AWSClients) *AWSService {
 
 var (
 	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
+	ErrRuleIsNotSchedule        = errors.New("this rule is not schedule")
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
 	ErrLogGroupNotFound         = errors.New("log group not found")
 )
@@ -292,6 +293,9 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 		}
 		return nil, err
 	}
+	if describeOutput.ScheduleExpression == nil {
+		return nil, ErrRuleIsNotSchedule
+	}
 	listTargetsOutput, err := svc.EventBridgeClient.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
 		Rule:  &ruleName,
 		Limit: aws.Int32(5),
@@ -324,6 +328,73 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 	}
 	rule.Tags = tags
 	return rule, nil
+}
+
+type listRuleNamesByTargetPaginator struct {
+	client    EventBridgeClient
+	params    *eventbridge.ListRuleNamesByTargetInput
+	nextToken *string
+	firstPage bool
+}
+
+func newListRuleNamesByTargetPaginator(client EventBridgeClient, params *eventbridge.ListRuleNamesByTargetInput) *listRuleNamesByTargetPaginator {
+	if params == nil {
+		params = &eventbridge.ListRuleNamesByTargetInput{}
+	}
+
+	return &listRuleNamesByTargetPaginator{
+		client:    client,
+		params:    params,
+		firstPage: true,
+	}
+}
+
+func (p *listRuleNamesByTargetPaginator) HasMorePages() bool {
+	return p.firstPage || p.nextToken != nil
+}
+
+func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+	if !p.HasMorePages() {
+		return nil, fmt.Errorf("no more pages available")
+	}
+
+	params := *p.params
+	params.NextToken = p.nextToken
+
+	result, err := p.client.ListRuleNamesByTarget(ctx, &params, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	p.firstPage = false
+
+	prevToken := p.nextToken
+	p.nextToken = result.NextToken
+
+	if prevToken != nil && p.nextToken != nil && *prevToken == *p.nextToken {
+		p.nextToken = nil
+	}
+	return result, nil
+}
+
+func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string, optFns ...func(*eventbridge.Options)) ([]*ScheduleRule, error) {
+	p := newListRuleNamesByTargetPaginator(svc.EventBridgeClient, &eventbridge.ListRuleNamesByTargetInput{
+		TargetArn: aws.String(stateMachineArn),
+	})
+	rules := make([]*ScheduleRule, 0)
+	for p.HasMorePages() {
+		output, err := p.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range output.RuleNames {
+			schedule, err := svc.DescribeScheduleRule(ctx, name)
+			if err != nil && err != ErrRuleIsNotSchedule {
+				return nil, err
+			}
+			rules = append(rules, schedule)
+		}
+	}
+	return rules, nil
 }
 
 type DeployScheduleRuleOutput struct {
