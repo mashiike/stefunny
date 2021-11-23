@@ -67,12 +67,15 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 		}
 	}
 	cfg.StateMachine.Definition = defPath
-	if err := createDefinitionFile(filepath.Join(configDir, defPath), *stateMachine.Definition); err != nil {
+	defFullPath := filepath.Join(configDir, defPath)
+	if err := createDefinitionFile(defFullPath, *stateMachine.Definition); err != nil {
 		return fmt.Errorf("failed create definition file: %w", err)
 	}
+	log.Printf("[notice] StateMachine/%s save state machine definition to %s", *stateMachine.Name, defFullPath)
 	if err := createConfigFile(input.ConfigPath, cfg); err != nil {
 		return fmt.Errorf("failed create config file: %w", err)
 	}
+	log.Printf("[notice] StateMachine/%s save config to %s", *stateMachine.Name, input.ConfigPath)
 	return nil
 }
 
