@@ -16,15 +16,16 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	}
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
-	ruleName := getScheduleRuleName(app.cfg.StateMachine.Name)
-	rule, err := app.aws.DescribeScheduleRule(ctx, ruleName)
-	var ruleExists bool
 
-	if err == nil {
-		log.Printf("[notice] delete schedule rule is %s\n%s", opt.DryRunString(), rule)
-		ruleExists = true
-	} else if err != nil && err != ErrScheduleRuleDoesNotExist {
-		return err
+	rules := make(ScheduleRules, 0, len(app.cfg.Schedule))
+	for _, cfg := range app.cfg.Schedule {
+		rule, err := app.aws.DescribeScheduleRule(ctx, cfg.RuleName)
+		if err == nil {
+			log.Printf("[notice] delete schedule rule is %s\n%s", opt.DryRunString(), rule)
+		} else if err != nil && err != ErrScheduleRuleDoesNotExist {
+			return err
+		}
+		rules = append(rules, rule)
 	}
 	if opt.DryRun {
 		log.Println("[info] dry run ok")
@@ -44,10 +45,10 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete state machine status: %w", err)
 	}
-	if ruleExists {
-		err := app.aws.DeleteScheduleRule(ctx, rule)
+	if len(rules) > 0 {
+		err := app.aws.DeleteScheduleRules(ctx, rules)
 		if err != nil {
-			return fmt.Errorf("failed to delete rule: %w", err)
+			return fmt.Errorf("failed to delete rules: %w", err)
 		}
 	}
 	log.Println("[info] finish delete", opt.DryRunString())

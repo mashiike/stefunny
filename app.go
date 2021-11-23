@@ -74,10 +74,10 @@ func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.Logging
 	if cfg.Logging == nil {
 		return ret, nil
 	}
-	if cfg.Logging.logLevel == sfntypes.LogLevelOff {
+	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
+	if cfg.Logging.Destination == nil {
 		return ret, nil
 	}
-	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
 	arn, err := app.aws.GetLogGroupArn(ctx, cfg.Logging.Destination.LogGroup)
 	if err != nil {
 		return nil, fmt.Errorf("get log group arn: %w", err)
@@ -122,18 +122,30 @@ func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
 	return stateMachine, nil
 }
 
-func (app *App) LoadScheduleRule(ctx context.Context) (*ScheduleRule, error) {
-
-	rule := &ScheduleRule{
-		PutRuleInput: eventbridge.PutRuleInput{
-			Name:               aws.String(getScheduleRuleName(app.cfg.StateMachine.Name)),
-			ScheduleExpression: &app.cfg.Schedule.Expression,
-			State:              eventbridgetypes.RuleStateEnabled,
-		},
-		TargetRoleArn: app.cfg.Schedule.RoleArn,
-		Tags:          app.cfg.Tags,
+func (app *App) LoadScheduleRules(ctx context.Context) (ScheduleRules, error) {
+	rules := make([]*ScheduleRule, 0, len(app.cfg.Schedule))
+	for _, cfg := range app.cfg.Schedule {
+		rule := &ScheduleRule{
+			PutRuleInput: eventbridge.PutRuleInput{
+				Name:               aws.String(cfg.RuleName),
+				ScheduleExpression: &cfg.Expression,
+				State:              eventbridgetypes.RuleStateEnabled,
+			},
+			Targets: []eventbridgetypes.Target{{
+				RoleArn: aws.String(cfg.RoleArn),
+			}},
+			TargetRoleArn: cfg.RoleArn,
+			Tags:          app.cfg.Tags,
+		}
+		if cfg.Description != "" {
+			rule.Description = aws.String(cfg.Description)
+		}
+		if cfg.ID != "" {
+			rule.Targets[0].Id = aws.String(cfg.ID)
+		}
+		rule.Tags[tagManagedBy] = appName
+		rule.SetStateMachineArn("[state machine arn]")
+		rules = append(rules, rule)
 	}
-	rule.Tags[tagManagedBy] = appName
-	rule.SetStateMachineArn("[state machine arn]")
-	return rule, nil
+	return rules, nil
 }

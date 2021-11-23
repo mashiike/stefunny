@@ -19,6 +19,7 @@ import (
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
 	"github.com/mashiike/stefunny/internal/jsonutil"
+	"github.com/serenize/snaker"
 )
 
 type Config struct {
@@ -26,7 +27,7 @@ type Config struct {
 	AWSRegion       string `yaml:"aws_region,omitempty"`
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
-	Schedule     *ScheduleConfig     `yaml:"schedule,omitempty"`
+	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty"`
 	Tags         map[string]string   `yaml:"tags,omitempty"`
 
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
@@ -71,8 +72,11 @@ type EndpointsConfig struct {
 }
 
 type ScheduleConfig struct {
-	Expression string `yaml:"expression,omitempty"`
-	RoleArn    string `yaml:"role_arn,omitempty"`
+	ID          string `yaml:"id,omitempty"`
+	RuleName    string `yaml:"rule_name,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	Expression  string `yaml:"expression,omitempty"`
+	RoleArn     string `yaml:"role_arn,omitempty"`
 }
 
 func (cfg *Config) Load(path string, opt LoadConfigOption) error {
@@ -108,9 +112,11 @@ func (cfg *Config) Restrict() error {
 	if err := cfg.StateMachine.Restrict(); err != nil {
 		return fmt.Errorf("state_machine.%w", err)
 	}
-	if cfg.Schedule != nil {
-		if err := cfg.Schedule.Restrict(); err != nil {
-			return fmt.Errorf("schdule.%w", err)
+	if len(cfg.Schedule) != 0 {
+		for i, s := range cfg.Schedule {
+			if err := s.Restrict(i, cfg.StateMachine.Name); err != nil {
+				return fmt.Errorf("schedule[%d].%w", i, err)
+			}
 		}
 	}
 	return nil
@@ -161,18 +167,11 @@ func (cfg *StateMachineLoggingConfig) Restrict() error {
 		return fmt.Errorf("level is %w", err)
 	}
 
-	if cfg.logLevel == sfntypes.LogLevelOff {
-		return nil
-	}
-
 	if cfg.Destination == nil {
 		if cfg.logLevel != sfntypes.LogLevelOff {
 			return errors.New("destination is required, if log_level is not OFF")
 		}
 	} else {
-		if cfg.logLevel == sfntypes.LogLevelOff {
-			log.Println("[warn] set logging.destination but log_level is OFF.")
-		}
 		if err := cfg.Destination.Restrict(); err != nil {
 			return fmt.Errorf("destination.%w", err)
 		}
@@ -200,8 +199,14 @@ func (cfg *StateMachineTracingConfig) Restrict() error {
 }
 
 // Restrict restricts a configuration.
-func (cfg *ScheduleConfig) Restrict() error {
-
+func (cfg *ScheduleConfig) Restrict(index int, stateMachineName string) error {
+	if cfg.RuleName == "" {
+		middle := snaker.CamelToSnake(stateMachineName)
+		cfg.RuleName = fmt.Sprintf("%s-%s-schedule", appName, middle)
+		if index != 0 {
+			cfg.RuleName += fmt.Sprintf("%d", index)
+		}
+	}
 	if cfg.Expression == "" {
 		return errors.New("expression is required")
 	}

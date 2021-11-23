@@ -8,7 +8,7 @@ import (
 
 	"github.com/Cside/jsondiff"
 	"github.com/fatih/color"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func JSONDiffString(j1, j2 string) string {
@@ -107,6 +107,14 @@ func Yaml2Json(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return bs, nil
+}
+
+func Json2Yaml(data []byte) ([]byte, error) {
+	var temp map[string]interface{}
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return nil, err
+	}
+	return yaml.Marshal(temp)
 }
 
 func convertKeyString(v interface{}) (interface{}, error) {

@@ -52,56 +52,54 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error {
 	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
-		if err == ErrStateMachineDoesNotExist {
-			return app.createScheduleRule(ctx, opt)
-		}
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	ruleName := getScheduleRuleName(app.cfg.StateMachine.Name)
-	rule, err := app.aws.DescribeScheduleRule(ctx, ruleName)
+	rules, err := app.aws.SearchScheduleRule(ctx, stateMachineArn)
 	if err != nil {
-		if err == ErrScheduleRuleDoesNotExist {
-			if app.cfg.Schedule == nil {
-				return nil
-			} else {
-				return app.createScheduleRule(ctx, opt)
-			}
-		}
 		return err
 	}
-	var newRule *ScheduleRule
-	if app.cfg.Schedule != nil {
-		var err error
-		newRule, err = app.LoadScheduleRule(ctx)
-		if err != nil {
-			return err
-		}
-		newRule.SetStateMachineArn(stateMachineArn)
-		if opt.ScheduleEnabled != nil {
-			newRule.SetEnalbed(*opt.ScheduleEnabled)
-		}
+	newRules, err := app.LoadScheduleRules(ctx)
+	if err != nil {
+		return err
+	}
+	newRules.SetStateMachineArn(stateMachineArn)
+	if opt.ScheduleEnabled != nil {
+		newRules.SetEnabled(*opt.ScheduleEnabled)
+	} else {
+		newRules.SyncState(rules)
+	}
+	if len(rules) == 0 && len(newRules) == 0 {
+		log.Println("[debug] no thing to do")
+		return nil
+	}
+	if len(rules) == 0 && len(newRules) != 0 {
+		return app.createScheduleRule(ctx, opt)
 	}
 	if opt.DryRun {
-		diffString := rule.DiffString(newRule)
+		diffString := rules.DiffString(newRules)
 		log.Printf("[notice] change schedule rule %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}
-	if newRule == nil {
-		err := app.aws.DeleteScheduleRule(ctx, rule)
+	if len(newRules) == 0 {
+		err := app.aws.DeleteScheduleRules(ctx, rules)
 		if err != nil {
 			return err
 		}
-		log.Printf("[info] delete schdule rule")
+		log.Printf("[info] delete all schedule rule")
 		return nil
 	}
-	output, err := app.aws.DeployScheduleRule(ctx, newRule)
+	output, err := app.aws.DeployScheduleRules(ctx, newRules)
 	if err != nil {
 		return err
 	}
-	if output.FailedEntryCount != 0 {
-		log.Printf("[error] deploy schdule rule with failed entries %s", jsonutil.MarshalJSONString(output.FailedEntries))
+	if output.FailedEntryCount() != 0 {
+		for _, o := range output {
+			log.Printf("[error] deploy schedule rule with failed entries %s", jsonutil.MarshalJSONString(o.FailedEntries))
+		}
 		return errors.New("failed entry count > 0")
 	}
-	log.Printf("[info] deploy schdule rule %s", *output.RuleArn)
+	for _, o := range output {
+		log.Printf("[info] deploy schedule rule %s", *o.RuleArn)
+	}
 	return nil
 }

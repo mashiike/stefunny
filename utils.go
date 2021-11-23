@@ -7,7 +7,6 @@ import (
 
 	"github.com/Songmu/prompter"
 	"github.com/fatih/color"
-	"github.com/serenize/snaker"
 )
 
 func colorRestString(str string) string {
@@ -33,7 +32,12 @@ func prompt(ctx context.Context, msg string, defaultInput string) (string, error
 	}
 }
 
-func getScheduleRuleName(stateMachineName string) string {
-	middle := snaker.CamelToSnake(stateMachineName)
-	return fmt.Sprintf("%s-%s-schedule", appName, middle)
+func coalesceString(str *string, d string) string {
+	if str == nil {
+		return d
+	}
+	if *str == "" {
+		return d
+	}
+	return *str
 }

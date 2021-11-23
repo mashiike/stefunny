@@ -32,6 +32,7 @@ type CWLogsClient interface {
 }
 type EventBridgeClient interface {
 	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
+	ListRuleNamesByTarget(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error)
 	DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error)
 	ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
 	PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
@@ -65,6 +66,7 @@ func NewAWSService(clients AWSClients) *AWSService {
 
 var (
 	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
+	ErrRuleIsNotSchedule        = errors.New("this rule is not schedule")
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
 	ErrLogGroupNotFound         = errors.New("log group not found")
 )
@@ -232,7 +234,7 @@ func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *Sta
 
 func (svc *AWSService) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
 	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
-		log.Printf("[info] %s aleady deleting...\n", *stateMachine.StateMachineArn)
+		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
 		return nil
 	}
 	_, err := svc.SFnClient.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
@@ -283,6 +285,8 @@ type ScheduleRule struct {
 	Tags          map[string]string
 }
 
+type ScheduleRules []*ScheduleRule
+
 func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
 	describeOutput, err := svc.EventBridgeClient.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
 	if err != nil {
@@ -290,6 +294,9 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 			return nil, ErrScheduleRuleDoesNotExist
 		}
 		return nil, err
+	}
+	if describeOutput.ScheduleExpression == nil {
+		return nil, ErrRuleIsNotSchedule
 	}
 	listTargetsOutput, err := svc.EventBridgeClient.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
 		Rule:  &ruleName,
@@ -325,6 +332,73 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 	return rule, nil
 }
 
+type listRuleNamesByTargetPaginator struct {
+	client    EventBridgeClient
+	params    *eventbridge.ListRuleNamesByTargetInput
+	nextToken *string
+	firstPage bool
+}
+
+func newListRuleNamesByTargetPaginator(client EventBridgeClient, params *eventbridge.ListRuleNamesByTargetInput) *listRuleNamesByTargetPaginator {
+	if params == nil {
+		params = &eventbridge.ListRuleNamesByTargetInput{}
+	}
+
+	return &listRuleNamesByTargetPaginator{
+		client:    client,
+		params:    params,
+		firstPage: true,
+	}
+}
+
+func (p *listRuleNamesByTargetPaginator) HasMorePages() bool {
+	return p.firstPage || p.nextToken != nil
+}
+
+func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+	if !p.HasMorePages() {
+		return nil, fmt.Errorf("no more pages available")
+	}
+
+	params := *p.params
+	params.NextToken = p.nextToken
+
+	result, err := p.client.ListRuleNamesByTarget(ctx, &params, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	p.firstPage = false
+
+	prevToken := p.nextToken
+	p.nextToken = result.NextToken
+
+	if prevToken != nil && p.nextToken != nil && *prevToken == *p.nextToken {
+		p.nextToken = nil
+	}
+	return result, nil
+}
+
+func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string, optFns ...func(*eventbridge.Options)) (ScheduleRules, error) {
+	p := newListRuleNamesByTargetPaginator(svc.EventBridgeClient, &eventbridge.ListRuleNamesByTargetInput{
+		TargetArn: aws.String(stateMachineArn),
+	})
+	rules := make([]*ScheduleRule, 0)
+	for p.HasMorePages() {
+		output, err := p.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range output.RuleNames {
+			schedule, err := svc.DescribeScheduleRule(ctx, name)
+			if err != nil && err != ErrRuleIsNotSchedule {
+				return nil, err
+			}
+			rules = append(rules, schedule)
+		}
+	}
+	return rules, nil
+}
+
 type DeployScheduleRuleOutput struct {
 	RuleArn          *string
 	FailedEntries    []eventbridgetypes.PutTargetsResultEntry
@@ -351,6 +425,28 @@ func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRul
 	return output, nil
 }
 
+type DeployScheduleRulesOutput []*DeployScheduleRuleOutput
+
+func (o DeployScheduleRulesOutput) FailedEntryCount() int32 {
+	total := int32(0)
+	for _, output := range o {
+		total += output.FailedEntryCount
+	}
+	return total
+}
+
+func (svc *AWSService) DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error) {
+	ret := make([]*DeployScheduleRuleOutput, 0, len(rules))
+	for _, rule := range rules {
+		output, err := svc.DeployScheduleRule(ctx, rule, optFns...)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, output)
+	}
+	return ret, nil
+}
+
 func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
 	_, err := svc.EventBridgeClient.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
 		Name:         rule.Name,
@@ -359,14 +455,29 @@ func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRul
 	return err
 }
 
+func (svc *AWSService) DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error {
+	for _, rule := range rules {
+		if err := svc.DeleteScheduleRule(ctx, rule, optFns...); err != nil {
+			return fmt.Errorf("%s :%w", *rule.Name, err)
+		}
+	}
+	return nil
+}
+
 func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
-	rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
-	rule.Targets = []eventbridgetypes.Target{
-		{
-			Arn:     &stateMachineArn,
-			Id:      aws.String(fmt.Sprintf("%s-managed-state-machine", appName)),
-			RoleArn: &rule.TargetRoleArn,
-		},
+	if rule.Description == nil {
+		rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
+	}
+	if len(rule.Targets) == 0 {
+		rule.Targets = []eventbridgetypes.Target{
+			{
+				RoleArn: &rule.TargetRoleArn,
+			},
+		}
+	}
+	rule.Targets[0].Arn = aws.String(stateMachineArn)
+	if rule.Targets[0].Id == nil {
+		rule.Targets[0].Id = aws.String(fmt.Sprintf("%s-managed-state-machine", appName))
 	}
 }
 
@@ -394,10 +505,86 @@ func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	return builder.String()
 }
 
-func (rule *ScheduleRule) SetEnalbed(enabled bool) {
+func (rule *ScheduleRule) SetEnabled(enabled bool) {
 	if enabled {
 		rule.State = eventbridgetypes.RuleStateEnabled
 	} else {
 		rule.State = eventbridgetypes.RuleStateDisabled
 	}
+}
+
+func (rules ScheduleRules) SetStateMachineArn(stateMachineArn string) {
+	for _, rule := range rules {
+		rule.SetStateMachineArn(stateMachineArn)
+	}
+}
+
+func (rules ScheduleRules) String() string {
+	var builder strings.Builder
+
+	for _, rule := range rules {
+		builder.WriteString(rule.String())
+		builder.WriteRune('\n')
+	}
+	return builder.String()
+}
+
+func (rules ScheduleRules) SetEnabled(enabled bool) {
+	for _, rule := range rules {
+		rule.SetEnabled(enabled)
+	}
+}
+
+func (rules ScheduleRules) SyncState(other ScheduleRules) {
+	otherMap := make(map[string]*ScheduleRule, len(other))
+
+	for _, r := range other {
+		otherMap[*r.Name] = r
+	}
+	for _, r := range rules {
+		if o, ok := otherMap[*r.Name]; ok {
+			r.State = o.State
+		}
+	}
+}
+
+func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
+	addRuleName := make([]string, 0)
+	deleteRuleName := make([]string, 0)
+	changeRuleName := make([]string, 0)
+	ruleMap := make(map[string]*ScheduleRule, len(rules))
+	newRuleMap := make(map[string]*ScheduleRule, len(newRules))
+
+	for _, r := range newRules {
+		newRuleMap[*r.Name] = r
+	}
+	for _, r := range rules {
+		ruleMap[*r.Name] = r
+		if _, ok := newRuleMap[*r.Name]; ok {
+			changeRuleName = append(changeRuleName, *r.Name)
+		} else {
+			deleteRuleName = append(deleteRuleName, *r.Name)
+		}
+	}
+	for _, r := range newRules {
+		if _, ok := ruleMap[*r.Name]; !ok {
+			addRuleName = append(addRuleName, *r.Name)
+		}
+	}
+
+	var builder strings.Builder
+	for _, name := range deleteRuleName {
+		rule := ruleMap[name]
+		builder.WriteString(colorRestString(jsonutil.JSONDiffString(rule.configureJSON(), "null")))
+	}
+	for _, name := range changeRuleName {
+		rule := ruleMap[name]
+		newRule := newRuleMap[name]
+		builder.WriteString(rule.DiffString(newRule))
+	}
+	for _, name := range addRuleName {
+		newRule := newRuleMap[name]
+		builder.WriteString(colorRestString(jsonutil.JSONDiffString("null", newRule.configureJSON())))
+	}
+	return builder.String()
 }
