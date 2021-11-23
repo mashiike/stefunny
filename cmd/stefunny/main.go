@@ -17,7 +17,6 @@ import (
 
 var (
 	Version = "current"
-	app     *stefunny.App
 )
 
 func main() {
@@ -47,9 +46,51 @@ func main() {
 		},
 		Commands: []*cli.Command{
 			{
+				Name:      "init",
+				Usage:     "Initialize stefunny from an existing StateMachine",
+				UsageText: "stefunny init [options] --state-machine <state machine name>",
+				Action: func(c *cli.Context) error {
+					cfg := stefunny.NewDefaultConfig()
+					app, err := stefunny.New(c.Context, cfg)
+					if err != nil {
+						return err
+					}
+					return app.Init(c.Context, &stefunny.InitInput{
+						Version:            Version,
+						ConfigPath:         c.String("config"),
+						DefinitionFileName: c.String("definition"),
+						StateMachineName:   c.String("state-machine"),
+					})
+				},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "config",
+						Aliases: []string{"c"},
+						Value:   "config.yaml",
+						Usage:   "save configuration to `FILE`",
+					},
+					&cli.StringFlag{
+						Name:    "definition",
+						Aliases: []string{"d"},
+						Value:   "definition.jsonnet",
+						Usage:   "save definition to `FILE`",
+					},
+					&cli.StringFlag{
+						Name:     "state-machine",
+						Required: true,
+						Aliases:  []string{"s"},
+						Usage:    "existing state machine name",
+					},
+				},
+			},
+			{
 				Name:  "create",
 				Usage: "create StepFunctions StateMachine.",
 				Action: func(c *cli.Context) error {
+					app, err := buildApp(c)
+					if err != nil {
+						return err
+					}
 					return app.Create(c.Context, stefunny.DeployOption{
 						DryRun: c.Bool("dry-run"),
 					})
@@ -65,6 +106,10 @@ func main() {
 				Name:  "delete",
 				Usage: "delete StepFunctions StateMachine.",
 				Action: func(c *cli.Context) error {
+					app, err := buildApp(c)
+					if err != nil {
+						return err
+					}
 					return app.Delete(c.Context, stefunny.DeleteOption{
 						DryRun: c.Bool("dry-run"),
 						Force:  c.Bool("force"),
@@ -85,6 +130,10 @@ func main() {
 				Name:  "deploy",
 				Usage: "deploy StepFunctions StateMachine and Event Bridge Rule.",
 				Action: func(c *cli.Context) error {
+					app, err := buildApp(c)
+					if err != nil {
+						return err
+					}
 					return app.Deploy(c.Context, stefunny.DeployOption{
 						DryRun: c.Bool("dry-run"),
 					})
@@ -100,6 +149,10 @@ func main() {
 				Name:  "schedule",
 				Usage: "schedule Bridge Rule without deploy StepFunctions StateMachine.",
 				Action: func(c *cli.Context) error {
+					app, err := buildApp(c)
+					if err != nil {
+						return err
+					}
 					enabled := c.Bool("enabled")
 					disabled := c.Bool("disabled")
 					var setStatus *bool
@@ -138,6 +191,10 @@ func main() {
 				Name:  "render",
 				Usage: "render state machie definition(the Amazon States Language) as a dot file",
 				Action: func(c *cli.Context) error {
+					app, err := buildApp(c)
+					if err != nil {
+						return err
+					}
 					args := c.Args()
 					opt := stefunny.RenderOption{
 						Writer: os.Stdin,
@@ -172,24 +229,7 @@ func main() {
 	cliApp.Version = Version
 	cliApp.Before = func(c *cli.Context) error {
 		logger.Setup(os.Stderr, c.String("log-level"))
-		switch c.Args().First() {
-		case "help", "h", "version":
-			return nil
-		default:
-		}
-		cfg := stefunny.NewDefaultConfig()
-		opt := stefunny.LoadConfigOption{
-			TFState: c.String("tfstate"),
-		}
-		if err := cfg.Load(c.String("config"), opt); err != nil {
-			return err
-		}
-		if err := cfg.ValidateVersion(Version); err != nil {
-			return err
-		}
-		var err error
-		app, err = stefunny.New(c.Context, cfg)
-		return err
+		return nil
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP, os.Interrupt)
 	defer cancel()
@@ -197,4 +237,18 @@ func main() {
 	if err := cliApp.RunContext(ctx, os.Args); err != nil {
 		log.Printf("[error] %s", err)
 	}
+}
+
+func buildApp(c *cli.Context) (*stefunny.App, error) {
+	cfg := stefunny.NewDefaultConfig()
+	opt := stefunny.LoadConfigOption{
+		TFState: c.String("tfstate"),
+	}
+	if err := cfg.Load(c.String("config"), opt); err != nil {
+		return nil, err
+	}
+	if err := cfg.ValidateVersion(Version); err != nil {
+		return nil, err
+	}
+	return stefunny.New(c.Context, cfg)
 }

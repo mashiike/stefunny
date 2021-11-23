@@ -109,6 +109,14 @@ func Yaml2Json(data []byte) ([]byte, error) {
 	return bs, nil
 }
 
+func Json2Yaml(data []byte) ([]byte, error) {
+	var temp map[string]interface{}
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return nil, err
+	}
+	return yaml.Marshal(temp)
+}
+
 func convertKeyString(v interface{}) (interface{}, error) {
 	switch cv := v.(type) {
 	case map[string]interface{}:
