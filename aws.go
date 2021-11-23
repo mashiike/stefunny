@@ -38,6 +38,7 @@ type EventBridgeClient interface {
 	PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
 	DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
 	ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
+	TagResource(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error)
 }
 
 type AWSClients struct {
@@ -406,14 +407,32 @@ type DeployScheduleRuleOutput struct {
 }
 
 func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) (*DeployScheduleRuleOutput, error) {
+	log.Println("[debug] deploy put rule")
 	putRuleOutput, err := svc.EventBridgeClient.PutRule(ctx, &rule.PutRuleInput, optFns...)
 	if err != nil {
 		return nil, err
 	}
+	log.Println("[debug] deploy put targets")
 	putTargetsOutput, err := svc.EventBridgeClient.PutTargets(ctx, &eventbridge.PutTargetsInput{
 		Rule:    rule.Name,
 		Targets: rule.Targets,
 	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("[debug] deploy update tag")
+	rule.PutRuleInput.Tags = make([]eventbridgetypes.Tag, 0, len(rule.Tags))
+	for key, value := range rule.Tags {
+		rule.PutRuleInput.Tags = append(rule.PutRuleInput.Tags, eventbridgetypes.Tag{
+			Key:   aws.String(key),
+			Value: aws.String(value),
+		})
+	}
+	_, err = svc.EventBridgeClient.TagResource(ctx, &eventbridge.TagResourceInput{
+		ResourceARN: putRuleOutput.RuleArn,
+		Tags:        rule.PutRuleInput.Tags,
+	})
 	if err != nil {
 		return nil, err
 	}
