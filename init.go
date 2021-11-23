@@ -20,6 +20,7 @@ type InitInput struct {
 	StateMachineName   string
 	ConfigPath         string
 	DefinitionFileName string
+	ScheduleRuleName   string
 }
 
 func (app *App) Init(ctx context.Context, input *InitInput) error {
@@ -38,6 +39,17 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 		return fmt.Errorf("failed describe state machine: %w", err)
 	}
 	cfg.StateMachine = setStateMachineConfig(cfg.StateMachine, stateMachine)
+
+	if input.ScheduleRuleName != "" {
+		schedule, err := app.aws.DescribeScheduleRule(ctx, input.ScheduleRuleName)
+		if err != nil {
+			return fmt.Errorf("failed describe schedule: %w", err)
+		}
+		cfg.Schedule, err = newScheduleConfigFromSchedule(schedule)
+		if err != nil {
+			return err
+		}
+	}
 
 	log.Println("[debug] definition path =", input.DefinitionFileName)
 	defPath := input.DefinitionFileName
@@ -79,6 +91,17 @@ func setStateMachineConfig(cfg *StateMachineConfig, s *StateMachine) *StateMachi
 	}
 
 	return cfg
+}
+
+func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
+	cfg := &ScheduleConfig{}
+	cfg.RuleName = *s.Name
+	cfg.Expression = *s.ScheduleExpression
+	if len(s.Targets) != 1 {
+		return nil, fmt.Errorf("rule target must be 1, now %d", len(s.Targets))
+	}
+	cfg.RoleArn = *s.Targets[0].RoleArn
+	return cfg, nil
 }
 
 func extractLogGroupName(arn string) string {
