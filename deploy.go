@@ -91,7 +91,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 		if err != nil {
 			return err
 		}
-		log.Printf("[info] delete schdule rule")
+		log.Printf("[info] delete schedule rule")
 		return nil
 	}
 	output, err := app.aws.DeployScheduleRule(ctx, newRule)
@@ -99,9 +99,9 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 		return err
 	}
 	if output.FailedEntryCount != 0 {
-		log.Printf("[error] deploy schdule rule with failed entries %s", jsonutil.MarshalJSONString(output.FailedEntries))
+		log.Printf("[error] deploy schedule rule with failed entries %s", jsonutil.MarshalJSONString(output.FailedEntries))
 		return errors.New("failed entry count > 0")
 	}
-	log.Printf("[info] deploy schdule rule %s", *output.RuleArn)
+	log.Printf("[info] deploy schedule rule %s", *output.RuleArn)
 	return nil
 }

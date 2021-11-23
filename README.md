@@ -26,7 +26,7 @@ If you hope to manage these resources **collectively**, we recommend other deplo
 
 If you hope to manage these resources **partially individually**, we recommend the following tools:
 
- - [terarform](https://www.terraform.io/) for IAM Role, CloudWatch LogGroups, etc... 
+ - [terraform](https://www.terraform.io/) for IAM Role, CloudWatch LogGroups, etc... 
  - [lambroll](https://github.com/fujiwara/lambroll) for AWS Lambda function.
  - [ecspresso](https://github.com/kayac/ecspresso) for AWS ECS Task.
 
@@ -55,7 +55,7 @@ COMMANDS:
    create    create StepFunctions StateMachine.
    delete    delete StepFunctions StateMachine.
    deploy    deploy StepFunctions StateMachine and Event Bridge Rule.
-   render    render state machie defienion(the Amazon States Language) as a dot file
+   render    render state machine definition(the Amazon States Language) as a dot file
    schedule  schedule Bridge Rule without deploy StepFunctions StateMachine.
    version   show version info.
    help, h   Shows a list of commands or help for one command
@@ -81,13 +81,13 @@ OPTIONS:
 ```
 stefunny deploy works as below.
 
-- Create / Update State Machine from config file and defintion file(yaml/json/jsonnet)
-  - Replace {{ env `FOO` `bar` }} syntax in the config file and defintion file to environment variable "FOO".
+- Create / Update State Machine from config file and definition file(yaml/json/jsonnet)
+  - Replace {{ env `FOO` `bar` }} syntax in the config file and definition file to environment variable "FOO".
     If "FOO" is not defined, replaced by "bar"
-  - Replace {{ must_env `FOO` }} syntax in the config file and defintion file to environment variable "FOO".
+  - Replace {{ must_env `FOO` }} syntax in the config file and definition file to environment variable "FOO".
     If "FOO" is not defined, abort immediately.
-  - If a terraform state is given in --tfstate, replace the {{tfstate `<tf resource name>`}} syntax in the config file and defintion file with reference to the state content.
-- Create/ Update EventBrdige rule.
+  - If a terraform state is given in --tfstate, replace the {{tfstate `<tf resource name>`}} syntax in the config file and definition file with reference to the state content.
+- Create/ Update EventBridge rule.
 
 ### Schedule Enabled/Disabled
 
@@ -114,7 +114,7 @@ Update the rules in EventBridge to disable the state. This is done without updat
 
 ```console
 NAME:
-   stefunny render - render state machie defienion(the Amazon States Language) as a dot file
+   stefunny render - render state machine definition(the Amazon States Language) as a dot file
 
 USAGE:
    stefunny render [arguments...]
@@ -152,7 +152,7 @@ Configuration files and definition files are read by go-config. go-config has te
 
 ## Special Thanks
 
-@fujiwara has given me naming idea of stefanny.
+@fujiwara has given me naming idea of stefunny.
 
 ##  Inspire tools
 
