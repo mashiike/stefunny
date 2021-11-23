@@ -38,21 +38,23 @@ type mockAWSClient struct {
 	PutTargetsFunc            func(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
 	DeleteRuleFunc            func(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
 	EBListTagsForResourceFunc func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
+	ListRuleNamesByTargetFunc func(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error)
 }
 
 type mockClientCallCount struct {
-	CreateStateMachine   int
-	DescribeStateMachine int
-	DeleteStateMachine   int
-	DescribeLogGroups    int
-	ListStateMachines    int
-	UpdateStateMachine   int
-	TagResource          int
-	PutRule              int
-	DescribeRule         int
-	ListTargetsByRule    int
-	PutTargets           int
-	DeleteRule           int
+	CreateStateMachine    int
+	DescribeStateMachine  int
+	DeleteStateMachine    int
+	DescribeLogGroups     int
+	ListStateMachines     int
+	UpdateStateMachine    int
+	TagResource           int
+	PutRule               int
+	DescribeRule          int
+	ListTargetsByRule     int
+	PutTargets            int
+	DeleteRule            int
+	ListRuleNamesByTarget int
 
 	SFnListTagsForResource int
 	EBListTagsForResource  int
@@ -199,6 +201,14 @@ func (m *mockEBClient) ListTagsForResource(ctx context.Context, params *eventbri
 	return m.aws.EBListTagsForResourceFunc(ctx, params, optFns...)
 }
 
+func (m *mockEBClient) ListRuleNamesByTarget(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+	m.aws.CallCount.ListRuleNamesByTarget++
+	if m.aws.ListRuleNamesByTargetFunc == nil {
+		return nil, errors.New("unexpected Call ListTagsForResource")
+	}
+	return m.aws.ListRuleNamesByTargetFunc(ctx, params, optFns...)
+}
+
 func getDefaultMock(t *testing.T) *mockAWSClient {
 	client := &mockAWSClient{
 		CreateStateMachineFunc: func(_ context.Context, params *sfn.CreateStateMachineInput, _ ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
@@ -273,6 +283,11 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 		EBListTagsForResourceFunc: func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
 			return &eventbridge.ListTagsForResourceOutput{Tags: []eventbridgetypes.Tag{}}, nil
 		},
+		ListRuleNamesByTargetFunc: func(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+			return &eventbridge.ListRuleNamesByTargetOutput{
+				RuleNames: []string{},
+			}, nil
+		},
 	}
 	return client
 }
@@ -319,6 +334,9 @@ func (m *mockAWSClient) Overwrite(o *mockAWSClient) *mockAWSClient {
 	}
 	if o.DeleteRuleFunc != nil {
 		ret.DeleteRuleFunc = o.DeleteRuleFunc
+	}
+	if o.ListRuleNamesByTargetFunc != nil {
+		ret.ListRuleNamesByTargetFunc = o.ListRuleNamesByTargetFunc
 	}
 
 	return ret
