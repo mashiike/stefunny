@@ -28,6 +28,7 @@ func TestDelete(t *testing.T) {
 				DeleteStateMachine:     0,
 				DescribeRule:           0,
 				SFnListTagsForResource: 1,
+				ListRuleNamesByTarget:  1,
 			},
 		},
 		{
@@ -40,6 +41,7 @@ func TestDelete(t *testing.T) {
 				DeleteStateMachine:     1,
 				DescribeRule:           0,
 				SFnListTagsForResource: 1,
+				ListRuleNamesByTarget:  1,
 			},
 		},
 		{
@@ -52,6 +54,7 @@ func TestDelete(t *testing.T) {
 				DeleteStateMachine:     0,
 				DescribeRule:           0,
 				SFnListTagsForResource: 1,
+				ListRuleNamesByTarget:  1,
 			},
 		},
 		{
@@ -67,6 +70,7 @@ func TestDelete(t *testing.T) {
 				DeleteRule:             1,
 				ListTargetsByRule:      1,
 				EBListTagsForResource:  1,
+				ListRuleNamesByTarget:  1,
 			},
 		},
 	}

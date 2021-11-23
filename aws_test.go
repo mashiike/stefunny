@@ -313,11 +313,21 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 			return &sfn.ListTagsForResourceOutput{Tags: []sfntypes.Tag{}}, nil
 		},
 		EBListTagsForResourceFunc: func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
-			return &eventbridge.ListTagsForResourceOutput{Tags: []eventbridgetypes.Tag{}}, nil
+			return &eventbridge.ListTagsForResourceOutput{Tags: []eventbridgetypes.Tag{
+				{
+					Key:   aws.String("ManagedBy"),
+					Value: aws.String("stefunny"),
+				},
+			}}, nil
 		},
 		ListRuleNamesByTargetFunc: func(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+			if !strings.Contains(*params.TargetArn, "Scheduled") {
+				return &eventbridge.ListRuleNamesByTargetOutput{
+					RuleNames: []string{},
+				}, nil
+			}
 			return &eventbridge.ListRuleNamesByTargetOutput{
-				RuleNames: []string{},
+				RuleNames: []string{"test-Scheduled"},
 			}, nil
 		},
 	}
