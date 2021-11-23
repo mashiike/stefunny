@@ -16,7 +16,9 @@ import (
 )
 
 var (
-	Version = "current"
+	Version       = "current"
+	globalConfig  string
+	globalTFState string
 )
 
 func main() {
@@ -30,6 +32,7 @@ func main() {
 				DefaultText: "config.yaml",
 				Usage:       "Load configuration from `FILE`",
 				EnvVars:     []string{"STEFUNNY_CONFIG"},
+				Destination: &globalConfig,
 			},
 			&cli.StringFlag{
 				Name:        "log-level",
@@ -42,6 +45,7 @@ func main() {
 				DefaultText: "",
 				Usage:       "URL to terraform.tfstate referenced in config",
 				EnvVars:     []string{"STEFUNNY_TFSTATE"},
+				Destination: &globalTFState,
 			},
 		},
 		Commands: []*cli.Command{
@@ -106,6 +110,17 @@ func main() {
 						Name:  "dry-run",
 						Usage: "dry run",
 					},
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						DefaultText: "config.yaml",
+						Usage:       "Load configuration from `FILE`",
+					},
+					&cli.StringFlag{
+						Name:        "tfstate",
+						DefaultText: "",
+						Usage:       "URL to terraform.tfstate referenced in config",
+					},
 				},
 			},
 			{
@@ -130,6 +145,17 @@ func main() {
 						Name:  "force",
 						Usage: "delete without confirmation",
 					},
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						DefaultText: "config.yaml",
+						Usage:       "Load configuration from `FILE`",
+					},
+					&cli.StringFlag{
+						Name:        "tfstate",
+						DefaultText: "",
+						Usage:       "URL to terraform.tfstate referenced in config",
+					},
 				},
 			},
 			{
@@ -148,6 +174,17 @@ func main() {
 					&cli.BoolFlag{
 						Name:  "dry-run",
 						Usage: "dry run",
+					},
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						DefaultText: "config.yaml",
+						Usage:       "Load configuration from `FILE`",
+					},
+					&cli.StringFlag{
+						Name:        "tfstate",
+						DefaultText: "",
+						Usage:       "URL to terraform.tfstate referenced in config",
 					},
 				},
 			},
@@ -191,6 +228,17 @@ func main() {
 						Name:  "disabled",
 						Usage: "set schedule rule disabled",
 					},
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						DefaultText: "config.yaml",
+						Usage:       "Load configuration from `FILE`",
+					},
+					&cli.StringFlag{
+						Name:        "tfstate",
+						DefaultText: "",
+						Usage:       "URL to terraform.tfstate referenced in config",
+					},
 				},
 			},
 			{
@@ -216,6 +264,19 @@ func main() {
 						opt.Writer = fp
 					}
 					return app.Render(c.Context, opt)
+				},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						DefaultText: "config.yaml",
+						Usage:       "Load configuration from `FILE`",
+					},
+					&cli.StringFlag{
+						Name:        "tfstate",
+						DefaultText: "",
+						Usage:       "URL to terraform.tfstate referenced in config",
+					},
 				},
 			},
 			{
@@ -247,10 +308,20 @@ func main() {
 
 func buildApp(c *cli.Context) (*stefunny.App, error) {
 	cfg := stefunny.NewDefaultConfig()
-	opt := stefunny.LoadConfigOption{
-		TFState: c.String("tfstate"),
+	log.Println("[info]", globalConfig)
+	log.Println("[info]", c.String("config"))
+	tfState := c.String("tfstate")
+	if tfState == "" {
+		tfState = globalTFState
 	}
-	if err := cfg.Load(c.String("config"), opt); err != nil {
+	opt := stefunny.LoadConfigOption{
+		TFState: tfState,
+	}
+	configPath := c.String("config")
+	if configPath == "" {
+		configPath = globalConfig
+	}
+	if err := cfg.Load(configPath, opt); err != nil {
 		return nil, err
 	}
 	if err := cfg.ValidateVersion(Version); err != nil {
