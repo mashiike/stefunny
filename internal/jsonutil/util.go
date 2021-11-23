@@ -8,7 +8,7 @@ import (
 
 	"github.com/Cside/jsondiff"
 	"github.com/fatih/color"
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 func JSONDiffString(j1, j2 string) string {
