@@ -74,10 +74,10 @@ func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.Logging
 	if cfg.Logging == nil {
 		return ret, nil
 	}
-	if cfg.Logging.logLevel == sfntypes.LogLevelOff {
+	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
+	if cfg.Logging.Destination == nil {
 		return ret, nil
 	}
-	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
 	arn, err := app.aws.GetLogGroupArn(ctx, cfg.Logging.Destination.LogGroup)
 	if err != nil {
 		return nil, fmt.Errorf("get log group arn: %w", err)

@@ -165,18 +165,11 @@ func (cfg *StateMachineLoggingConfig) Restrict() error {
 		return fmt.Errorf("level is %w", err)
 	}
 
-	if cfg.logLevel == sfntypes.LogLevelOff {
-		return nil
-	}
-
 	if cfg.Destination == nil {
 		if cfg.logLevel != sfntypes.LogLevelOff {
 			return errors.New("destination is required, if log_level is not OFF")
 		}
 	} else {
-		if cfg.logLevel == sfntypes.LogLevelOff {
-			log.Println("[warn] set logging.destination but log_level is OFF.")
-		}
 		if err := cfg.Destination.Restrict(); err != nil {
 			return fmt.Errorf("destination.%w", err)
 		}
