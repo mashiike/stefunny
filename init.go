@@ -22,7 +22,6 @@ type InitInput struct {
 	StateMachineName   string
 	ConfigPath         string
 	DefinitionFileName string
-	ScheduleRuleName   string
 }
 
 func (app *App) Init(ctx context.Context, input *InitInput) error {
@@ -43,14 +42,17 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 	}
 	cfg.StateMachine = setStateMachineConfig(cfg.StateMachine, stateMachine)
 
-	if input.ScheduleRuleName != "" {
-		schedule, err := app.aws.DescribeScheduleRule(ctx, input.ScheduleRuleName)
-		if err != nil {
-			return fmt.Errorf("failed describe schedule: %w", err)
-		}
-		cfg.Schedule, err = newScheduleConfigFromSchedule(schedule)
-		if err != nil {
-			return err
+	rules, err := app.aws.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
+	if err != nil {
+		return err
+	}
+	if len(rules) > 0 {
+		for _, rule := range rules {
+			s, err := newScheduleConfigFromSchedule(rule)
+			if err != nil {
+				return err
+			}
+			cfg.Schedule = append(cfg.Schedule, s)
 		}
 	}
 

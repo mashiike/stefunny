@@ -122,18 +122,21 @@ func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
 	return stateMachine, nil
 }
 
-func (app *App) LoadScheduleRule(ctx context.Context) (*ScheduleRule, error) {
-
-	rule := &ScheduleRule{
-		PutRuleInput: eventbridge.PutRuleInput{
-			Name:               aws.String(app.cfg.Schedule.RuleName),
-			ScheduleExpression: &app.cfg.Schedule.Expression,
-			State:              eventbridgetypes.RuleStateEnabled,
-		},
-		TargetRoleArn: app.cfg.Schedule.RoleArn,
-		Tags:          app.cfg.Tags,
+func (app *App) LoadScheduleRules(ctx context.Context) (ScheduleRules, error) {
+	rules := make([]*ScheduleRule, 0, len(app.cfg.Schedule))
+	for _, cfg := range app.cfg.Schedule {
+		rule := &ScheduleRule{
+			PutRuleInput: eventbridge.PutRuleInput{
+				Name:               aws.String(cfg.RuleName),
+				ScheduleExpression: &cfg.Expression,
+				State:              eventbridgetypes.RuleStateEnabled,
+			},
+			TargetRoleArn: cfg.RoleArn,
+			Tags:          app.cfg.Tags,
+		}
+		rule.Tags[tagManagedBy] = appName
+		rule.SetStateMachineArn("[state machine arn]")
+		rules = append(rules, rule)
 	}
-	rule.Tags[tagManagedBy] = appName
-	rule.SetStateMachineArn("[state machine arn]")
-	return rule, nil
+	return rules, nil
 }

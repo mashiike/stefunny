@@ -62,7 +62,6 @@ func main() {
 						ConfigPath:         c.String("config"),
 						DefinitionFileName: c.String("definition"),
 						StateMachineName:   c.String("state-machine"),
-						ScheduleRuleName:   c.String("schedule-rule-name"),
 					})
 				},
 				Flags: []cli.Flag{
@@ -87,11 +86,6 @@ func main() {
 						Required: true,
 						Aliases:  []string{"s"},
 						Usage:    "existing state machine name",
-					},
-					&cli.StringFlag{
-						Name:    "schedule-rule-name",
-						Aliases: []string{"r"},
-						Usage:   "existing schedule rule name",
 					},
 				},
 			},

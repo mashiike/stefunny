@@ -45,25 +45,25 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 		log.Println("[debug] schedule rule is not set")
 		return nil
 	}
-	rule, err := app.LoadScheduleRule(ctx)
+	rules, err := app.LoadScheduleRules(ctx)
 	if err != nil {
 		return err
 	}
 	if opt.DryRun {
-		log.Printf("[notice] create schedule rule %s\n%s", opt.DryRunString(), rule.String())
+		log.Printf("[notice] create schedule rules %s\n%s", opt.DryRunString(), rules.String())
 		return nil
 	}
 	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	rule.SetStateMachineArn(stateMachineArn)
-	output, err := app.aws.DeployScheduleRule(ctx, rule)
+	rules.SetStateMachineArn(stateMachineArn)
+	output, err := app.aws.DeployScheduleRules(ctx, rules)
 	if err != nil {
 		return err
 	}
 	log.Printf("[info] deploy schedule rule %s\n", jsonutil.MarshalJSONString(output))
-	if output.FailedEntryCount != 0 {
+	if output.FailedEntryCount() != 0 {
 		return errors.New("failed entry count > 0")
 	}
 	return nil

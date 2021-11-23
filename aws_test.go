@@ -73,6 +73,7 @@ func (m *mockClientCallCount) Reset() {
 	m.ListTargetsByRule = 0
 	m.PutTargets = 0
 	m.DeleteRule = 0
+	m.ListRuleNamesByTarget = 0
 
 	m.SFnListTagsForResource = 0
 	m.EBListTagsForResource = 0
@@ -273,8 +274,25 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 				return nil, errors.New("ResourceNotFoundException")
 			}
 			return &eventbridge.DescribeRuleOutput{
-				Arn:       aws.String(fmt.Sprintf("arn:aws:events:us-east-1:000000000000:rule/%s", *params.Name)),
-				CreatedBy: aws.String("000000000000"),
+				Name:               aws.String(*params.Name),
+				Arn:                aws.String(fmt.Sprintf("arn:aws:events:us-east-1:000000000000:rule/%s", *params.Name)),
+				ScheduleExpression: aws.String("rate(1 hour)"),
+				CreatedBy:          aws.String("000000000000"),
+			}, nil
+		},
+		DeleteRuleFunc: func(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error) {
+			return &eventbridge.DeleteRuleOutput{}, nil
+		},
+		ListTargetsByRuleFunc: func(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error) {
+			if !strings.Contains(*params.Rule, "Scheduled") {
+				return nil, errors.New("ResourceNotFoundException")
+			}
+			return &eventbridge.ListTargetsByRuleOutput{
+				Targets: []eventbridgetypes.Target{
+					{
+						Id: aws.String("test"),
+					},
+				},
 			}, nil
 		},
 		SFnListTagsForResourceFunc: func(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error) {

@@ -27,7 +27,7 @@ type Config struct {
 	AWSRegion       string `yaml:"aws_region,omitempty"`
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
-	Schedule     *ScheduleConfig     `yaml:"schedule,omitempty"`
+	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty"`
 	Tags         map[string]string   `yaml:"tags,omitempty"`
 
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
@@ -110,9 +110,11 @@ func (cfg *Config) Restrict() error {
 	if err := cfg.StateMachine.Restrict(); err != nil {
 		return fmt.Errorf("state_machine.%w", err)
 	}
-	if cfg.Schedule != nil {
-		if err := cfg.Schedule.Restrict(cfg.StateMachine.Name); err != nil {
-			return fmt.Errorf("schedule.%w", err)
+	if len(cfg.Schedule) != 0 {
+		for i, s := range cfg.Schedule {
+			if err := s.Restrict(i, cfg.StateMachine.Name); err != nil {
+				return fmt.Errorf("schedule[%d].%w", i, err)
+			}
 		}
 	}
 	return nil
@@ -202,10 +204,13 @@ func (cfg *StateMachineTracingConfig) Restrict() error {
 }
 
 // Restrict restricts a configuration.
-func (cfg *ScheduleConfig) Restrict(stateMachineName string) error {
+func (cfg *ScheduleConfig) Restrict(index int, stateMachineName string) error {
 	if cfg.RuleName == "" {
 		middle := snaker.CamelToSnake(stateMachineName)
 		cfg.RuleName = fmt.Sprintf("%s-%s-schedule", appName, middle)
+		if index != 0 {
+			cfg.RuleName += fmt.Sprintf("%d", index)
+		}
 	}
 	if cfg.Expression == "" {
 		return errors.New("expression is required")

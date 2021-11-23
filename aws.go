@@ -285,6 +285,8 @@ type ScheduleRule struct {
 	Tags          map[string]string
 }
 
+type ScheduleRules []*ScheduleRule
+
 func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
 	describeOutput, err := svc.EventBridgeClient.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
 	if err != nil {
@@ -376,7 +378,7 @@ func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ..
 	return result, nil
 }
 
-func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string, optFns ...func(*eventbridge.Options)) ([]*ScheduleRule, error) {
+func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string, optFns ...func(*eventbridge.Options)) (ScheduleRules, error) {
 	p := newListRuleNamesByTargetPaginator(svc.EventBridgeClient, &eventbridge.ListRuleNamesByTargetInput{
 		TargetArn: aws.String(stateMachineArn),
 	})
@@ -423,12 +425,43 @@ func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRul
 	return output, nil
 }
 
+type DeployScheduleRulesOutput []*DeployScheduleRuleOutput
+
+func (o DeployScheduleRulesOutput) FailedEntryCount() int32 {
+	total := int32(0)
+	for _, output := range o {
+		total += output.FailedEntryCount
+	}
+	return total
+}
+
+func (svc *AWSService) DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error) {
+	ret := make([]*DeployScheduleRuleOutput, 0, len(rules))
+	for _, rule := range rules {
+		output, err := svc.DeployScheduleRule(ctx, rule, optFns...)
+		if err != nil {
+			return nil, err
+		}
+		ret = append(ret, output)
+	}
+	return ret, nil
+}
+
 func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
 	_, err := svc.EventBridgeClient.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
 		Name:         rule.Name,
 		EventBusName: rule.EventBusName,
 	}, optFns...)
 	return err
+}
+
+func (svc *AWSService) DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error {
+	for _, rule := range rules {
+		if err := svc.DeleteScheduleRule(ctx, rule, optFns...); err != nil {
+			return fmt.Errorf("%s :%w", *rule.Name, err)
+		}
+	}
+	return nil
 }
 
 func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
@@ -472,4 +505,67 @@ func (rule *ScheduleRule) SetEnabled(enabled bool) {
 	} else {
 		rule.State = eventbridgetypes.RuleStateDisabled
 	}
+}
+
+func (rules ScheduleRules) SetStateMachineArn(stateMachineArn string) {
+	for _, rule := range rules {
+		rule.SetStateMachineArn(stateMachineArn)
+	}
+}
+
+func (rules ScheduleRules) String() string {
+	var builder strings.Builder
+
+	for _, rule := range rules {
+		builder.WriteString(rule.String())
+		builder.WriteRune('\n')
+	}
+	return builder.String()
+}
+
+func (rules ScheduleRules) SetEnabled(enabled bool) {
+	for _, rule := range rules {
+		rule.SetEnabled(enabled)
+	}
+}
+
+func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
+	addRuleName := make([]string, 0)
+	deleteRuleName := make([]string, 0)
+	changeRuleName := make([]string, 0)
+	ruleMap := make(map[string]*ScheduleRule, len(rules))
+	newRuleMap := make(map[string]*ScheduleRule, len(newRules))
+
+	for _, r := range newRules {
+		newRuleMap[*r.Name] = r
+	}
+	for _, r := range rules {
+		ruleMap[*r.Name] = r
+		if _, ok := newRuleMap[*r.Name]; ok {
+			changeRuleName = append(changeRuleName, *r.Name)
+		} else {
+			deleteRuleName = append(deleteRuleName, *r.Name)
+		}
+	}
+	for _, r := range newRules {
+		if _, ok := ruleMap[*r.Name]; !ok {
+			addRuleName = append(addRuleName, *r.Name)
+		}
+	}
+
+	var builder strings.Builder
+	for _, name := range deleteRuleName {
+		rule := ruleMap[name]
+		builder.WriteString(colorRestString(jsonutil.JSONDiffString(rule.configureJSON(), "null")))
+	}
+	for _, name := range changeRuleName {
+		rule := ruleMap[name]
+		newRule := newRuleMap[name]
+		builder.WriteString(rule.DiffString(newRule))
+	}
+	for _, name := range addRuleName {
+		newRule := newRuleMap[name]
+		builder.WriteString(colorRestString(jsonutil.JSONDiffString("null", newRule.configureJSON())))
+	}
+	return builder.String()
 }
