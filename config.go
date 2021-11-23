@@ -72,9 +72,11 @@ type EndpointsConfig struct {
 }
 
 type ScheduleConfig struct {
-	RuleName   string `yaml:"rule_name,omitempty"`
-	Expression string `yaml:"expression,omitempty"`
-	RoleArn    string `yaml:"role_arn,omitempty"`
+	ID          string `yaml:"id,omitempty"`
+	RuleName    string `yaml:"rule_name,omitempty"`
+	Description string `yaml:"description,omitempty"`
+	Expression  string `yaml:"expression,omitempty"`
+	RoleArn     string `yaml:"role_arn,omitempty"`
 }
 
 func (cfg *Config) Load(path string, opt LoadConfigOption) error {

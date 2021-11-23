@@ -131,8 +131,17 @@ func (app *App) LoadScheduleRules(ctx context.Context) (ScheduleRules, error) {
 				ScheduleExpression: &cfg.Expression,
 				State:              eventbridgetypes.RuleStateEnabled,
 			},
+			Targets: []eventbridgetypes.Target{{
+				RoleArn: aws.String(cfg.RoleArn),
+			}},
 			TargetRoleArn: cfg.RoleArn,
 			Tags:          app.cfg.Tags,
+		}
+		if cfg.Description != "" {
+			rule.Description = aws.String(cfg.Description)
+		}
+		if cfg.ID != "" {
+			rule.Targets[0].Id = aws.String(cfg.ID)
 		}
 		rule.Tags[tagManagedBy] = appName
 		rule.SetStateMachineArn("[state machine arn]")

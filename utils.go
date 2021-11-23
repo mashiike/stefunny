@@ -31,3 +31,13 @@ func prompt(ctx context.Context, msg string, defaultInput string) (string, error
 		return input, nil
 	}
 }
+
+func coalesceString(str *string, d string) string {
+	if str == nil {
+		return d
+	}
+	if *str == "" {
+		return d
+	}
+	return *str
+}

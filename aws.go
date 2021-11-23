@@ -465,13 +465,19 @@ func (svc *AWSService) DeleteScheduleRules(ctx context.Context, rules ScheduleRu
 }
 
 func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
-	rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
-	rule.Targets = []eventbridgetypes.Target{
-		{
-			Arn:     &stateMachineArn,
-			Id:      aws.String(fmt.Sprintf("%s-managed-state-machine", appName)),
-			RoleArn: &rule.TargetRoleArn,
-		},
+	if rule.Description == nil {
+		rule.Description = aws.String(fmt.Sprintf("for state machine %s schedule", stateMachineArn))
+	}
+	if len(rule.Targets) == 0 {
+		rule.Targets = []eventbridgetypes.Target{
+			{
+				RoleArn: &rule.TargetRoleArn,
+			},
+		}
+	}
+	rule.Targets[0].Arn = aws.String(stateMachineArn)
+	if rule.Targets[0].Id == nil {
+		rule.Targets[0].Id = aws.String(fmt.Sprintf("%s-managed-state-machine", appName))
 	}
 }
 

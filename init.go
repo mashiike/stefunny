@@ -97,12 +97,14 @@ func setStateMachineConfig(cfg *StateMachineConfig, s *StateMachine) *StateMachi
 
 func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
 	cfg := &ScheduleConfig{}
-	cfg.RuleName = *s.Name
+	cfg.RuleName = coalesceString(s.Name, "")
+	cfg.Description = coalesceString(s.Description, "")
 	cfg.Expression = *s.ScheduleExpression
 	if len(s.Targets) != 1 {
 		return nil, fmt.Errorf("rule target must be 1, now %d", len(s.Targets))
 	}
-	cfg.RoleArn = *s.Targets[0].RoleArn
+	cfg.RoleArn = coalesceString(s.Targets[0].RoleArn, "")
+	cfg.ID = coalesceString(s.Targets[0].Id, "")
 	return cfg, nil
 }
 
