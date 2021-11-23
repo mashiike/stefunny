@@ -27,8 +27,8 @@ type mockAWSClient struct {
 	DeleteStateMachineFunc     func(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
 	ListStateMachinesFunc      func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error)
 	UpdateStateMachineFunc     func(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
-	TagResourceFunc            func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 	SFnListTagsForResourceFunc func(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
+	SFnTagResourceFunc         func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 
 	DescribeLogGroupsFunc func(context.Context, *cloudwatchlogs.DescribeLogGroupsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
 
@@ -39,6 +39,7 @@ type mockAWSClient struct {
 	DeleteRuleFunc            func(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
 	EBListTagsForResourceFunc func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 	ListRuleNamesByTargetFunc func(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error)
+	EBTagResourceFunc         func(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error)
 }
 
 type mockClientCallCount struct {
@@ -48,7 +49,6 @@ type mockClientCallCount struct {
 	DescribeLogGroups     int
 	ListStateMachines     int
 	UpdateStateMachine    int
-	TagResource           int
 	PutRule               int
 	DescribeRule          int
 	ListTargetsByRule     int
@@ -58,6 +58,8 @@ type mockClientCallCount struct {
 
 	SFnListTagsForResource int
 	EBListTagsForResource  int
+	SFnTagResource         int
+	EBTagResource          int
 }
 
 func (m *mockClientCallCount) Reset() {
@@ -67,7 +69,8 @@ func (m *mockClientCallCount) Reset() {
 	m.DescribeLogGroups = 0
 	m.ListStateMachines = 0
 	m.UpdateStateMachine = 0
-	m.TagResource = 0
+	m.SFnTagResource = 0
+	m.EBTagResource = 0
 	m.PutRule = 0
 	m.DescribeRule = 0
 	m.ListTargetsByRule = 0
@@ -151,11 +154,19 @@ func (m *mockCWLogsClient) DescribeLogGroups(ctx context.Context, params *cloudw
 }
 
 func (m *mockSFnClient) TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
-	m.aws.CallCount.TagResource++
-	if m.aws.TagResourceFunc == nil {
+	m.aws.CallCount.SFnTagResource++
+	if m.aws.SFnTagResourceFunc == nil {
 		return nil, errors.New("unexpected Call TagResource")
 	}
-	return m.aws.TagResourceFunc(ctx, params, optFns...)
+	return m.aws.SFnTagResourceFunc(ctx, params, optFns...)
+}
+
+func (m *mockEBClient) TagResource(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error) {
+	m.aws.CallCount.EBTagResource++
+	if m.aws.EBTagResourceFunc == nil {
+		return nil, errors.New("unexpected Call TagResource")
+	}
+	return m.aws.EBTagResourceFunc(ctx, params, optFns...)
 }
 
 func (m *mockEBClient) PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error) {
@@ -266,8 +277,11 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 				UpdateDate: aws.Time(time.Now()),
 			}, nil
 		},
-		TagResourceFunc: func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
+		SFnTagResourceFunc: func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
 			return &sfn.TagResourceOutput{}, nil
+		},
+		EBTagResourceFunc: func(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error) {
+			return &eventbridge.TagResourceOutput{}, nil
 		},
 		DescribeRuleFunc: func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
 			if !strings.Contains(*params.Name, "Scheduled") {
@@ -299,11 +313,21 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 			return &sfn.ListTagsForResourceOutput{Tags: []sfntypes.Tag{}}, nil
 		},
 		EBListTagsForResourceFunc: func(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
-			return &eventbridge.ListTagsForResourceOutput{Tags: []eventbridgetypes.Tag{}}, nil
+			return &eventbridge.ListTagsForResourceOutput{Tags: []eventbridgetypes.Tag{
+				{
+					Key:   aws.String("ManagedBy"),
+					Value: aws.String("stefunny"),
+				},
+			}}, nil
 		},
 		ListRuleNamesByTargetFunc: func(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+			if !strings.Contains(*params.TargetArn, "Scheduled") {
+				return &eventbridge.ListRuleNamesByTargetOutput{
+					RuleNames: []string{},
+				}, nil
+			}
 			return &eventbridge.ListRuleNamesByTargetOutput{
-				RuleNames: []string{},
+				RuleNames: []string{"test-Scheduled"},
 			}, nil
 		},
 	}
@@ -332,8 +356,11 @@ func (m *mockAWSClient) Overwrite(o *mockAWSClient) *mockAWSClient {
 	if o.UpdateStateMachineFunc != nil {
 		ret.UpdateStateMachineFunc = o.UpdateStateMachineFunc
 	}
-	if o.TagResourceFunc != nil {
-		ret.TagResourceFunc = o.TagResourceFunc
+	if o.SFnTagResourceFunc != nil {
+		ret.SFnTagResourceFunc = o.SFnTagResourceFunc
+	}
+	if o.EBTagResourceFunc != nil {
+		ret.EBTagResourceFunc = o.EBTagResourceFunc
 	}
 	if o.DescribeLogGroupsFunc != nil {
 		ret.DescribeLogGroupsFunc = o.DescribeLogGroupsFunc

@@ -17,15 +17,21 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
 
-	rules := make(ScheduleRules, 0, len(app.cfg.Schedule))
-	for _, cfg := range app.cfg.Schedule {
-		rule, err := app.aws.DescribeScheduleRule(ctx, cfg.RuleName)
-		if err == nil {
-			log.Printf("[notice] delete schedule rule is %s\n%s", opt.DryRunString(), rule)
-		} else if err != nil && err != ErrScheduleRuleDoesNotExist {
-			return err
+	rules, err := app.aws.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
+	if err != nil {
+		return err
+	}
+	//Ignore no managed rule
+	noManageRules := make(ScheduleRules, 0, len(rules))
+	for _, rule := range rules {
+		if !rule.HasTagKeyValue(tagManagedBy, appName) {
+			log.Printf("[warn] found a scheduled rule `%s` that %s does not manage. this rule is not delete.", *rule.Name, appName)
+			noManageRules = append(noManageRules, rule)
 		}
-		rules = append(rules, rule)
+	}
+	rules = rules.Exclude(noManageRules)
+	for _, rule := range rules {
+		log.Printf("[notice] delete schedule rule is %s\n%s", opt.DryRunString(), rule)
 	}
 	if opt.DryRun {
 		log.Println("[info] dry run ok")
