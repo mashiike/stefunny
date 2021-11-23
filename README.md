@@ -55,6 +55,7 @@ COMMANDS:
    create    create StepFunctions StateMachine.
    delete    delete StepFunctions StateMachine.
    deploy    deploy StepFunctions StateMachine and Event Bridge Rule.
+   init      Initialize stefunny from an existing StateMachine
    render    render state machine definition(the Amazon States Language) as a dot file
    schedule  schedule Bridge Rule without deploy StepFunctions StateMachine.
    version   show version info.
@@ -65,6 +66,27 @@ GLOBAL OPTIONS:
    --log-level value       Set log level (debug, info, notice, warn, error) (default: info) [$STEFUNNY_LOG_LEVEL]
    --tfstate value         URL to terraform.tfstate referenced in config [$STEFUNNY_TFSTATE]
    --help, -h              show help (default: false)
+```
+
+## Quick Start
+
+stefunny can easily manage for your existing StepFunctions StateMachine by codes.
+
+Try `stefunny init` for your StepFunctions StateMachine with option `--state-machine`.
+
+```console
+stefunny init --region ap-northeast-1 --config config.yaml --state-machine HelloWorld 
+2021/11/23 18:08:00 [notice] StateMachine/HelloWorld save state machine definition to definition.jsonnet
+2021/11/23 18:08:00 [notice] StateMachine/HelloWorld save config to config.yaml
+```
+**If you want to manage StateMachine definition in other formats**, use the `--definition` option and specify the definition file. The default is jsonnet format, but you can use json format (.json) and yaml format (.yaml, .yml)
+
+Let me see the generated files config.yaml, and definition.jsonnet.
+
+And then, you already can deploy the service by stefunny!
+
+```console
+$ stefunny deploy --config config.yaml
 ```
 
 ### Deploy
