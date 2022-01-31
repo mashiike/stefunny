@@ -74,6 +74,7 @@ func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.Logging
 	if cfg.Logging == nil {
 		return ret, nil
 	}
+	ret.Level = cfg.Logging.logLevel
 	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
 	if cfg.Logging.Destination == nil {
 		return ret, nil

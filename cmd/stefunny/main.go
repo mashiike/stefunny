@@ -308,8 +308,8 @@ func main() {
 
 func buildApp(c *cli.Context) (*stefunny.App, error) {
 	cfg := stefunny.NewDefaultConfig()
-	log.Println("[info]", globalConfig)
-	log.Println("[info]", c.String("config"))
+	log.Println("[debug] global config flag", globalConfig)
+	log.Println("[debug] local config flag", c.String("config"))
 	tfState := c.String("tfstate")
 	if tfState == "" {
 		tfState = globalTFState
