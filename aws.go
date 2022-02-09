@@ -14,6 +14,7 @@ import (
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/google/uuid"
 	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
@@ -24,6 +25,7 @@ type SFnClient interface {
 	UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
 	DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
 	ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
+	StartExecution(ctx context.Context, params *sfn.StartExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartExecutionOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
 
@@ -643,4 +645,36 @@ func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 		builder.WriteString(colorRestString(jsonutil.JSONDiffString("null", newRule.configureJSON())))
 	}
 	return builder.String()
+}
+
+type StartExecutionOutput struct {
+	ExecutionArn string
+	StateDate    time.Time
+}
+
+func (svc *AWSService) StartExecution(ctx context.Context, stateMachineName, executionName, input string) (*StartExecutionOutput, error) {
+	stateMachineArn, err := svc.GetStateMachineArn(ctx, stateMachineName)
+	if err != nil {
+		return nil, err
+	}
+	if executionName == "" {
+		uuidObj, err := uuid.NewRandom()
+		if err != nil {
+			return nil, err
+		}
+		executionName = uuidObj.String()
+	}
+	output, err := svc.SFnClient.StartExecution(ctx, &sfn.StartExecutionInput{
+		StateMachineArn: aws.String(stateMachineArn),
+		Input:           aws.String(input),
+		Name:            aws.String(executionName),
+		TraceHeader:     aws.String(stateMachineName + "_" + executionName),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &StartExecutionOutput{
+		ExecutionArn: *output.ExecutionArn,
+		StateDate:    *output.StartDate,
+	}, nil
 }

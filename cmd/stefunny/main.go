@@ -8,11 +8,13 @@ import (
 	"os/signal"
 	"runtime"
 	"sort"
+	"strings"
 	"syscall"
 
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/logger"
 	"github.com/urfave/cli/v2"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
@@ -282,6 +284,69 @@ func main() {
 						Name:        "format",
 						DefaultText: "dot",
 						Usage:       "state machine render format (dot|json|yaml)",
+					},
+				},
+			},
+			{
+				Name:  "execute",
+				Usage: "execute state machine",
+				Action: func(c *cli.Context) error {
+					app, err := buildApp(c)
+					if err != nil {
+						return err
+					}
+					opt := stefunny.ExecuteOption{
+						Stdin:         os.Stdin,
+						Stdout:        os.Stdout,
+						ExecutionName: c.String("execution-name"),
+						Async:         c.Bool("async"),
+					}
+					switch {
+					case c.Bool("stdin"):
+						// nothing todo
+					case c.String("input") != "":
+						fp, err := os.Open(c.String("input"))
+						if err != nil {
+							return err
+						}
+						defer fp.Close()
+						opt.Stdin = fp
+					case terminal.IsTerminal(syscall.Stdin):
+						defaultInput := `{"Comment": "Insert your JSON here"}`
+						log.Println("[warn] no input is specified, so we'll use the default input in .")
+						opt.Stdin = strings.NewReader(defaultInput)
+					}
+					return app.Execute(c.Context, opt)
+				},
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:        "config",
+						Aliases:     []string{"c"},
+						DefaultText: "config.yaml",
+						Usage:       "Load configuration from `FILE`",
+					},
+					&cli.StringFlag{
+						Name:        "tfstate",
+						DefaultText: "",
+						Usage:       "URL to terraform.tfstate referenced in config",
+					},
+					&cli.BoolFlag{
+						Name:  "stdin",
+						Usage: "input from stdin",
+					},
+					&cli.StringFlag{
+						Name:        "input",
+						DefaultText: "",
+						Usage:       "input JSON filepath",
+					},
+					&cli.StringFlag{
+						Name:        "execution-name",
+						DefaultText: "",
+						Usage:       "execution name: if not provide, generate uuid version 4 execution name",
+					},
+					&cli.BoolFlag{
+						Name:  "async",
+						Usage: "execution type async: no wait finish execution",
 					},
 				},
 			},

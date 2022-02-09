@@ -2,10 +2,13 @@ package stefunny
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -51,6 +54,30 @@ func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 		cfg: cfg,
 		aws: NewAWSService(clients),
 	}, nil
+}
+
+func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
+	dec := json.NewDecoder(opt.Stdin)
+	var inputJSON interface{}
+	if err := dec.Decode(&inputJSON); err != nil {
+		return err
+	}
+	bs, err := json.MarshalIndent(inputJSON, "", "  ")
+	if err != nil {
+		return err
+	}
+	input := string(bs)
+	log.Printf("[info] input:\n%s\n", input)
+	output, err := app.aws.StartExecution(ctx, app.cfg.StateMachine.Name, opt.ExecutionName, input)
+	if err != nil {
+		return err
+	}
+	log.Printf("[notice] execution arn=%s", output.ExecutionArn)
+	log.Printf("[notice] state at=%s", output.StateDate.In(time.Local))
+	if opt.Async {
+		return nil
+	}
+	return errors.New("not implemented yet")
 }
 
 func (app *App) Render(ctx context.Context, opt RenderOption) error {

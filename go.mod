@@ -17,6 +17,7 @@ require (
 	github.com/fujiwara/logutils v1.1.0
 	github.com/fujiwara/tfstate-lookup v0.4.0
 	github.com/google/go-jsonnet v0.17.0
+	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-version v1.3.0
 	github.com/kayac/go-config v0.6.0
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
@@ -59,7 +60,6 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/go-querystring v1.0.0 // indirect
-	github.com/google/uuid v1.2.0 // indirect
 	github.com/googleapis/gax-go/v2 v2.0.5 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.0 // indirect
 	github.com/hashicorp/go-retryablehttp v0.5.2 // indirect

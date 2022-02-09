@@ -1,6 +1,8 @@
 package stefunny
 
-import "io"
+import (
+	"io"
+)
 
 const dryRunStr = "DRY RUN"
 
@@ -36,4 +38,11 @@ type RenderOption struct {
 
 type LoadConfigOption struct {
 	TFState string
+}
+
+type ExecuteOption struct {
+	Stdin         io.Reader
+	Stdout        io.Writer
+	ExecutionName string
+	Async         bool
 }
