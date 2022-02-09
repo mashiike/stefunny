@@ -31,6 +31,7 @@ func (opt DeployOption) DryRunString() string {
 
 type RenderOption struct {
 	Writer io.Writer
+	Format string
 }
 
 type LoadConfigOption struct {
