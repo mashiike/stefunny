@@ -3,6 +3,7 @@ package stefunny_test
 import (
 	"bytes"
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -12,9 +13,11 @@ import (
 )
 
 func TestAppRender(t *testing.T) {
+	os.Setenv("START_AT", "Hello")
 	cases := []struct {
 		casename string
 		path     string
+		format   string
 		expected string
 	}{
 		{
@@ -32,6 +35,24 @@ func TestAppRender(t *testing.T) {
 			path:     "testdata/full_def.yaml",
 			expected: testutil.LoadString(t, "testdata/workflow1.dot"),
 		},
+		{
+			casename: "default_config",
+			path:     "testdata/default.yaml",
+			format:   "json",
+			expected: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
+			casename: "default_config",
+			path:     "testdata/default.yaml",
+			format:   "yaml",
+			expected: testutil.LoadString(t, "testdata/hello_world.asl.yaml"),
+		},
+		{
+			casename: "env_config",
+			path:     "testdata/env_def.yaml",
+			format:   "json",
+			expected: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+		},
 	}
 
 	for _, c := range cases {
@@ -46,10 +67,19 @@ func TestAppRender(t *testing.T) {
 			app, err := stefunny.New(ctx, cfg)
 			require.NoError(t, err)
 			var buf bytes.Buffer
-			app.Render(ctx, stefunny.RenderOption{
+			err = app.Render(ctx, stefunny.RenderOption{
 				Writer: &buf,
+				Format: c.format,
 			})
-			require.ElementsMatch(t, strings.Split(c.expected, "\n"), strings.Split(buf.String(), "\n"))
+			require.NoError(t, err)
+			switch c.format {
+			case "", "dot":
+				require.ElementsMatch(t, strings.Split(c.expected, "\n"), strings.Split(buf.String(), "\n"))
+			case "json":
+				require.JSONEq(t, c.expected, buf.String())
+			case "yaml":
+				require.YAMLEq(t, c.expected, buf.String())
+			}
 		})
 	}
 
