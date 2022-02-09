@@ -252,6 +252,7 @@ func main() {
 					args := c.Args()
 					opt := stefunny.RenderOption{
 						Writer: os.Stdin,
+						Format: c.String("format"),
 					}
 					if args.Len() > 0 {
 						path := args.First()
@@ -276,6 +277,11 @@ func main() {
 						Name:        "tfstate",
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
+					},
+					&cli.StringFlag{
+						Name:        "format",
+						DefaultText: "dot",
+						Usage:       "state machine render format (dot|json|yaml)",
 					},
 				},
 			},
