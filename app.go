@@ -2,9 +2,9 @@ package stefunny
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -15,7 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny/internal/asl"
-	"gopkg.in/yaml.v3"
+	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 const (
@@ -71,12 +71,15 @@ func (app *App) Render(ctx context.Context, opt RenderOption) error {
 		_, err = opt.Writer.Write(bs)
 		return err
 	case "json":
-		encoder := json.NewEncoder(opt.Writer)
-		encoder.SetIndent("", "  ")
-		return encoder.Encode(def)
+		_, err := io.WriteString(opt.Writer, def)
+		return err
 	case "yaml":
-		encoder := yaml.NewEncoder(opt.Writer)
-		return encoder.Encode(def)
+		bs, err := jsonutil.Json2Yaml([]byte(def))
+		if err != nil {
+			return err
+		}
+		_, err = opt.Writer.Write(bs)
+		return err
 	}
 	return errors.New("unknown format")
 }
