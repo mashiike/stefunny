@@ -26,6 +26,8 @@ type SFnClient interface {
 	DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
 	ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
 	StartExecution(ctx context.Context, params *sfn.StartExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartExecutionOutput, error)
+	DescribeExecution(ctx context.Context, params *sfn.DescribeExecutionInput, optFns ...func(*sfn.Options)) (*sfn.DescribeExecutionOutput, error)
+	StopExecution(ctx context.Context, params *sfn.StopExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StopExecutionOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
 
@@ -677,4 +679,75 @@ func (svc *AWSService) StartExecution(ctx context.Context, stateMachineName, exe
 		ExecutionArn: *output.ExecutionArn,
 		StateDate:    *output.StartDate,
 	}, nil
+}
+
+type WaitExecutionOutput struct {
+	Success   bool
+	Failed    bool
+	StartDate time.Time
+	StopDate  time.Time
+	Output    string
+}
+
+func (o *WaitExecutionOutput) Elapsed() time.Duration {
+	return o.StopDate.Sub(o.StartDate)
+}
+
+func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error) {
+	input := &sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String(executionArn),
+	}
+	output, err := svc.SFnClient.DescribeExecution(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for output.Status == sfntypes.ExecutionStatusRunning {
+		log.Printf("[info] execution status: %s", output.Status)
+		select {
+		case <-ctx.Done():
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			log.Printf("[warn] try stop execution: %s", executionArn)
+			result := &WaitExecutionOutput{
+				Success: false,
+				Failed:  false,
+			}
+			output, err = svc.SFnClient.DescribeExecution(stopCtx, input)
+			if err != nil {
+				return result, err
+			}
+			if output.Status != sfntypes.ExecutionStatusRunning {
+				log.Printf("[warn] already stopped execution: %s", executionArn)
+				return result, ctx.Err()
+			}
+			_, err := svc.SFnClient.StopExecution(stopCtx, &sfn.StopExecutionInput{
+				ExecutionArn: aws.String(executionArn),
+				Error:        aws.String("stefunny.ContextCanceled"),
+				Cause:        aws.String(ctx.Err().Error()),
+			})
+			if err != nil {
+				log.Printf("[error] stop execution failed: %s", err.Error())
+				return result, ctx.Err()
+			}
+			return result, ctx.Err()
+		case <-ticker.C:
+		}
+		output, err = svc.SFnClient.DescribeExecution(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+	}
+	log.Printf("[info] execution status: %s", output.Status)
+	result := &WaitExecutionOutput{
+		Success:   output.Status == sfntypes.ExecutionStatusSucceeded,
+		Failed:    output.Status == sfntypes.ExecutionStatusFailed,
+		StartDate: *output.StartDate,
+		StopDate:  *output.StopDate,
+	}
+	if output.Output != nil {
+		result.Output = *output.Output
+	}
+	return result, nil
 }

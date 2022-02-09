@@ -77,7 +77,19 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	if opt.Async {
 		return nil
 	}
-	return errors.New("not implemented yet")
+	waitOutput, err := app.aws.WaitExecution(ctx, output.ExecutionArn)
+	if err != nil {
+		return err
+	}
+	log.Printf("[info] execution time: %s", waitOutput.Elapsed())
+	if waitOutput.Failed {
+		return errors.New("state machine execution failed")
+	}
+	log.Printf("[info] execution success")
+	if opt.Stdout != nil && len(waitOutput.Output) > 0 {
+		io.WriteString(opt.Stdout, waitOutput.Output)
+	}
+	return nil
 }
 
 func (app *App) Render(ctx context.Context, opt RenderOption) error {
