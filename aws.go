@@ -14,6 +14,7 @@ import (
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/google/uuid"
 	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
@@ -24,6 +25,10 @@ type SFnClient interface {
 	UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
 	DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
 	ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
+	StartExecution(ctx context.Context, params *sfn.StartExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartExecutionOutput, error)
+	DescribeExecution(ctx context.Context, params *sfn.DescribeExecutionInput, optFns ...func(*sfn.Options)) (*sfn.DescribeExecutionOutput, error)
+	StopExecution(ctx context.Context, params *sfn.StopExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StopExecutionOutput, error)
+	GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
 
@@ -643,4 +648,175 @@ func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 		builder.WriteString(colorRestString(jsonutil.JSONDiffString("null", newRule.configureJSON())))
 	}
 	return builder.String()
+}
+
+type StartExecutionOutput struct {
+	ExecutionArn string
+	StateDate    time.Time
+}
+
+func (svc *AWSService) StartExecution(ctx context.Context, stateMachineName, executionName, input string) (*StartExecutionOutput, error) {
+	stateMachineArn, err := svc.GetStateMachineArn(ctx, stateMachineName)
+	if err != nil {
+		return nil, err
+	}
+	if executionName == "" {
+		uuidObj, err := uuid.NewRandom()
+		if err != nil {
+			return nil, err
+		}
+		executionName = uuidObj.String()
+	}
+	output, err := svc.SFnClient.StartExecution(ctx, &sfn.StartExecutionInput{
+		StateMachineArn: aws.String(stateMachineArn),
+		Input:           aws.String(input),
+		Name:            aws.String(executionName),
+		TraceHeader:     aws.String(stateMachineName + "_" + executionName),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &StartExecutionOutput{
+		ExecutionArn: *output.ExecutionArn,
+		StateDate:    *output.StartDate,
+	}, nil
+}
+
+type WaitExecutionOutput struct {
+	Success   bool
+	Failed    bool
+	StartDate time.Time
+	StopDate  time.Time
+	Output    string
+	Datail    interface{}
+}
+
+func (o *WaitExecutionOutput) Elapsed() time.Duration {
+	return o.StopDate.Sub(o.StartDate)
+}
+
+func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error) {
+	input := &sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String(executionArn),
+	}
+	output, err := svc.SFnClient.DescribeExecution(ctx, input)
+	if err != nil {
+		return nil, err
+	}
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+	for output.Status == sfntypes.ExecutionStatusRunning {
+		log.Printf("[info] execution status: %s", output.Status)
+		select {
+		case <-ctx.Done():
+			stopCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			log.Printf("[warn] try stop execution: %s", executionArn)
+			result := &WaitExecutionOutput{
+				Success: false,
+				Failed:  false,
+			}
+			output, err = svc.SFnClient.DescribeExecution(stopCtx, input)
+			if err != nil {
+				return result, err
+			}
+			if output.Status != sfntypes.ExecutionStatusRunning {
+				log.Printf("[warn] already stopped execution: %s", executionArn)
+				return result, ctx.Err()
+			}
+			_, err := svc.SFnClient.StopExecution(stopCtx, &sfn.StopExecutionInput{
+				ExecutionArn: aws.String(executionArn),
+				Error:        aws.String("stefunny.ContextCanceled"),
+				Cause:        aws.String(ctx.Err().Error()),
+			})
+			if err != nil {
+				log.Printf("[error] stop execution failed: %s", err.Error())
+				return result, ctx.Err()
+			}
+			return result, ctx.Err()
+		case <-ticker.C:
+		}
+		output, err = svc.SFnClient.DescribeExecution(ctx, input)
+		if err != nil {
+			return nil, err
+		}
+	}
+	log.Printf("[info] execution status: %s", output.Status)
+	result := &WaitExecutionOutput{
+		Success:   output.Status == sfntypes.ExecutionStatusSucceeded,
+		Failed:    output.Status == sfntypes.ExecutionStatusFailed,
+		StartDate: *output.StartDate,
+		StopDate:  *output.StopDate,
+	}
+	if output.Output != nil {
+		result.Output = *output.Output
+	}
+	historyOutput, err := svc.SFnClient.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
+		ExecutionArn:         aws.String(executionArn),
+		IncludeExecutionData: aws.Bool(true),
+		MaxResults:           5,
+		ReverseOrder:         true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, event := range historyOutput.Events {
+		if event.Type == sfntypes.HistoryEventTypeExecutionAborted {
+			result.Datail = event.ExecutionAbortedEventDetails
+			break
+		}
+		if event.Type == sfntypes.HistoryEventTypeExecutionFailed {
+			result.Datail = event.ExecutionFailedEventDetails
+			break
+		}
+		if event.Type == sfntypes.HistoryEventTypeExecutionTimedOut {
+			result.Datail = event.ExecutionTimedOutEventDetails
+			break
+		}
+	}
+	return result, nil
+}
+
+type HistoryEvent struct {
+	StartDate time.Time
+	Step      string
+	sfntypes.HistoryEvent
+}
+
+func (svc *AWSService) GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error) {
+	describeOutput, err := svc.SFnClient.DescribeExecution(ctx, &sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String(executionArn),
+	})
+	if err != nil {
+		return nil, err
+	}
+	p := sfn.NewGetExecutionHistoryPaginator(svc.SFnClient, &sfn.GetExecutionHistoryInput{
+		ExecutionArn:         aws.String(executionArn),
+		IncludeExecutionData: aws.Bool(true),
+		MaxResults:           100,
+	})
+	events := make([]HistoryEvent, 0)
+	var step string
+	for p.HasMorePages() {
+		output, err := p.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, event := range output.Events {
+			if event.StateEnteredEventDetails != nil {
+				step = *event.StateEnteredEventDetails.Name
+			}
+			events = append(events, HistoryEvent{
+				StartDate:    *describeOutput.StartDate,
+				Step:         step,
+				HistoryEvent: event,
+			})
+
+		}
+	}
+	return events, nil
+}
+
+func (event HistoryEvent) Elapsed() time.Duration {
+	return event.HistoryEvent.Timestamp.Sub(event.StartDate)
 }

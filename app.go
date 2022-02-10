@@ -2,10 +2,13 @@ package stefunny
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -16,6 +19,7 @@ import (
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny/internal/asl"
 	"github.com/mashiike/stefunny/internal/jsonutil"
+	"github.com/olekukonko/tablewriter"
 )
 
 const (
@@ -51,6 +55,63 @@ func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 		cfg: cfg,
 		aws: NewAWSService(clients),
 	}, nil
+}
+
+func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
+	dec := json.NewDecoder(opt.Stdin)
+	var inputJSON interface{}
+	if err := dec.Decode(&inputJSON); err != nil {
+		return err
+	}
+	bs, err := json.MarshalIndent(inputJSON, "", "  ")
+	if err != nil {
+		return err
+	}
+	input := string(bs)
+	log.Printf("[info] input:\n%s\n", input)
+	output, err := app.aws.StartExecution(ctx, app.cfg.StateMachine.Name, opt.ExecutionName, input)
+	if err != nil {
+		return err
+	}
+	log.Printf("[notice] execution arn=%s", output.ExecutionArn)
+	log.Printf("[notice] state at=%s", output.StateDate.In(time.Local))
+	if opt.Async {
+		return nil
+	}
+	waitOutput, err := app.aws.WaitExecution(ctx, output.ExecutionArn)
+	if err != nil {
+		return err
+	}
+	log.Printf("[info] execution time: %s", waitOutput.Elapsed())
+	if opt.DumpHistory {
+		events, err := app.aws.GetExecutionHistory(ctx, output.ExecutionArn)
+		if err != nil {
+			return err
+		}
+		table := tablewriter.NewWriter(opt.Stderr)
+		table.SetHeader([]string{"ID", "Type", "Step", "Elapsed(ms)", "Timestamp"})
+		for _, event := range events {
+			table.Append([]string{
+				fmt.Sprintf("%3d", event.Id),
+				fmt.Sprintf("%v", event.HistoryEvent.Type),
+				event.Step,
+				fmt.Sprintf("%d", event.Elapsed().Milliseconds()),
+				event.Timestamp.Format(time.RFC3339),
+			})
+		}
+		table.Render()
+	}
+	if waitOutput.Datail != nil {
+		log.Printf("[info] execution detail:\n%s", jsonutil.MarshalJSONString(waitOutput.Datail))
+	}
+	if waitOutput.Failed {
+		return errors.New("state machine execution failed")
+	}
+	log.Printf("[info] execution success")
+	if opt.Stdout != nil && len(waitOutput.Output) > 0 {
+		io.WriteString(opt.Stdout, waitOutput.Output)
+	}
+	return nil
 }
 
 func (app *App) Render(ctx context.Context, opt RenderOption) error {
