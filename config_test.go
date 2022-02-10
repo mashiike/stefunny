@@ -14,6 +14,8 @@ func TestConfigLoadValid(t *testing.T) {
 		path        string
 		expectedDef string
 		isYaml      bool
+		extStr      map[string]string
+		extCode     map[string]string
 	}{
 		{
 			casename:    "default_config",
@@ -31,8 +33,14 @@ func TestConfigLoadValid(t *testing.T) {
 			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
-			casename:    "tfstate_read",
-			path:        "testdata/tfstate.yaml",
+			casename: "tfstate_read",
+			path:     "testdata/tfstate.yaml",
+			extStr: map[string]string{
+				"Comment": "great!!!",
+			},
+			extCode: map[string]string{
+				"WaitSeconds": "60*2",
+			},
 			expectedDef: testutil.LoadString(t, "testdata/tfstate.asl.json"),
 		},
 		{
@@ -49,6 +57,8 @@ func TestConfigLoadValid(t *testing.T) {
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path, stefunny.LoadConfigOption{
 				TFState: "testdata/terraform.tfstate",
+				ExtStr:  c.extStr,
+				ExtCode: c.extCode,
 			})
 			require.NoError(t, err)
 			def, err := cfg.LoadDefinition()

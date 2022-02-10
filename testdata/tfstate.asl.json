@@ -4,11 +4,17 @@
     "States": {
         "Hello": {
             "Type": "Pass",
+            "Next": "New"
+        },
+        "New": {
+            "Type": "Wait",
+            "Seconds": 120,
             "Next": "World"
         },
         "World": {
             "Type": "Task",
             "Resource": "arn:aws:states:::aws-sdk:s3:listObjects",
+            "Comment":"great!!!",
             "Parameters": {
                 "Bucket": "test-hoge"
             },

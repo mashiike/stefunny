@@ -1,4 +1,5 @@
 local pass = import 'libs/pass.libsonnet';
+local wait = import 'libs/wait.libsonnet';
 local list_objects = import 'libs/list_objects.libsonnet';
 
 {
@@ -6,6 +7,9 @@ local list_objects = import 'libs/list_objects.libsonnet';
   StartAt: "Hello",
   States: {
     Hello: pass+{
+      Next: "New"
+    },
+    New: wait+{
       Next: "World"
     },
     World: list_objects+{
