@@ -69,12 +69,63 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	}
 	input := string(bs)
 	log.Printf("[info] input:\n%s\n", input)
-	output, err := app.aws.StartExecution(ctx, app.cfg.StateMachine.Name, opt.ExecutionName, input)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	if err != nil {
+		return err
+	}
+	if stateMachine.Type == sfntypes.StateMachineTypeExpress {
+		return app.ExecuteForExpress(ctx, stateMachine, input, opt)
+	}
+	if stateMachine.Type == sfntypes.StateMachineTypeExpress {
+		return app.ExecuteForStandard(ctx, stateMachine, input, opt)
+	}
+	return fmt.Errorf("unknown StateMachine Type:%s", stateMachine.Type)
+}
+
+func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
+	if opt.DumpHistory {
+		log.Println("[warn] this state machine is EXPRESS type, history is not supported.")
+	}
+	if opt.Async {
+		output, err := app.aws.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
+		if err != nil {
+			return err
+		}
+		log.Printf("[notice] execution arn=%s", output.ExecutionArn)
+		log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
+		return nil
+	}
+	output, err := app.aws.StartSyncExecution(ctx, stateMachine, opt.ExecutionName, input)
+	if err != nil {
+		return err
+	}
+	log.Printf("[notice] execution arn=%s", *output.ExecutionArn)
+	log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
+
+	if output.Status != sfntypes.SyncExecutionStatusSucceeded {
+		if output.Error != nil {
+			log.Println("[info] error: ", *output.Error)
+		}
+		if output.Cause != nil {
+			log.Println("[info] cause: ", *output.Cause)
+		}
+		return errors.New("state machine execution failed")
+	}
+	log.Printf("[info] execution success")
+	if opt.Stdout != nil && output.Output != nil {
+		io.WriteString(opt.Stdout, *output.Output)
+		io.WriteString(opt.Stdout, "\n")
+	}
+	return nil
+}
+
+func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
+	output, err := app.aws.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
 	if err != nil {
 		return err
 	}
 	log.Printf("[notice] execution arn=%s", output.ExecutionArn)
-	log.Printf("[notice] state at=%s", output.StateDate.In(time.Local))
+	log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
 	if opt.Async {
 		return nil
 	}
