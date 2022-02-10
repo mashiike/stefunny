@@ -313,7 +313,7 @@ func main() {
 						}
 						defer fp.Close()
 						opt.Stdin = fp
-					case term.IsTerminal(syscall.Stdin):
+					case term.IsTerminal(int(os.Stdin.Fd())):
 						defaultInput := `{"Comment": "Insert your JSON here"}`
 						log.Println("[warn] no input is specified, so we'll use the default input in .")
 						opt.Stdin = strings.NewReader(defaultInput)
