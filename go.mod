@@ -20,9 +20,11 @@ require (
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-version v1.3.0
 	github.com/kayac/go-config v0.6.0
+	github.com/olekukonko/tablewriter v0.0.5
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/stretchr/testify v1.6.1
 	github.com/urfave/cli/v2 v2.3.0
+	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
 )
 
@@ -73,6 +75,7 @@ require (
 	github.com/mattn/go-colorable v0.1.9 // indirect
 	github.com/mattn/go-ieproxy v0.0.1 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
+	github.com/mattn/go-runewidth v0.0.9 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/onsi/ginkgo v1.16.5 // indirect
 	github.com/onsi/gomega v1.16.0 // indirect
@@ -83,7 +86,6 @@ require (
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	go.opencensus.io v0.23.0 // indirect
-	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect
 	golang.org/x/lint v0.0.0-20201208152925-83fdc39ff7b5 // indirect
 	golang.org/x/mod v0.4.1 // indirect
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect

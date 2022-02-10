@@ -19,6 +19,7 @@ import (
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny/internal/asl"
 	"github.com/mashiike/stefunny/internal/jsonutil"
+	"github.com/olekukonko/tablewriter"
 )
 
 const (
@@ -82,6 +83,27 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 		return err
 	}
 	log.Printf("[info] execution time: %s", waitOutput.Elapsed())
+	if opt.DumpHistory {
+		events, err := app.aws.GetExecutionHistory(ctx, output.ExecutionArn)
+		if err != nil {
+			return err
+		}
+		table := tablewriter.NewWriter(opt.Stderr)
+		table.SetHeader([]string{"ID", "Type", "Step", "Elapsed(ms)", "Timestamp"})
+		for _, event := range events {
+			table.Append([]string{
+				fmt.Sprintf("%3d", event.Id),
+				fmt.Sprintf("%v", event.HistoryEvent.Type),
+				event.Step,
+				fmt.Sprintf("%d", event.Elapsed().Milliseconds()),
+				event.Timestamp.Format(time.RFC3339),
+			})
+		}
+		table.Render()
+	}
+	if waitOutput.Datail != nil {
+		log.Printf("[info] execution detail:\n%s", jsonutil.MarshalJSONString(waitOutput.Datail))
+	}
 	if waitOutput.Failed {
 		return errors.New("state machine execution failed")
 	}

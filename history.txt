@@ -1,0 +1,28 @@
++-----+-------------------------+-------+-----------------------------------------------------------+-------------+----------------------+
+| ID  |          TYPE           | STEP  |                          DETAILS                          | ELAPSED(MS) |      TIMESTAMP       |
++-----+-------------------------+-------+-----------------------------------------------------------+-------------+----------------------+
+|   1 | ExecutionStarted        |       |                                                           |           0 | 2022-02-09T09:39:08Z |
+|   2 | TaskStateEntered        | Hello | {   "Input": "{}",                                        |          66 | 2022-02-09T09:39:08Z |
+|     |                         |       | "InputDetails": {                                         |             |                      |
+|     |                         |       |  "Truncated": false                                       |             |                      |
+|     |                         |       | },   "Name": "Hello" }                                    |             |                      |
+|     |                         |       |                                                           |             |                      |
+|   3 | LambdaFunctionScheduled | Hello |                                                           |          66 | 2022-02-09T09:39:08Z |
+|   4 | LambdaFunctionStarted   | Hello |                                                           |         195 | 2022-02-09T09:39:08Z |
+|   5 | LambdaFunctionFailed    | Hello |                                                           |         298 | 2022-02-09T09:39:08Z |
+|   6 | LambdaFunctionScheduled | Hello |                                                           |        3421 | 2022-02-09T09:39:11Z |
+|   7 | LambdaFunctionStarted   | Hello |                                                           |        3518 | 2022-02-09T09:39:11Z |
+|   8 | LambdaFunctionFailed    | Hello |                                                           |        3618 | 2022-02-09T09:39:11Z |
+|   9 | LambdaFunctionScheduled | Hello |                                                           |        7736 | 2022-02-09T09:39:16Z |
+|  10 | LambdaFunctionStarted   | Hello |                                                           |        7823 | 2022-02-09T09:39:16Z |
+|  11 | LambdaFunctionFailed    | Hello |                                                           |        7915 | 2022-02-09T09:39:16Z |
+|  12 | LambdaFunctionScheduled | Hello |                                                           |       14020 | 2022-02-09T09:39:22Z |
+|  13 | LambdaFunctionStarted   | Hello |                                                           |       14119 | 2022-02-09T09:39:22Z |
+|  14 | LambdaFunctionFailed    | Hello |                                                           |       14203 | 2022-02-09T09:39:22Z |
+|  15 | ExecutionFailed         | Hello | {   "Cause": "Function not found:                         |       14264 | 2022-02-09T09:39:22Z |
+|     |                         |       | arn:aws:lambda:ap-northeast-1:314472643515:function:hello |             |                      |
+|     |                         |       | (Service: Lambda, Status Code: 404, Request ID:           |             |                      |
+|     |                         |       | 5f3e5310-98fb-46fd-998b-adcba7ec6515, Extended Request    |             |                      |
+|     |                         |       | ID: null)",   "Error": "Lambda.ResourceNotFoundException" |             |                      |
+|     |                         |       | }                                                         |             |                      |
++-----+-------------------------+-------+-----------------------------------------------------------+-------------+----------------------+

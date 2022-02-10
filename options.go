@@ -43,6 +43,8 @@ type LoadConfigOption struct {
 type ExecuteOption struct {
 	Stdin         io.Reader
 	Stdout        io.Writer
+	Stderr        io.Writer
 	ExecutionName string
 	Async         bool
+	DumpHistory   bool
 }

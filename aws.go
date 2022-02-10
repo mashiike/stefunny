@@ -28,6 +28,7 @@ type SFnClient interface {
 	StartExecution(ctx context.Context, params *sfn.StartExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartExecutionOutput, error)
 	DescribeExecution(ctx context.Context, params *sfn.DescribeExecutionInput, optFns ...func(*sfn.Options)) (*sfn.DescribeExecutionOutput, error)
 	StopExecution(ctx context.Context, params *sfn.StopExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StopExecutionOutput, error)
+	GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
 
@@ -687,6 +688,7 @@ type WaitExecutionOutput struct {
 	StartDate time.Time
 	StopDate  time.Time
 	Output    string
+	Datail    interface{}
 }
 
 func (o *WaitExecutionOutput) Elapsed() time.Duration {
@@ -749,5 +751,72 @@ func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (
 	if output.Output != nil {
 		result.Output = *output.Output
 	}
+	historyOutput, err := svc.SFnClient.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
+		ExecutionArn:         aws.String(executionArn),
+		IncludeExecutionData: aws.Bool(true),
+		MaxResults:           5,
+		ReverseOrder:         true,
+	})
+	if err != nil {
+		return nil, err
+	}
+	for _, event := range historyOutput.Events {
+		if event.Type == sfntypes.HistoryEventTypeExecutionAborted {
+			result.Datail = event.ExecutionAbortedEventDetails
+			break
+		}
+		if event.Type == sfntypes.HistoryEventTypeExecutionFailed {
+			result.Datail = event.ExecutionFailedEventDetails
+			break
+		}
+		if event.Type == sfntypes.HistoryEventTypeExecutionTimedOut {
+			result.Datail = event.ExecutionTimedOutEventDetails
+			break
+		}
+	}
 	return result, nil
+}
+
+type HistoryEvent struct {
+	StartDate time.Time
+	Step      string
+	sfntypes.HistoryEvent
+}
+
+func (svc *AWSService) GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error) {
+	describeOutput, err := svc.SFnClient.DescribeExecution(ctx, &sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String(executionArn),
+	})
+	if err != nil {
+		return nil, err
+	}
+	p := sfn.NewGetExecutionHistoryPaginator(svc.SFnClient, &sfn.GetExecutionHistoryInput{
+		ExecutionArn:         aws.String(executionArn),
+		IncludeExecutionData: aws.Bool(true),
+		MaxResults:           100,
+	})
+	events := make([]HistoryEvent, 0)
+	var step string
+	for p.HasMorePages() {
+		output, err := p.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, event := range output.Events {
+			if event.StateEnteredEventDetails != nil {
+				step = *event.StateEnteredEventDetails.Name
+			}
+			events = append(events, HistoryEvent{
+				StartDate:    *describeOutput.StartDate,
+				Step:         step,
+				HistoryEvent: event,
+			})
+
+		}
+	}
+	return events, nil
+}
+
+func (event HistoryEvent) Elapsed() time.Duration {
+	return event.HistoryEvent.Timestamp.Sub(event.StartDate)
 }

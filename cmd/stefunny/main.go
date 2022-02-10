@@ -298,8 +298,10 @@ func main() {
 					opt := stefunny.ExecuteOption{
 						Stdin:         os.Stdin,
 						Stdout:        os.Stdout,
+						Stderr:        os.Stderr,
 						ExecutionName: c.String("execution-name"),
 						Async:         c.Bool("async"),
+						DumpHistory:   c.Bool("show-history"),
 					}
 					switch {
 					case c.Bool("stdin"):
@@ -347,6 +349,10 @@ func main() {
 					&cli.BoolFlag{
 						Name:  "async",
 						Usage: "execution type async: no wait finish execution",
+					},
+					&cli.BoolFlag{
+						Name:  "show-history",
+						Usage: "show execution history",
 					},
 				},
 			},
