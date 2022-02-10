@@ -245,7 +245,7 @@ func main() {
 			},
 			{
 				Name:  "render",
-				Usage: "render state machie definition(the Amazon States Language) as a dot file",
+				Usage: "render state machine definition(the Amazon States Language) as a dot file",
 				Action: func(c *cli.Context) error {
 					app, err := buildApp(c)
 					if err != nil {
