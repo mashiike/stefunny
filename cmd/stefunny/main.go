@@ -14,7 +14,7 @@ import (
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/logger"
 	"github.com/urfave/cli/v2"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 )
 
 var (
@@ -313,7 +313,7 @@ func main() {
 						}
 						defer fp.Close()
 						opt.Stdin = fp
-					case terminal.IsTerminal(syscall.Stdin):
+					case term.IsTerminal(syscall.Stdin):
 						defaultInput := `{"Comment": "Insert your JSON here"}`
 						log.Println("[warn] no input is specified, so we'll use the default input in .")
 						opt.Stdin = strings.NewReader(defaultInput)
