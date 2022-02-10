@@ -55,6 +55,7 @@ COMMANDS:
    create    create StepFunctions StateMachine.
    delete    delete StepFunctions StateMachine.
    deploy    deploy StepFunctions StateMachine and Event Bridge Rule.
+   execute   execute state machine
    init      Initialize stefunny from an existing StateMachine
    render    render state machine definition(the Amazon States Language) as a dot file
    schedule  schedule Bridge Rule without deploy StepFunctions StateMachine.
