@@ -21,6 +21,8 @@ var (
 	Version       = "current"
 	globalConfig  string
 	globalTFState string
+	globalExtStr  cli.StringSlice
+	globalExtCode cli.StringSlice
 )
 
 func main() {
@@ -48,6 +50,16 @@ func main() {
 				Usage:       "URL to terraform.tfstate referenced in config",
 				EnvVars:     []string{"STEFUNNY_TFSTATE"},
 				Destination: &globalTFState,
+			},
+			&cli.StringSliceFlag{
+				Name:        "ext-str",
+				Usage:       "external string values for Jsonnet",
+				Destination: &globalExtStr,
+			},
+			&cli.StringSliceFlag{
+				Name:        "ext-code",
+				Usage:       "external code values for Jsonnet",
+				Destination: &globalExtCode,
 			},
 		},
 		Commands: []*cli.Command{
@@ -123,6 +135,14 @@ func main() {
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
 					},
+					&cli.StringSliceFlag{
+						Name:  "ext-str",
+						Usage: "external string values for Jsonnet",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-code",
+						Usage: "external code values for Jsonnet",
+					},
 				},
 			},
 			{
@@ -158,6 +178,14 @@ func main() {
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
 					},
+					&cli.StringSliceFlag{
+						Name:  "ext-str",
+						Usage: "external string values for Jsonnet",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-code",
+						Usage: "external code values for Jsonnet",
+					},
 				},
 			},
 			{
@@ -187,6 +215,14 @@ func main() {
 						Name:        "tfstate",
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-str",
+						Usage: "external string values for Jsonnet",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-code",
+						Usage: "external code values for Jsonnet",
 					},
 				},
 			},
@@ -241,6 +277,14 @@ func main() {
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
 					},
+					&cli.StringSliceFlag{
+						Name:  "ext-str",
+						Usage: "external string values for Jsonnet",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-code",
+						Usage: "external code values for Jsonnet",
+					},
 				},
 			},
 			{
@@ -279,6 +323,14 @@ func main() {
 						Name:        "tfstate",
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-str",
+						Usage: "external string values for Jsonnet",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-code",
+						Usage: "external code values for Jsonnet",
 					},
 					&cli.StringFlag{
 						Name:        "format",
@@ -331,6 +383,14 @@ func main() {
 						Name:        "tfstate",
 						DefaultText: "",
 						Usage:       "URL to terraform.tfstate referenced in config",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-str",
+						Usage: "external string values for Jsonnet",
+					},
+					&cli.StringSliceFlag{
+						Name:  "ext-code",
+						Usage: "external code values for Jsonnet",
 					},
 					&cli.BoolFlag{
 						Name:  "stdin",
@@ -391,8 +451,32 @@ func buildApp(c *cli.Context) (*stefunny.App, error) {
 	if tfState == "" {
 		tfState = globalTFState
 	}
+	extStrStringSlice := globalExtStr.Value()
+	extStrStringSlice = append(extStrStringSlice, c.StringSlice("ext-str")...)
+	extStr := make(map[string]string, len(extStrStringSlice))
+	for _, str := range extStrStringSlice {
+		parts := strings.SplitN(str, "=", 2)
+		if len(parts) != 2 {
+			log.Println("[debug] --ext-str ", parts)
+			continue
+		}
+		extStr[parts[0]] = parts[1]
+	}
+	extCodeStringSlice := globalExtCode.Value()
+	extCodeStringSlice = append(extCodeStringSlice, c.StringSlice("ext-code")...)
+	extCode := make(map[string]string, len(extCodeStringSlice))
+	for _, str := range extCodeStringSlice {
+		parts := strings.SplitN(str, "=", 2)
+		if len(parts) != 2 {
+			log.Println("[debug] --ext-code ", parts)
+			continue
+		}
+		extCode[parts[0]] = parts[1]
+	}
 	opt := stefunny.LoadConfigOption{
 		TFState: tfState,
+		ExtStr:  extStr,
+		ExtCode: extCode,
 	}
 	configPath := c.String("config")
 	if configPath == "" {

@@ -38,6 +38,8 @@ type RenderOption struct {
 
 type LoadConfigOption struct {
 	TFState string
+	ExtStr  map[string]string
+	ExtCode map[string]string
 }
 
 type ExecuteOption struct {

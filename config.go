@@ -33,9 +33,11 @@ type Config struct {
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
 
 	//private field
-	versionConstraints gv.Constraints `yaml:"-,omitempty"`
-	dir                string         `yaml:"-,omitempty"`
-	loader             *gc.Loader     `yaml:"-,omitempty"`
+	versionConstraints gv.Constraints    `yaml:"-,omitempty"`
+	dir                string            `yaml:"-,omitempty"`
+	loader             *gc.Loader        `yaml:"-,omitempty"`
+	extStr             map[string]string `yaml:"-,omitempty"`
+	extCode            map[string]string `yaml:"-,omitempty"`
 }
 
 type StateMachineConfig struct {
@@ -94,6 +96,8 @@ func (cfg *Config) Load(path string, opt LoadConfigOption) error {
 		return fmt.Errorf("config load:%w", err)
 	}
 	cfg.loader = loader
+	cfg.extStr = opt.ExtStr
+	cfg.extCode = opt.ExtCode
 	return cfg.Restrict()
 }
 
@@ -292,8 +296,6 @@ func NewDefaultConfig() *Config {
 	}
 }
 
-var jsonnetVM = jsonnet.MakeVM()
-
 func (cfg *Config) LoadDefinition() (string, error) {
 	path := filepath.Join(cfg.dir, cfg.StateMachine.Definition)
 	log.Printf("[debug] try load definition `%s`\n", path)
@@ -310,7 +312,14 @@ func (cfg *StateMachineConfig) LoadTracingConfiguration() *sfntypes.TracingConfi
 func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 	switch filepath.Ext(path) {
 	case ".jsonnet":
-		jsonStr, err := jsonnetVM.EvaluateFile(path)
+		vm := jsonnet.MakeVM()
+		for k, v := range cfg.extStr {
+			vm.ExtVar(k, v)
+		}
+		for k, v := range cfg.extCode {
+			vm.ExtCode(k, v)
+		}
+		jsonStr, err := vm.EvaluateFile(path)
 		if err != nil {
 			return nil, err
 		}
