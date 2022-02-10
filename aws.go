@@ -26,6 +26,7 @@ type SFnClient interface {
 	DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
 	ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
 	StartExecution(ctx context.Context, params *sfn.StartExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartExecutionOutput, error)
+	StartSyncExecution(ctx context.Context, params *sfn.StartSyncExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartSyncExecutionOutput, error)
 	DescribeExecution(ctx context.Context, params *sfn.DescribeExecutionInput, optFns ...func(*sfn.Options)) (*sfn.DescribeExecutionOutput, error)
 	StopExecution(ctx context.Context, params *sfn.StopExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StopExecutionOutput, error)
 	GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error)
@@ -652,14 +653,10 @@ func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 
 type StartExecutionOutput struct {
 	ExecutionArn string
-	StateDate    time.Time
+	StartDate    time.Time
 }
 
-func (svc *AWSService) StartExecution(ctx context.Context, stateMachineName, executionName, input string) (*StartExecutionOutput, error) {
-	stateMachineArn, err := svc.GetStateMachineArn(ctx, stateMachineName)
-	if err != nil {
-		return nil, err
-	}
+func (svc *AWSService) StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error) {
 	if executionName == "" {
 		uuidObj, err := uuid.NewRandom()
 		if err != nil {
@@ -668,17 +665,17 @@ func (svc *AWSService) StartExecution(ctx context.Context, stateMachineName, exe
 		executionName = uuidObj.String()
 	}
 	output, err := svc.SFnClient.StartExecution(ctx, &sfn.StartExecutionInput{
-		StateMachineArn: aws.String(stateMachineArn),
+		StateMachineArn: stateMachine.StateMachineArn,
 		Input:           aws.String(input),
 		Name:            aws.String(executionName),
-		TraceHeader:     aws.String(stateMachineName + "_" + executionName),
+		TraceHeader:     aws.String(*stateMachine.Name + "_" + executionName),
 	})
 	if err != nil {
 		return nil, err
 	}
 	return &StartExecutionOutput{
 		ExecutionArn: *output.ExecutionArn,
-		StateDate:    *output.StartDate,
+		StartDate:    *output.StartDate,
 	}, nil
 }
 
@@ -819,4 +816,25 @@ func (svc *AWSService) GetExecutionHistory(ctx context.Context, executionArn str
 
 func (event HistoryEvent) Elapsed() time.Duration {
 	return event.HistoryEvent.Timestamp.Sub(event.StartDate)
+}
+
+func (svc *AWSService) StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
+
+	if executionName == "" {
+		uuidObj, err := uuid.NewRandom()
+		if err != nil {
+			return nil, err
+		}
+		executionName = uuidObj.String()
+	}
+	output, err := svc.SFnClient.StartSyncExecution(ctx, &sfn.StartSyncExecutionInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		Input:           aws.String(input),
+		Name:            aws.String(executionName),
+		TraceHeader:     aws.String(*stateMachine.Name + "_" + executionName),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
 }

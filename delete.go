@@ -38,7 +38,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 		return nil
 	}
 	if !opt.Force {
-		name, err := prompt(ctx, `Enter the state machine name to DELETE`, "")
+		name, err := prompt(ctx, fmt.Sprintf(`Enter the state machine name [%s] to DELETE`, app.cfg.StateMachine.Name), "")
 		if err != nil {
 			return err
 		}
