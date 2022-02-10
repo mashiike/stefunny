@@ -110,6 +110,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	log.Printf("[info] execution success")
 	if opt.Stdout != nil && len(waitOutput.Output) > 0 {
 		io.WriteString(opt.Stdout, waitOutput.Output)
+		io.WriteString(opt.Stdout, "\n")
 	}
 	return nil
 }
