@@ -76,7 +76,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	if stateMachine.Type == sfntypes.StateMachineTypeExpress {
 		return app.ExecuteForExpress(ctx, stateMachine, input, opt)
 	}
-	if stateMachine.Type == sfntypes.StateMachineTypeExpress {
+	if stateMachine.Type == sfntypes.StateMachineTypeStandard {
 		return app.ExecuteForStandard(ctx, stateMachine, input, opt)
 	}
 	return fmt.Errorf("unknown StateMachine Type:%s", stateMachine.Type)
