@@ -58,7 +58,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	newRules, err := app.LoadScheduleRules(ctx)
+	newRules, err := app.LoadScheduleRules(ctx, stateMachineArn)
 	if err != nil {
 		return err
 	}
@@ -87,17 +87,21 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	if len(rules) == 0 && len(newRules) != 0 {
 		return app.createScheduleRule(ctx, opt)
 	}
+
+	deleteRules := rules.Exclude(newRules)
+	log.Printf("[debug] delete rules:\n%s\n", jsonutil.MarshalJSONString(deleteRules))
 	if opt.DryRun {
 		diffString := rules.DiffString(newRules)
 		log.Printf("[notice] change schedule rule %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}
-	if len(newRules) == 0 {
-		err := app.aws.DeleteScheduleRules(ctx, rules)
+	if len(deleteRules) != 0 {
+		log.Printf("[debug] try delete %d rules", len(deleteRules))
+		err := app.aws.DeleteScheduleRules(ctx, deleteRules)
 		if err != nil {
 			return err
 		}
-		log.Printf("[info] delete all schedule rule")
+		log.Printf("[info] delete %d schedule rule", len(deleteRules))
 		return nil
 	}
 	output, err := app.aws.DeployScheduleRules(ctx, newRules)

@@ -56,11 +56,22 @@ func buildJSON(s interface{}) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	var v map[string]interface{}
+	var v interface{}
 	if err := json.Unmarshal(bs, &v); err != nil {
 		return nil, err
 	}
-	return json.Marshal(deleteNilFromMap(v))
+	if v, ok := v.(map[string]interface{}); ok {
+		return json.Marshal(deleteNilFromMap(v))
+	}
+	if vs, ok := v.([]interface{}); ok {
+		for i := 0; i < len(vs); i++ {
+			if v, ok := vs[i].(map[string]interface{}); ok {
+				vs[i] = deleteNilFromMap(v)
+			}
+		}
+		return json.Marshal(vs)
+	}
+	return json.Marshal(v)
 }
 
 func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {

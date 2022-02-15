@@ -254,7 +254,7 @@ func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
 	return stateMachine, nil
 }
 
-func (app *App) LoadScheduleRules(ctx context.Context) (ScheduleRules, error) {
+func (app *App) LoadScheduleRules(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
 	rules := make([]*ScheduleRule, 0, len(app.cfg.Schedule))
 	for _, cfg := range app.cfg.Schedule {
 		rule := &ScheduleRule{
@@ -276,7 +276,7 @@ func (app *App) LoadScheduleRules(ctx context.Context) (ScheduleRules, error) {
 			rule.Targets[0].Id = aws.String(cfg.ID)
 		}
 		rule.Tags[tagManagedBy] = appName
-		rule.SetStateMachineArn("[state machine arn]")
+		rule.SetStateMachineArn(stateMachineArn)
 		rules = append(rules, rule)
 	}
 	return rules, nil
