@@ -43,6 +43,7 @@ type EventBridgeClient interface {
 	ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
 	PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
 	DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error)
+	RemoveTargets(ctx context.Context, params *eventbridge.RemoveTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.RemoveTargetsOutput, error)
 	ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error)
 	TagResource(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error)
 }
@@ -302,6 +303,7 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 		}
 		return nil, err
 	}
+	log.Println("[debug] describe rule:", jsonutil.MarshalJSONString(describeOutput))
 	if describeOutput.ScheduleExpression == nil {
 		return nil, ErrRuleIsNotSchedule
 	}
@@ -312,6 +314,7 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 	if err != nil {
 		return nil, err
 	}
+	log.Println("[debug] list targets by rule:", jsonutil.MarshalJSONString(listTargetsOutput))
 	tagsOutput, err := svc.EventBridgeClient.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
 		ResourceARN: describeOutput.Arn,
 	}, optFns...)
@@ -386,6 +389,7 @@ func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ..
 }
 
 func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string, optFns ...func(*eventbridge.Options)) (ScheduleRules, error) {
+	log.Printf("[debug] call SearchScheduleRule(ctx,%s)", stateMachineArn)
 	p := newListRuleNamesByTargetPaginator(svc.EventBridgeClient, &eventbridge.ListRuleNamesByTargetInput{
 		TargetArn: aws.String(stateMachineArn),
 	})
@@ -396,6 +400,7 @@ func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn s
 			return nil, err
 		}
 		for _, name := range output.RuleNames {
+			log.Println("[debug] detect rule: ", name)
 			schedule, err := svc.DescribeScheduleRule(ctx, name)
 			if err != nil && err != ErrRuleIsNotSchedule {
 				return nil, err
@@ -403,6 +408,7 @@ func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn s
 			rules = append(rules, schedule)
 		}
 	}
+	log.Printf("[debug] end SearchScheduleRule() %d rules found", len(rules))
 	return rules, nil
 }
 
@@ -473,7 +479,19 @@ func (svc *AWSService) DeployScheduleRules(ctx context.Context, rules ScheduleRu
 }
 
 func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
-	_, err := svc.EventBridgeClient.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
+	targetIDs := make([]string, 0, len(rule.Targets))
+	for _, target := range rule.Targets {
+		targetIDs = append(targetIDs, *target.Id)
+	}
+	_, err := svc.EventBridgeClient.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{
+		Ids:          targetIDs,
+		Rule:         rule.Name,
+		EventBusName: rule.EventBusName,
+	}, optFns...)
+	if err != nil {
+		return err
+	}
+	_, err = svc.EventBridgeClient.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
 		Name:         rule.Name,
 		EventBusName: rule.EventBusName,
 	}, optFns...)
@@ -602,12 +620,15 @@ func (rules ScheduleRules) Exclude(other ScheduleRules) ScheduleRules {
 	for _, r := range other {
 		otherMap[*r.Name] = r
 	}
-	for i, r := range rules {
+
+	ret := make(ScheduleRules, 0, len(rules))
+	ret = append(ret, rules...)
+	for i, r := range ret {
 		if _, ok := otherMap[*r.Name]; ok {
-			rules = append(rules[:i], rules[i+1:]...)
+			ret = append(ret[:i], ret[i+1:]...)
 		}
 	}
-	return rules
+	return ret
 }
 
 func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {

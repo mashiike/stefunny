@@ -45,11 +45,11 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 		log.Println("[debug] schedule rule is not set")
 		return nil
 	}
-	rules, err := app.LoadScheduleRules(ctx)
-	if err != nil {
-		return err
-	}
 	if opt.DryRun {
+		rules, err := app.LoadScheduleRules(ctx, "[state machine arn]")
+		if err != nil {
+			return err
+		}
 		log.Printf("[notice] create schedule rules %s\n%s", opt.DryRunString(), rules.String())
 		return nil
 	}
@@ -57,7 +57,10 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	rules.SetStateMachineArn(stateMachineArn)
+	rules, err := app.LoadScheduleRules(ctx, stateMachineArn)
+	if err != nil {
+		return err
+	}
 	output, err := app.aws.DeployScheduleRules(ctx, rules)
 	if err != nil {
 		return err

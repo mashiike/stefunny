@@ -14,7 +14,7 @@ func Setup(w io.Writer, minLevel string) {
 		Levels:   []logutils.LogLevel{"debug", "info", "notice", "warn", "error"},
 		MinLevel: "info",
 		ModifierFuncs: []logutils.ModifierFunc{
-			nil,
+			logutils.Color(color.FgHiBlack),
 			logutils.Color(color.FgWhite),
 			logutils.Color(color.FgHiBlue),
 			logutils.Color(color.FgYellow),
