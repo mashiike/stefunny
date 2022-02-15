@@ -68,6 +68,7 @@ func TestDelete(t *testing.T) {
 				DescribeRule:           1,
 				SFnListTagsForResource: 1,
 				DeleteRule:             1,
+				RemoveTargets:          1,
 				ListTargetsByRule:      1,
 				EBListTagsForResource:  1,
 				ListRuleNamesByTarget:  1,
