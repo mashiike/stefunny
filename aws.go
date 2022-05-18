@@ -405,9 +405,12 @@ func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn s
 			if err != nil && err != ErrRuleIsNotSchedule {
 				return nil, err
 			}
+			if err == ErrRuleIsNotSchedule {
+				continue
+			}
 			if schedule.HasTagKeyValue(tagManagedBy, appName) {
 				rules = append(rules, schedule)
-			}else {
+			} else {
 				name := ""
 				if schedule.Name != nil {
 					name = *schedule.Name
