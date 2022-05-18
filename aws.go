@@ -405,7 +405,15 @@ func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn s
 			if err != nil && err != ErrRuleIsNotSchedule {
 				return nil, err
 			}
-			rules = append(rules, schedule)
+			if schedule.HasTagKeyValue(tagManagedBy, appName) {
+				rules = append(rules, schedule)
+			}else {
+				name := ""
+				if schedule.Name != nil {
+					name = *schedule.Name
+				}
+				log.Printf("[debug] found a scheduled rule `%s` that %s does not manage.", name, appName)
+			}
 		}
 	}
 	log.Printf("[debug] end SearchScheduleRule() %d rules found", len(rules))
@@ -591,10 +599,18 @@ func (rules ScheduleRules) SyncState(other ScheduleRules) {
 	otherMap := make(map[string]*ScheduleRule, len(other))
 
 	for _, r := range other {
-		otherMap[*r.Name] = r
+		name := ""
+		if r.Name != nil {
+			name = *r.Name
+		}
+		otherMap[name] = r
 	}
 	for _, r := range rules {
-		if o, ok := otherMap[*r.Name]; ok {
+		name := ""
+		if r.Name != nil {
+			name = *r.Name
+		}
+		if o, ok := otherMap[name]; ok {
 			r.State = o.State
 		}
 	}
