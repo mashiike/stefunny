@@ -591,10 +591,18 @@ func (rules ScheduleRules) SyncState(other ScheduleRules) {
 	otherMap := make(map[string]*ScheduleRule, len(other))
 
 	for _, r := range other {
-		otherMap[*r.Name] = r
+		name := ""
+		if r.Name != nil {
+			name = *r.Name
+		}
+		otherMap[name] = r
 	}
 	for _, r := range rules {
-		if o, ok := otherMap[*r.Name]; ok {
+		name := ""
+		if r.Name != nil {
+			name = *r.Name
+		}
+		if o, ok := otherMap[name]; ok {
 			r.State = o.State
 		}
 	}
