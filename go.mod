@@ -16,7 +16,7 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/fujiwara/logutils v1.1.0
 	github.com/fujiwara/tfstate-lookup v0.4.0
-	github.com/google/go-jsonnet v0.17.0
+	github.com/google/go-jsonnet v0.18.0
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-version v1.3.0
 	github.com/kayac/go-config v0.6.0
@@ -102,4 +102,5 @@ require (
 	google.golang.org/grpc v1.37.0 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )
