@@ -18,7 +18,7 @@ require (
 	github.com/fujiwara/tfstate-lookup v0.4.0
 	github.com/google/go-jsonnet v0.17.0
 	github.com/google/uuid v1.2.0
-	github.com/hashicorp/go-version v1.3.0
+	github.com/hashicorp/go-version v1.6.0
 	github.com/kayac/go-config v0.6.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
