@@ -16,7 +16,7 @@ require (
 	github.com/fatih/color v1.13.0
 	github.com/fujiwara/logutils v1.1.0
 	github.com/fujiwara/tfstate-lookup v0.4.0
-	github.com/google/go-jsonnet v0.17.0
+	github.com/google/go-jsonnet v0.19.1
 	github.com/google/uuid v1.2.0
 	github.com/hashicorp/go-version v1.3.0
 	github.com/kayac/go-config v0.6.0
@@ -91,7 +91,7 @@ require (
 	golang.org/x/mod v0.4.1 // indirect
 	golang.org/x/net v0.0.0-20210614182718-04defd469f4e // indirect
 	golang.org/x/oauth2 v0.0.0-20210413134643-5e61552d6c78 // indirect
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
+	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/text v0.3.6 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 	golang.org/x/tools v0.1.0 // indirect
@@ -102,4 +102,5 @@ require (
 	google.golang.org/grpc v1.37.0 // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	sigs.k8s.io/yaml v1.1.0 // indirect
 )
