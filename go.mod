@@ -22,10 +22,10 @@ require (
 	github.com/kayac/go-config v0.6.0
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.8.2
 	github.com/urfave/cli/v2 v2.3.0
 	golang.org/x/term v0.0.0-20210317153231-de623e64d2a6
-	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
