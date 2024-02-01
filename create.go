@@ -10,6 +10,7 @@ import (
 )
 
 func (app *App) Create(ctx context.Context, opt DeployOption) error {
+	log.Println("[warn] create command is deprecated. use deploy command instead")
 	log.Println("[info] Starting create", opt.DryRunString())
 	err := app.createStateMachine(ctx, opt)
 	if err != nil {
