@@ -1,6 +1,7 @@
 package stefunny
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -10,10 +11,10 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
+	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
-	"github.com/aws/aws-sdk-go/service/eventbridge"
 	"github.com/fujiwara/tfstate-lookup/tfstate"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
@@ -86,7 +87,7 @@ func (cfg *Config) Load(path string, opt LoadConfigOption) error {
 	loader := gc.New()
 	cfg.dir = filepath.Dir(path)
 	if opt.TFState != "" {
-		funcs, err := tfstate.FuncMap(opt.TFState)
+		funcs, err := tfstate.FuncMap(context.Background(), opt.TFState)
 		if err != nil {
 			return fmt.Errorf("tfstate %w", err)
 		}
