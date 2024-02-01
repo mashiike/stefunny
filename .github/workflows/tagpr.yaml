@@ -32,7 +32,7 @@ jobs:
       - name: Extract major version
         if: ${{ steps.tagpr.outputs.tag != '' }}
         id: extract_version
-        run: echo "major_version=$(echo ${{ steps.tagpr.outputs.tag }} | cut -d '.' -f 1)" >> $GITHUB_OUTPUT
+        run: echo "major_version=$(echo ${{ steps.tagpr.outputs.tag }} | cut -d '.' -f 1)" >> "$GITHUB_OUTPUT"
       - name: Delete old tag
         if: ${{ steps.tagpr.outputs.tag != '' }}
         run: |
