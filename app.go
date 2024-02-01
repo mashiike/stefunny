@@ -173,6 +173,7 @@ func (app *App) Render(_ context.Context, opt RenderOption) error {
 	}
 	switch strings.ToLower(opt.Format) {
 	case "", "dot":
+		log.Println("[warn] dot format is deprecated (since v0.5.0)")
 		stateMachine, err := asl.Parse(def)
 		if err != nil {
 			return err
@@ -187,6 +188,7 @@ func (app *App) Render(_ context.Context, opt RenderOption) error {
 		_, err := io.WriteString(opt.Writer, def)
 		return err
 	case "yaml":
+		log.Println("[warn] yaml format is deprecated (since v0.5.0)")
 		bs, err := jsonutil.JSON2YAML([]byte(def))
 		if err != nil {
 			return err
