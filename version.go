@@ -1,3 +1,3 @@
 package stefunny
 
-var Version = "v0.4.3"
+var Version = "v0.5.0"
