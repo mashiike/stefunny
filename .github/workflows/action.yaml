@@ -15,9 +15,9 @@ jobs:
         with:
           version: v0.4.3
       - run: |
-          stefunny version 2>&1 | fgrep v0.4.3
+          stefunny version 2>&1 | grep -F v0.4.3
       - uses: mashiike/stefunny@main
         with:
           version: latest
       - run: |
-          stefunny version 2>&1 | fgrep v0.
+          stefunny version 2>&1 | grep -F v0.
