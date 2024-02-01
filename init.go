@@ -110,7 +110,11 @@ func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
 }
 
 func extractLogGroupName(arn string) string {
-	logGroupARN, _ := awsarn.Parse(arn)
+	logGroupARN, err := awsarn.Parse(arn)
+	if err != nil {
+		log.Printf("[warn] failed to parse log group arn: %s", err)
+		return ""
+	}
 	return strings.TrimRight(strings.TrimPrefix(logGroupARN.Resource, "log-group:"), ":*")
 }
 
@@ -130,7 +134,7 @@ func createDefinitionFile(path string, definition string) error {
 		}
 		io.WriteString(fp, formattted)
 	case ".yaml", ".yml":
-		bs, err := jsonutil.Json2Yaml([]byte(definition))
+		bs, err := jsonutil.JSON2YAML([]byte(definition))
 		if err != nil {
 			return err
 		}

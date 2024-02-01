@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//https://states-language.net/spec.html
+// https://states-language.net/spec.html
 type StateMachine struct {
 	StartAt string            `json:"StartAt,omitempty" yaml:"StartAt,omitempty"`
 	States  map[string]*State `json:"States,omitempty" yaml:"States,omitempty"`

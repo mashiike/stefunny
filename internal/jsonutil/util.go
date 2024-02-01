@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"log"
 	"strings"
 
 	"github.com/Cside/jsondiff"
@@ -41,13 +42,21 @@ func marshalJSON(s interface{}) (*bytes.Buffer, error) {
 		return nil, err
 	}
 	var buf bytes.Buffer
-	json.Indent(&buf, bs, "", "  ")
-	buf.WriteString("\n")
+	if err := json.Indent(&buf, bs, "", "  "); err != nil {
+		return nil, err
+	}
+	if _, err := buf.WriteString("\n"); err != nil {
+		return nil, err
+	}
 	return &buf, nil
 }
 
 func MarshalJSONString(s interface{}) string {
-	b, _ := marshalJSON(s)
+	b, err := marshalJSON(s)
+	if err != nil {
+		log.Println("[warn] failed to marshal json", err)
+		return ""
+	}
 	return b.String()
 }
 
@@ -120,7 +129,7 @@ func Yaml2Json(data []byte) ([]byte, error) {
 	return bs, nil
 }
 
-func Json2Yaml(data []byte) ([]byte, error) {
+func JSON2YAML(data []byte) ([]byte, error) {
 	var temp map[string]interface{}
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return nil, err

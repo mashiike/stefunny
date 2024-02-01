@@ -1,8 +1,8 @@
 provider "aws" {
   region                      = "ap-northeast-1"
   access_key                  = "mock_access_key"
-  s3_force_path_style         = true
   secret_key                  = "mock_secret_key"
+  s3_use_path_style           = true
   skip_credentials_validation = true
   skip_metadata_api_check     = true
   skip_requesting_account_id  = true
@@ -32,12 +32,12 @@ provider "aws" {
 }
 
 terraform {
-  required_version = "= 1.0.8"
+  required_version = "= 1.7.1"
 
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "= 3.63.0"
+      version = "= 5.34.0"
     }
   }
   backend "local" {
@@ -50,7 +50,6 @@ data "aws_caller_identity" "current" {
 
 resource "aws_s3_bucket" "hoge" {
   bucket        = "test-hoge"
-  acl           = "private"
   force_destroy = false
 }
 
