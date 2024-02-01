@@ -37,7 +37,7 @@ func New(ctx context.Context, cfg *Config) (*App, error) {
 		awsConfig.WithRegion(cfg.AWSRegion),
 	}
 	if endpointsResolver, ok := cfg.EndpointResolver(); ok {
-		opts = append(opts, awsConfig.WithEndpointResolver(endpointsResolver))
+		opts = append(opts, awsConfig.WithEndpointResolverWithOptions(endpointsResolver))
 	}
 	awsCfg, err := awsConfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {

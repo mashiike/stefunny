@@ -335,11 +335,11 @@ func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 	return cfg.loader.ReadWithEnv(path)
 }
 
-func (cfg *Config) EndpointResolver() (aws.EndpointResolver, bool) {
+func (cfg *Config) EndpointResolver() (aws.EndpointResolverWithOptions, bool) {
 	if cfg.Endpoints == nil {
 		return nil, false
 	}
-	return aws.EndpointResolverFunc(func(service, region string) (aws.Endpoint, error) {
+	return aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
 		if cfg.AWSRegion != region {
 			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
 		}
