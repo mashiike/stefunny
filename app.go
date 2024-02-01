@@ -166,7 +166,7 @@ func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachi
 	return nil
 }
 
-func (app *App) Render(ctx context.Context, opt RenderOption) error {
+func (app *App) Render(_ context.Context, opt RenderOption) error {
 	def, err := app.cfg.LoadDefinition()
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func (app *App) Render(ctx context.Context, opt RenderOption) error {
 		_, err := io.WriteString(opt.Writer, def)
 		return err
 	case "yaml":
-		bs, err := jsonutil.Json2Yaml([]byte(def))
+		bs, err := jsonutil.JSON2YAML([]byte(def))
 		if err != nil {
 			return err
 		}
@@ -254,7 +254,7 @@ func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
 	return stateMachine, nil
 }
 
-func (app *App) LoadScheduleRules(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
+func (app *App) LoadScheduleRules(_ context.Context, stateMachineArn string) (ScheduleRules, error) {
 	rules := make([]*ScheduleRule, 0, len(app.cfg.Schedule))
 	for _, cfg := range app.cfg.Schedule {
 		rule := &ScheduleRule{

@@ -388,7 +388,7 @@ func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ..
 	return result, nil
 }
 
-func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string, optFns ...func(*eventbridge.Options)) (ScheduleRules, error) {
+func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
 	log.Printf("[debug] call SearchScheduleRule(ctx,%s)", stateMachineArn)
 	p := newListRuleNamesByTargetPaginator(svc.EventBridgeClient, &eventbridge.ListRuleNamesByTargetInput{
 		TargetArn: aws.String(stateMachineArn),
@@ -619,7 +619,7 @@ func (rules ScheduleRules) SyncState(other ScheduleRules) {
 	}
 }
 
-//Things that are in rules but not in other
+// Things that are in rules but not in other
 func (rules ScheduleRules) Subtract(other ScheduleRules) ScheduleRules {
 	nothing := make(ScheduleRules, 0, len(rules))
 	otherMap := make(map[string]*ScheduleRule, len(other))
