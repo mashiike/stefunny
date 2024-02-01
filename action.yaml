@@ -27,7 +27,7 @@ runs:
           api_request_args=("${api_request_args[@]}" -H "authorization: token $github_token")
         fi
         if [ "${VERSION}" = "latest" ]; then
-          DOWNLOAD_URL=$(curl "${api_request_args[@]}" https://api.github.com/repos/mashiike/stefunny/releases | jq -r '[.[]|select(.tag_name > "v2.0")|select(.prerelease==false)][0].assets[].browser_download_url|select(match("linux.amd64."))')
+          DOWNLOAD_URL=$(curl "${api_request_args[@]}" https://api.github.com/repos/mashiike/stefunny/releases | jq -r '[.[]|select(.tag_name > "v0.0")|select(.prerelease==false)][0].assets[].browser_download_url|select(match("linux.amd64."))')
         else
           DOWNLOAD_URL=https://github.com/mashiike/stefunny/releases/download/${VERSION}/stefunny_${VERSION:1}_linux_amd64.tar.gz
         fi
