@@ -5,7 +5,7 @@ volumes:
 
 services:
   app:
-    image: golang:1.17
+    image: golang:1.21
     volumes:
       - ".:/go/src/app:delegated"
       - "gopkg:/go/pkg"
@@ -17,22 +17,21 @@ services:
       - sfn_local
       - localstack
   sfn_local:
-    image: amazon/aws-stepfunctions-local:1.7.9
+    image: amazon/aws-stepfunctions-local:1.13.2
     ports:
       - "8083:8083"
     environment:
-      - AWS_REGION=ap-northeast-1
+      - AWS_DEFAULT_REGION=ap-northeast-1
       - LAMBDA_ENDPOINT=http://host.docker.internal:4566
       - S3_ENDPOINT=http://host.docker.internal:4566
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:3.1
     ports:
-      - "4566:4566"
-      - "4571:4571"
+      - "127.0.0.1:4566:4566"
+      - "127.0.0.1:4510-4559:4510-4559"
     environment:
       - AWS_REGION=ap-northeast-1
       - SERVICES=lambda,s3,iam,sts,logs,events
-      - LAMBDA_EXECUTOR=docker
-      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DEBUG=${DEBUG:-0}
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock"
