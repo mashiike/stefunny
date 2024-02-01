@@ -29,3 +29,18 @@ jobs:
         with:
           version: latest
           args: release
+      - name: Extract major version
+        if: ${{ steps.tagpr.outputs.tag != '' }}
+        id: extract_version
+        run: echo "major_version=$(echo ${{ steps.tagpr.outputs.tag }} | cut -d '.' -f 1)" >> $GITHUB_OUTPUT
+      - name: Delete old tag
+        if: ${{ steps.tagpr.outputs.tag != '' }}
+        run: |
+          git tag -d ${{ steps.extract_version.outputs.major_version }}
+          git push origin :refs/tags/${{ steps.extract_version.outputs.major_version }}
+        continue-on-error: true
+      - name: Tag commit
+        if: ${{ steps.tagpr.outputs.tag != '' }}
+        run: |
+          git tag ${{ steps.extract_version.outputs.major_version }}
+          git push origin ${{ steps.extract_version.outputs.major_version }}
