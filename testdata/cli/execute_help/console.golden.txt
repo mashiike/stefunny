@@ -7,14 +7,13 @@ Flags:
       --log-level="info"        Set log level (debug, info, notice, warn,
                                 error) ($STEFUNNY_LOG_LEVEL)
   -c, --config="config.yaml"    Path to config file ($STEFUNNY_CONFIG)
-      --tfstate="terraform.tfstate"
-                                URL to terraform.tfstate referenced in config
+      --tfstate=STRING          URL to terraform.tfstate referenced in config
                                 ($STEFUNNY_TFSTATE)
       --ext-str=,...            external string values for Jsonnet
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
 
-      --input=RAW-MESSAGE       input JSON string
+      --input="-"               input JSON string
       --name=""                 execution name
       --async                   start execution and return immediately
       --dump-history            dump execution history

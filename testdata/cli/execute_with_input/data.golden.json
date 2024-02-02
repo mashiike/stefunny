@@ -1,7 +1,6 @@
 {
   "log_level": "info",
   "config": "config.yaml",
-  "tfstate": "terraform.tfstate",
   "region": "ap-northeast-1",
   "version": {},
   "init": {
@@ -14,8 +13,6 @@
     "format": "json"
   },
   "execute": {
-    "input": {
-      "Comment": "This is a comment"
-    }
+    "input": "/Users/ikeda-masashi/go/src/github.com/mashiike/stefunny/testdata/input.json"
   }
 }

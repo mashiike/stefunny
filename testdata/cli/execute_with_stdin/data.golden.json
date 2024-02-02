@@ -1,7 +1,6 @@
 {
   "log_level": "info",
   "config": "config.yaml",
-  "tfstate": "terraform.tfstate",
   "region": "ap-northeast-1",
   "version": {},
   "init": {
@@ -13,5 +12,7 @@
   "render": {
     "format": "json"
   },
-  "execute": {}
+  "execute": {
+    "input": "-"
+  }
 }

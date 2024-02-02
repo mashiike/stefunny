@@ -1,7 +1,6 @@
 {
   "log_level": "debug",
   "config": "config.yaml",
-  "tfstate": "terraform.tfstate",
   "region": "ap-northeast-1",
   "version": {},
   "init": {
