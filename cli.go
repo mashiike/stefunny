@@ -34,17 +34,13 @@ type CLI struct {
 	exitFunc       func(int)
 	stderr, stdout io.Writer
 	namedMappers   map[string]kong.Mapper
-	setLogLevel    func(string) error
 }
 
 func NewCLI() *CLI {
 	return &CLI{
-		exitFunc: os.Exit,
-		stderr:   os.Stderr,
-		stdout:   os.Stdout,
-		setLogLevel: func(string) error {
-			return nil
-		},
+		exitFunc:     os.Exit,
+		stderr:       os.Stderr,
+		stdout:       os.Stdout,
 		namedMappers: map[string]kong.Mapper{},
 		Render: RenderOption{
 			Writer: os.Stdout,
@@ -104,10 +100,6 @@ func (cli *CLI) NoExpandPath() {
 	)
 }
 
-func (cli *CLI) SetLogLevelFunc(f func(string) error) {
-	cli.setLogLevel = f
-}
-
 // Parse parses the command line arguments and returns the command name
 func (cli *CLI) Parse(args []string) (string, error) {
 	kongOpts := []kong.Option{
@@ -133,9 +125,7 @@ func (cli *CLI) Parse(args []string) (string, error) {
 		parser.FatalIfErrorf(err)
 		return "", err
 	}
-	if err := cli.setLogLevel(cli.LogLevel); err != nil {
-		return "", fmt.Errorf("failed to set log level: %w", err)
-	}
+	LoggerSetup(os.Stderr, cli.LogLevel)
 	cli.kctx = kctx
 	cmdStr := kctx.Command()
 	if cmdStr == "" {

@@ -1,4 +1,4 @@
-package logger
+package stefunny
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"github.com/fujiwara/logutils"
 )
 
-func Setup(w io.Writer, minLevel string) {
+func LoggerSetup(w io.Writer, minLevel string) {
 	filter := &logutils.LevelFilter{
 		Levels:   []logutils.LogLevel{"debug", "info", "notice", "warn", "error"},
 		MinLevel: "info",

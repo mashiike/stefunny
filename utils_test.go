@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	gc "github.com/kayac/go-config"
-	"github.com/mashiike/stefunny/internal/logger"
+	"github.com/mashiike/stefunny"
 )
 
 func LoadString(t *testing.T, path string) string {
@@ -20,9 +20,9 @@ func LoadString(t *testing.T, path string) string {
 
 func LoggerSetup(t *testing.T, minLevel string) func() {
 	var buf bytes.Buffer
-	logger.Setup(&buf, minLevel)
+	stefunny.LoggerSetup(&buf, minLevel)
 	return func() {
-		logger.Setup(os.Stderr, minLevel)
+		stefunny.LoggerSetup(os.Stderr, minLevel)
 		t.Log(buf.String())
 	}
 }
