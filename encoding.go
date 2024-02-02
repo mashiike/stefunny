@@ -9,6 +9,7 @@ import (
 
 	"github.com/Cside/jsondiff"
 	"github.com/fatih/color"
+	"github.com/google/go-jsonnet/formatter"
 	"gopkg.in/yaml.v3"
 )
 
@@ -34,6 +35,14 @@ func JSON2YAML(data []byte) ([]byte, error) {
 		return nil, err
 	}
 	return yaml.Marshal(temp)
+}
+
+func JSON2Jsonnet(filename string, data []byte) ([]byte, error) {
+	formattted, err := formatter.Format(filename, string(data), formatter.DefaultOptions())
+	if err != nil {
+		return data, err
+	}
+	return []byte(formattted), nil
 }
 
 func convertKeyString(v interface{}) (interface{}, error) {
