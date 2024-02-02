@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -65,7 +64,7 @@ func TestConfigLoadValid(t *testing.T) {
 			def, err := cfg.LoadDefinition()
 			require.NoError(t, err)
 			if c.isYaml {
-				bs, err := jsonutil.YAML2JSON([]byte(def))
+				bs, err := stefunny.YAML2JSON([]byte(def))
 				require.NoError(t, err)
 				def = string(bs)
 			}

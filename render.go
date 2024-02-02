@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/mashiike/stefunny/internal/asl"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 type RenderOption struct {
@@ -39,7 +38,7 @@ func (app *App) Render(_ context.Context, opt RenderOption) error {
 		return err
 	case "yaml":
 		log.Println("[warn] yaml format is deprecated (since v0.5.0)")
-		bs, err := jsonutil.JSON2YAML([]byte(def))
+		bs, err := JSON2YAML([]byte(def))
 		if err != nil {
 			return err
 		}

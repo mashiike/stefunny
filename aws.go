@@ -15,7 +15,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/google/uuid"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 type SFnClient interface {
@@ -263,9 +262,9 @@ func (s *StateMachine) String() string {
 func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 	var builder strings.Builder
 	builder.WriteString(colorRestString("StateMachine Configure:\n"))
-	builder.WriteString(jsonutil.JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
+	builder.WriteString(JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
 	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
-	builder.WriteString(jsonutil.JSONDiffString(*s.Definition, *newStateMachine.Definition))
+	builder.WriteString(JSONDiffString(*s.Definition, *newStateMachine.Definition))
 	return builder.String()
 }
 
@@ -283,7 +282,7 @@ func (s *StateMachine) configureJSON() string {
 	if s.TracingConfiguration != nil {
 		params["TracingConfiguration"] = s.TracingConfiguration
 	}
-	return jsonutil.MarshalJSONString(params)
+	return MarshalJSONString(params)
 }
 
 type ScheduleRule struct {
@@ -303,7 +302,7 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 		}
 		return nil, err
 	}
-	log.Println("[debug] describe rule:", jsonutil.MarshalJSONString(describeOutput))
+	log.Println("[debug] describe rule:", MarshalJSONString(describeOutput))
 	if describeOutput.ScheduleExpression == nil {
 		return nil, ErrRuleIsNotSchedule
 	}
@@ -314,7 +313,7 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 	if err != nil {
 		return nil, err
 	}
-	log.Println("[debug] list targets by rule:", jsonutil.MarshalJSONString(listTargetsOutput))
+	log.Println("[debug] list targets by rule:", MarshalJSONString(listTargetsOutput))
 	tagsOutput, err := svc.EventBridgeClient.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
 		ResourceARN: describeOutput.Arn,
 	}, optFns...)
@@ -544,7 +543,7 @@ func (rule *ScheduleRule) configureJSON() string {
 		"Targets":            rule.Targets,
 		"Tags":               rule.Tags,
 	}
-	return jsonutil.MarshalJSONString(params)
+	return MarshalJSONString(params)
 }
 
 func (rule *ScheduleRule) String() string {
@@ -555,7 +554,7 @@ func (rule *ScheduleRule) String() string {
 
 func (rule *ScheduleRule) DiffString(newRule *ScheduleRule) string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString(jsonutil.JSONDiffString(rule.configureJSON(), newRule.configureJSON())))
+	builder.WriteString(colorRestString(JSONDiffString(rule.configureJSON(), newRule.configureJSON())))
 	return builder.String()
 }
 
@@ -677,7 +676,7 @@ func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 	var builder strings.Builder
 	for _, name := range deleteRuleName {
 		rule := ruleMap[name]
-		builder.WriteString(colorRestString(jsonutil.JSONDiffString(rule.configureJSON(), "null")))
+		builder.WriteString(colorRestString(JSONDiffString(rule.configureJSON(), "null")))
 	}
 	for _, name := range changeRuleName {
 		rule := ruleMap[name]
@@ -686,7 +685,7 @@ func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 	}
 	for _, name := range addRuleName {
 		newRule := newRuleMap[name]
-		builder.WriteString(colorRestString(jsonutil.JSONDiffString("null", newRule.configureJSON())))
+		builder.WriteString(colorRestString(JSONDiffString("null", newRule.configureJSON())))
 	}
 	return builder.String()
 }

@@ -19,7 +19,6 @@ import (
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 	"github.com/serenize/snaker"
 )
 
@@ -336,7 +335,7 @@ func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return jsonutil.YAML2JSON(bs)
+		return YAML2JSON(bs)
 	}
 	return cfg.loader.ReadWithEnv(path)
 }

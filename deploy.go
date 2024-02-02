@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-
-	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 type DeployCommandOption struct {
@@ -135,7 +133,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	}
 
 	deleteRules := rules.Exclude(newRules)
-	log.Printf("[debug] delete rules:\n%s\n", jsonutil.MarshalJSONString(deleteRules))
+	log.Printf("[debug] delete rules:\n%s\n", MarshalJSONString(deleteRules))
 	if opt.DryRun {
 		diffString := rules.DiffString(newRules)
 		log.Printf("[notice] change schedule rule %s\n%s", opt.DryRunString(), diffString)
@@ -156,7 +154,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	}
 	if output.FailedEntryCount() != 0 {
 		for _, o := range output {
-			log.Printf("[error] deploy schedule rule with failed entries %s", jsonutil.MarshalJSONString(o.FailedEntries))
+			log.Printf("[error] deploy schedule rule with failed entries %s", MarshalJSONString(o.FailedEntries))
 		}
 		return errors.New("failed entry count > 0")
 	}
@@ -209,7 +207,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy schedule rule %s\n", jsonutil.MarshalJSONString(output))
+	log.Printf("[info] deploy schedule rule %s\n", MarshalJSONString(output))
 	if output.FailedEntryCount() != 0 {
 		return errors.New("failed entry count > 0")
 	}

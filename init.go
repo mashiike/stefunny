@@ -12,7 +12,6 @@ import (
 
 	awsarn "github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/google/go-jsonnet/formatter"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 	"gopkg.in/yaml.v3"
 )
 
@@ -132,7 +131,7 @@ func createDefinitionFile(path string, definition string) error {
 		}
 		io.WriteString(fp, formattted)
 	case ".yaml", ".yml":
-		bs, err := jsonutil.JSON2YAML([]byte(definition))
+		bs, err := JSON2YAML([]byte(definition))
 		if err != nil {
 			return err
 		}
