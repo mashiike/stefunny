@@ -7,26 +7,45 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"strings"
 	"time"
 
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny/internal/jsonutil"
 	"github.com/olekukonko/tablewriter"
+	"golang.org/x/term"
 )
 
 type ExecuteOption struct {
-	Stdin  io.Reader `kong:"-" json:"-"`
 	Stdout io.Writer `kong:"-" json:"-"`
 	Stderr io.Writer `kong:"-" json:"-"`
 
-	Input         json.RawMessage `name:"input" help:"input JSON string" type:"filecontent" json:"input,omitempty"`
-	ExecutionName string          `name:"name" help:"execution name" default:"" json:"name,omitempty"`
-	Async         bool            `name:"async" help:"start execution and return immediately" json:"async,omitempty"`
-	DumpHistory   bool            `name:"dump-history" help:"dump execution history" json:"dump_history,omitempty"`
+	Input         string `name:"input" help:"input JSON string" default:"-" type:"existingfile" json:"input,omitempty"`
+	ExecutionName string `name:"name" help:"execution name" default:"" json:"name,omitempty"`
+	Async         bool   `name:"async" help:"start execution and return immediately" json:"async,omitempty"`
+	DumpHistory   bool   `name:"dump-history" help:"dump execution history" json:"dump_history,omitempty"`
 }
 
-func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
-	dec := json.NewDecoder(opt.Stdin)
+func (app *App) Execute(ctx context.Context, opt *ExecuteOption) error {
+	var inputReader io.Reader
+	if opt.Input == "-" {
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			defaultInput := `{"Comment": "Insert your JSON here"}`
+			log.Println("[warn] no input is specified, so we'll use the default input in .")
+			inputReader = strings.NewReader(defaultInput)
+		} else {
+			inputReader = os.Stdin
+		}
+	} else {
+		fp, err := os.Open(opt.Input)
+		if err != nil {
+			return err
+		}
+		defer fp.Close()
+		inputReader = fp
+	}
+	dec := json.NewDecoder(inputReader)
 	var inputJSON interface{}
 	if err := dec.Decode(&inputJSON); err != nil {
 		return err
@@ -50,7 +69,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	return fmt.Errorf("unknown StateMachine Type:%s", stateMachine.Type)
 }
 
-func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
+func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachine, input string, opt *ExecuteOption) error {
 	if opt.DumpHistory {
 		log.Println("[warn] this state machine is EXPRESS type, history is not supported.")
 	}
@@ -87,7 +106,7 @@ func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachin
 	return nil
 }
 
-func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
+func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt *ExecuteOption) error {
 	output, err := app.aws.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
 	if err != nil {
 		return err

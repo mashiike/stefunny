@@ -20,7 +20,7 @@ func (opt DeleteOption) DryRunString() string {
 	return ""
 }
 
-func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
+func (app *App) Delete(ctx context.Context, opt *DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
 	if err != nil {

@@ -64,7 +64,7 @@ func TestConfigLoadValid(t *testing.T) {
 			def, err := cfg.LoadDefinition()
 			require.NoError(t, err)
 			if c.isYaml {
-				def = testutil.Yaml2Json(t, def)
+				def = testutil.YAML2JSON(t, def)
 			}
 			require.JSONEq(t, c.expectedDef, def)
 		})

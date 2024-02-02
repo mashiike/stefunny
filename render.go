@@ -16,7 +16,7 @@ type RenderOption struct {
 	Format string    `name:"format" help:"output format" default:"json" enum:"json,yaml,dot" json:"format,omitempty"`
 }
 
-func (app *App) Render(_ context.Context, opt RenderOption) error {
+func (app *App) Render(_ context.Context, opt *RenderOption) error {
 	def, err := app.cfg.LoadDefinition()
 	if err != nil {
 		return err

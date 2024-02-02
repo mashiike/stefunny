@@ -19,9 +19,9 @@ func LoadString(t *testing.T, path string) string {
 	return string(bs)
 }
 
-func Yaml2Json(t *testing.T, str string) string {
+func YAML2JSON(t *testing.T, str string) string {
 	t.Helper()
-	j, err := jsonutil.Yaml2Json([]byte(str))
+	j, err := jsonutil.YAML2JSON([]byte(str))
 	if err != nil {
 		t.Fatal(err)
 	}

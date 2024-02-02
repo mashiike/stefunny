@@ -83,7 +83,7 @@ func TestDeploy(t *testing.T) {
 			}
 			c.client.CallCount.Reset()
 			app := newMockApp(t, c.path, c.client)
-			err := app.Deploy(context.Background(), stefunny.DeployOption{
+			err := app.Deploy(context.Background(), &stefunny.DeployOption{
 				DryRun: c.DryRun,
 			})
 			require.NoError(t, err)

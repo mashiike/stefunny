@@ -113,7 +113,7 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 	return v
 }
 
-func Yaml2Json(data []byte) ([]byte, error) {
+func YAML2JSON(data []byte) ([]byte, error) {
 	var temp map[string]interface{}
 	if err := yaml.Unmarshal(data, &temp); err != nil {
 		return nil, err

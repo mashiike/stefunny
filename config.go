@@ -336,7 +336,7 @@ func (cfg *Config) loadDefinition(path string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		return jsonutil.Yaml2Json(bs)
+		return jsonutil.YAML2JSON(bs)
 	}
 	return cfg.loader.ReadWithEnv(path)
 }
