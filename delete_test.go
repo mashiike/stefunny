@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -78,7 +77,7 @@ func TestDelete(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			testutil.LoggerSetup(t, "debug")
+			LoggerSetup(t, "debug")
 			client.CallCount.Reset()
 			app := newMockApp(t, c.path, client)
 			err := app.Delete(context.Background(), stefunny.DeleteOption{

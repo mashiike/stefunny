@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,17 +19,17 @@ func TestConfigLoadValid(t *testing.T) {
 		{
 			casename:    "default_config",
 			path:        "testdata/default.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "jsonnet_config",
 			path:        "testdata/jsonnet.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "log_level_off",
 			path:        "testdata/logging_off.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename: "tfstate_read",
@@ -41,19 +40,19 @@ func TestConfigLoadValid(t *testing.T) {
 			extCode: map[string]string{
 				"WaitSeconds": "60*2",
 			},
-			expectedDef: testutil.LoadString(t, "testdata/tfstate.asl.json"),
+			expectedDef: LoadString(t, "testdata/tfstate.asl.json"),
 		},
 		{
 			casename:    "yaml",
 			path:        "testdata/yaml_def.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 			isYaml:      true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			testutil.LoggerSetup(t, "debug")
+			LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path, stefunny.LoadConfigOption{
 				TFState: "testdata/terraform.tfstate",
@@ -98,7 +97,7 @@ func TestConfigLoadInValid(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			testutil.LoggerSetup(t, "debug")
+			LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path, stefunny.LoadConfigOption{
 				TFState: "testdata/terraform.tfstate",

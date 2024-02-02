@@ -7,7 +7,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -77,7 +76,7 @@ func TestDeploy(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			testutil.LoggerSetup(t, "debug")
+			LoggerSetup(t, "debug")
 			if c.client == nil {
 				c.client = client
 			}

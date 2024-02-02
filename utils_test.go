@@ -1,4 +1,4 @@
-package testutil
+package stefunny_test
 
 import (
 	"bytes"

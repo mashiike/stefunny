@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/require"
 )
@@ -24,37 +23,37 @@ func TestAppRender(t *testing.T) {
 		{
 			casename: "default_config",
 			path:     "testdata/default.yaml",
-			expected: testutil.LoadString(t, "testdata/hello_world.dot"),
+			expected: LoadString(t, "testdata/hello_world.dot"),
 			format:   "dot",
 		},
 		{
 			casename: "jsonnet_config",
 			path:     "testdata/jsonnet.yaml",
-			expected: testutil.LoadString(t, "testdata/hello_world.dot"),
+			expected: LoadString(t, "testdata/hello_world.dot"),
 			format:   "dot",
 		},
 		{
 			casename: "full_def",
 			path:     "testdata/full_def.yaml",
-			expected: testutil.LoadString(t, "testdata/workflow1.dot"),
+			expected: LoadString(t, "testdata/workflow1.dot"),
 			format:   "dot",
 		},
 		{
 			casename: "default_config",
 			path:     "testdata/default.yaml",
 			format:   "json",
-			expected: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expected: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename: "default_config",
 			path:     "testdata/default.yaml",
 			format:   "yaml",
-			expected: testutil.LoadString(t, "testdata/hello_world.asl.yaml"),
+			expected: LoadString(t, "testdata/hello_world.asl.yaml"),
 		},
 		{
 			casename: "env_config",
 			path:     "testdata/env_def.yaml",
-			expected: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expected: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 	}
 
@@ -62,7 +61,7 @@ func TestAppRender(t *testing.T) {
 		t.Run(c.casename, func(t *testing.T) {
 			loc := dataloc.L(c.casename)
 			t.Log("case location:", loc)
-			testutil.LoggerSetup(t, "debug")
+			LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path, stefunny.LoadConfigOption{
 				TFState: "testdata/terraform.tfstate",
