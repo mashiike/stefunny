@@ -14,3 +14,5 @@ Flags:
       --region=""               AWS region ($AWS_REGION)
 
       --dry-run                 Dry run
+      --skip-deploy-state-machine
+                                Skip deploy state machine

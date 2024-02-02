@@ -12,5 +12,7 @@
   "render": {
     "format": "invalid"
   },
-  "execute": {}
+  "execute": {
+    "input": "-"
+  }
 }

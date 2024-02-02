@@ -81,6 +81,27 @@ func (cli *CLI) NoExpandPath() {
 			return nil
 		},
 	)
+	cli.namedMappers["existingfile"] = kong.MapperFunc(
+		func(ctx *kong.DecodeContext, target reflect.Value) error {
+			var path string
+			err := ctx.Scan.PopValueInto("file", &path)
+			if err != nil {
+				return err
+			}
+			target.SetString(path)
+			if path == "-" {
+				return nil
+			}
+			stat, err := os.Stat(path)
+			if err != nil {
+				return err
+			}
+			if stat.IsDir() {
+				return fmt.Errorf("%q exists but is a directory", path)
+			}
+			return nil
+		},
+	)
 }
 
 func (cli *CLI) SetLogLevelFunc(f func(string) error) {

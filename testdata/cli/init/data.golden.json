@@ -13,5 +13,7 @@
   "render": {
     "format": "json"
   },
-  "execute": {}
+  "execute": {
+    "input": "-"
+  }
 }

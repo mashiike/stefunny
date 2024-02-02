@@ -13,6 +13,6 @@
     "format": "json"
   },
   "execute": {
-    "input": "/Users/ikeda-masashi/go/src/github.com/mashiike/stefunny/testdata/input.json"
+    "input": "testdata/input.json"
   }
 }
