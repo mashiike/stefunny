@@ -27,7 +27,7 @@ type ExecuteOption struct {
 	DumpHistory   bool   `name:"dump-history" help:"dump execution history" json:"dump_history,omitempty"`
 }
 
-func (app *App) Execute(ctx context.Context, opt *ExecuteOption) error {
+func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	var inputReader io.Reader
 	if opt.Input == "-" {
 		if term.IsTerminal(int(os.Stdin.Fd())) {
@@ -69,7 +69,7 @@ func (app *App) Execute(ctx context.Context, opt *ExecuteOption) error {
 	return fmt.Errorf("unknown StateMachine Type:%s", stateMachine.Type)
 }
 
-func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachine, input string, opt *ExecuteOption) error {
+func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
 	if opt.DumpHistory {
 		log.Println("[warn] this state machine is EXPRESS type, history is not supported.")
 	}
@@ -106,7 +106,7 @@ func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachin
 	return nil
 }
 
-func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt *ExecuteOption) error {
+func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
 	output, err := app.aws.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
 	if err != nil {
 		return err

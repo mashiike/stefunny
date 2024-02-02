@@ -22,13 +22,13 @@ type CLI struct {
 	ExtCode   []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
 	AWSRegion string   `name:"region" help:"AWS region" default:"" env:"AWS_REGION" json:"region,omitempty"`
 
-	Version  struct{}               `cmd:"" help:"Show version" json:"version,omitempty"`
-	Init     *InitOption            `cmd:"" help:"Initialize stefunny configuration" json:"init,omitempty"`
-	Delete   *DeleteOption          `cmd:"" help:"Delete state machine and schedule rules" json:"delete,omitempty"`
-	Deploy   *DeployCommandOption   `cmd:"" help:"Deploy state machine and schedule rules" json:"deploy,omitempty"`
-	Schedule *ScheduleCommandOption `cmd:"" help:"Enable or disable schedule rules" json:"schedule,omitempty"`
-	Render   *RenderOption          `cmd:"" help:"Render state machine definition" json:"render,omitempty"`
-	Execute  *ExecuteOption         `cmd:"" help:"Execute state machine" json:"execute,omitempty"`
+	Version  struct{}              `cmd:"" help:"Show version" json:"version,omitempty"`
+	Init     InitOption            `cmd:"" help:"Initialize stefunny configuration" json:"init,omitempty"`
+	Delete   DeleteOption          `cmd:"" help:"Delete state machine and schedule rules" json:"delete,omitempty"`
+	Deploy   DeployCommandOption   `cmd:"" help:"Deploy state machine and schedule rules" json:"deploy,omitempty"`
+	Schedule ScheduleCommandOption `cmd:"" help:"Enable or disable schedule rules" json:"schedule,omitempty"`
+	Render   RenderOption          `cmd:"" help:"Render state machine definition" json:"render,omitempty"`
+	Execute  ExecuteOption         `cmd:"" help:"Execute state machine" json:"execute,omitempty"`
 
 	kctx           *kong.Context
 	exitFunc       func(int)
@@ -46,10 +46,10 @@ func NewCLI() *CLI {
 			return nil
 		},
 		namedMappers: map[string]kong.Mapper{},
-		Render: &RenderOption{
+		Render: RenderOption{
 			Writer: os.Stdout,
 		},
-		Execute: &ExecuteOption{
+		Execute: ExecuteOption{
 			Stdout: os.Stdout,
 			Stderr: os.Stderr,
 		},
@@ -182,9 +182,9 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		cli.Init.AWSRegion = cli.AWSRegion
 		return app.Init(ctx, cli.Init)
 	case "deploy":
-		return app.Deploy(ctx, cli.Deploy.NewOption())
+		return app.Deploy(ctx, cli.Deploy.DeployOption())
 	case "schedule":
-		return app.Deploy(ctx, cli.Schedule.NewOption())
+		return app.Deploy(ctx, cli.Schedule.DeployOption())
 	case "delete":
 		return app.Delete(ctx, cli.Delete)
 	case "render":

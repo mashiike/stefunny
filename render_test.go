@@ -72,7 +72,7 @@ func TestAppRender(t *testing.T) {
 			app, err := stefunny.New(ctx, cfg)
 			require.NoError(t, err)
 			var buf bytes.Buffer
-			err = app.Render(ctx, &stefunny.RenderOption{
+			err = app.Render(ctx, stefunny.RenderOption{
 				Writer: &buf,
 				Format: c.format,
 			})

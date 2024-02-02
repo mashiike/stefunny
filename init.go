@@ -24,7 +24,7 @@ type InitOption struct {
 	AWSRegion  string `kong:"-" json:"-"`
 }
 
-func (app *App) Init(ctx context.Context, opt *InitOption) error {
+func (app *App) Init(ctx context.Context, opt InitOption) error {
 	log.Println("[debug] config path =", opt.ConfigPath)
 	configDir := filepath.Dir(opt.ConfigPath)
 	configExt := filepath.Ext(opt.ConfigPath)

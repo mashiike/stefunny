@@ -81,7 +81,7 @@ func TestDelete(t *testing.T) {
 			testutil.LoggerSetup(t, "debug")
 			client.CallCount.Reset()
 			app := newMockApp(t, c.path, client)
-			err := app.Delete(context.Background(), &stefunny.DeleteOption{
+			err := app.Delete(context.Background(), stefunny.DeleteOption{
 				DryRun: c.DryRun,
 				Force:  true,
 			})
