@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
+	"github.com/mashiike/stefunny/internal/jsonutil"
 	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
@@ -64,7 +65,9 @@ func TestConfigLoadValid(t *testing.T) {
 			def, err := cfg.LoadDefinition()
 			require.NoError(t, err)
 			if c.isYaml {
-				def = testutil.YAML2JSON(t, def)
+				bs, err := jsonutil.YAML2JSON([]byte(def))
+				require.NoError(t, err)
+				def = string(bs)
 			}
 			require.JSONEq(t, c.expectedDef, def)
 		})
