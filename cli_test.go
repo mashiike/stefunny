@@ -13,6 +13,7 @@ import (
 type testBailout struct{}
 
 func TestCLI__Parse(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-east-1")
 	cases := []struct {
 		name string
 		args []string

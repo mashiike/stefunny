@@ -1,7 +1,7 @@
 {
   "log_level": "info",
   "config": "config.yaml",
-  "region": "ap-northeast-1",
+  "region": "us-east-1",
   "version": {},
   "init": {
     "state_machine_name": "test",
