@@ -9,6 +9,52 @@ import (
 	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
+type DeployCommandOption struct {
+	DryRun                 bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	SkipDeployStateMachine bool `name:"skip-deploy-state-machine" help:"Skip deploy state machine" json:"skip_deploy_state_machine,omitempty"`
+}
+
+func (cmd *DeployCommandOption) DeployOption() DeployOption {
+	return DeployOption{
+		DryRun:                 cmd.DryRun,
+		SkipDeployStateMachine: cmd.SkipDeployStateMachine,
+	}
+}
+
+type ScheduleCommandOption struct {
+	DryRun   bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	Enabled  bool `name:"enabled" help:"Enable schedule" xor:"schedule" required:"" json:"enabled,omitempty"`
+	Disabled bool `name:"disabled" help:"Disable schedule" xor:"schedule" required:"" json:"disabled,omitempty"`
+}
+
+func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
+	var enabled *bool
+	if cmd.Enabled {
+		enabled = ptr(true)
+	}
+	if cmd.Disabled {
+		enabled = ptr(false)
+	}
+	return DeployOption{
+		DryRun:                 cmd.DryRun,
+		ScheduleEnabled:        enabled,
+		SkipDeployStateMachine: true,
+	}
+}
+
+type DeployOption struct {
+	DryRun                 bool
+	ScheduleEnabled        *bool
+	SkipDeployStateMachine bool
+}
+
+func (opt DeployOption) DryRunString() string {
+	if opt.DryRun {
+		return dryRunStr
+	}
+	return ""
+}
+
 func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	log.Println("[info] Starting deploy", opt.DryRunString())
 	if !opt.SkipDeployStateMachine {
@@ -116,6 +162,56 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	}
 	for _, o := range output {
 		log.Printf("[info] deploy schedule rule %s", *o.RuleArn)
+	}
+	return nil
+}
+
+func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error {
+	stateMachine, err := app.LoadStateMachine(ctx)
+	if err != nil {
+		return err
+	}
+	if opt.DryRun {
+		log.Printf("[notice] create state machine %s\n%s", opt.DryRunString(), stateMachine.String())
+		return nil
+	}
+	output, err := app.aws.DeployStateMachine(ctx, stateMachine)
+	if err != nil {
+		return fmt.Errorf("create failed: %w", err)
+	}
+
+	log.Printf("[notice] created arn `%s`", *output.StateMachineArn)
+	return nil
+}
+
+func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error {
+	if app.cfg.Schedule == nil {
+		log.Println("[debug] schedule rule is not set")
+		return nil
+	}
+	if opt.DryRun {
+		rules, err := app.LoadScheduleRules(ctx, "[state machine arn]")
+		if err != nil {
+			return err
+		}
+		log.Printf("[notice] create schedule rules %s\n%s", opt.DryRunString(), rules.String())
+		return nil
+	}
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	if err != nil {
+		return fmt.Errorf("failed to get state machine arn: %w", err)
+	}
+	rules, err := app.LoadScheduleRules(ctx, stateMachineArn)
+	if err != nil {
+		return err
+	}
+	output, err := app.aws.DeployScheduleRules(ctx, rules)
+	if err != nil {
+		return err
+	}
+	log.Printf("[info] deploy schedule rule %s\n", jsonutil.MarshalJSONString(output))
+	if output.FailedEntryCount() != 0 {
+		return errors.New("failed entry count > 0")
 	}
 	return nil
 }

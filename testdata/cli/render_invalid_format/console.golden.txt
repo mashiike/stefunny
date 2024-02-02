@@ -1,0 +1,18 @@
+Usage: stefunny render
+
+Render state machine definition
+
+Flags:
+  -h, --help                    Show context-sensitive help.
+      --log-level="info"        Set log level (debug, info, notice, warn,
+                                error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="config.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING          URL to terraform.tfstate referenced in config
+                                ($STEFUNNY_TFSTATE)
+      --ext-str=,...            external string values for Jsonnet
+      --ext-code=,...           external code values for Jsonnet
+      --region=""               AWS region ($AWS_REGION)
+
+      --format="json"           output format
+
+stefunny: error: --format must be one of "json","yaml","dot" but got "invalid"

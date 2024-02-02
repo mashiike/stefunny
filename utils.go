@@ -41,3 +41,7 @@ func coalesceString(str *string, d string) string {
 	}
 	return *str
 }
+
+func ptr[T any](v T) *T {
+	return &v
+}

@@ -1,0 +1,18 @@
+{
+  "log_level": "debug",
+  "config": "config.yaml",
+  "region": "us-east-1",
+  "version": {},
+  "init": {
+    "definition_file_path": "definition.asl.json"
+  },
+  "delete": {},
+  "deploy": {},
+  "schedule": {},
+  "render": {
+    "format": "json"
+  },
+  "execute": {
+    "input": "-"
+  }
+}

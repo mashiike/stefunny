@@ -16,27 +16,25 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-type InitInput struct {
-	Version            string
-	AWSRegion          string
-	StateMachineName   string
-	ConfigPath         string
-	DefinitionFileName string
+type InitOption struct {
+	StateMachineName   string `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
+	DefinitionFilePath string `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
+
+	ConfigPath string `kong:"-" json:"-"`
+	AWSRegion  string `kong:"-" json:"-"`
 }
 
-func (app *App) Init(ctx context.Context, input *InitInput) error {
-	log.Println("[debug] config path =", input.ConfigPath)
-	configDir := filepath.Dir(input.ConfigPath)
-	configExt := filepath.Ext(input.ConfigPath)
+func (app *App) Init(ctx context.Context, opt InitOption) error {
+	log.Println("[debug] config path =", opt.ConfigPath)
+	configDir := filepath.Dir(opt.ConfigPath)
+	configExt := filepath.Ext(opt.ConfigPath)
 	if configExt != ".yaml" && configExt != ".yml" {
 		return errors.New("config file ext unexpected yaml or yml")
 	}
 	cfg := NewDefaultConfig()
-	if input.Version != "current" && input.Version != "" {
-		cfg.RequiredVersion = ">=" + input.Version
-	}
-	cfg.AWSRegion = input.AWSRegion
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, input.StateMachineName)
+	cfg.RequiredVersion = ">=" + Version
+	cfg.AWSRegion = opt.AWSRegion
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, opt.StateMachineName)
 	if err != nil {
 		return fmt.Errorf("failed describe state machine: %w", err)
 	}
@@ -57,8 +55,8 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 		}
 	}
 
-	log.Println("[debug] definition path =", input.DefinitionFileName)
-	defPath := input.DefinitionFileName
+	log.Println("[debug] definition path =", opt.DefinitionFilePath)
+	defPath := opt.DefinitionFilePath
 	defPath, err = filepath.Rel(configDir, defPath)
 	if err != nil {
 		return fmt.Errorf("failed definition path rel: %w", err)
@@ -69,10 +67,10 @@ func (app *App) Init(ctx context.Context, input *InitInput) error {
 		return fmt.Errorf("failed create definition file: %w", err)
 	}
 	log.Printf("[notice] StateMachine/%s save state machine definition to %s", *stateMachine.Name, defFullPath)
-	if err := createConfigFile(input.ConfigPath, cfg); err != nil {
+	if err := createConfigFile(opt.ConfigPath, cfg); err != nil {
 		return fmt.Errorf("failed create config file: %w", err)
 	}
-	log.Printf("[notice] StateMachine/%s save config to %s", *stateMachine.Name, input.ConfigPath)
+	log.Printf("[notice] StateMachine/%s save config to %s", *stateMachine.Name, opt.ConfigPath)
 	return nil
 }
 

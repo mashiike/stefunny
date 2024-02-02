@@ -8,6 +8,18 @@ import (
 	"strings"
 )
 
+type DeleteOption struct {
+	DryRun bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	Force  bool `name:"force" help:"delete without confirmation" json:"force,omitempty"`
+}
+
+func (opt DeleteOption) DryRunString() string {
+	if opt.DryRun {
+		return dryRunStr
+	}
+	return ""
+}
+
 func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
 	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
