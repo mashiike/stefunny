@@ -1,0 +1,41 @@
+Usage: stefunny <command>
+
+stefunny is a deployment tool for AWS StepFunctions state machine
+
+Flags:
+  -h, --help                    Show context-sensitive help.
+      --log-level="info"        Set log level (debug, info, notice, warn,
+                                error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="config.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate="terraform.tfstate"
+                                URL to terraform.tfstate referenced in config
+                                ($STEFUNNY_TFSTATE)
+      --ext-str=,...            external string values for Jsonnet
+      --ext-code=,...           external code values for Jsonnet
+      --region=""               AWS region ($AWS_REGION)
+
+Commands:
+  version
+    Show version
+
+  init --state-machine=STRING
+    Initialize stefunny configuration
+
+  delete
+    Delete state machine and schedule rules
+
+  deploy
+    Deploy state machine and schedule rules
+
+  schedule --enabled --disabled
+    Enable or disable schedule rules
+
+  render
+    Render state machine definition
+
+  execute
+    Execute state machine
+
+Run "stefunny <command> --help" for more information on a command.
+
+stefunny: error: unexpected argument unknown

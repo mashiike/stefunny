@@ -16,6 +16,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+type InitOption struct {
+	StateMachineName   string `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
+	DefinitionFilePath string `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
+}
+
 type InitInput struct {
 	Version            string
 	AWSRegion          string

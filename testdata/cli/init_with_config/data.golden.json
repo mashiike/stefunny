@@ -1,0 +1,18 @@
+{
+  "log_level": "info",
+  "config": "config.yaml",
+  "tfstate": "terraform.tfstate",
+  "region": "ap-northeast-1",
+  "version": {},
+  "init": {
+    "state_machine_name": "test",
+    "definition_file_path": "definition.asl.json"
+  },
+  "delete": {},
+  "deploy": {},
+  "schedule": {},
+  "render": {
+    "format": "json"
+  },
+  "execute": {}
+}

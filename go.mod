@@ -5,6 +5,7 @@ go 1.21.0
 require (
 	github.com/Cside/jsondiff v0.0.0-20230202095914-52b2619434ef
 	github.com/Songmu/prompter v0.5.1
+	github.com/alecthomas/kong v0.8.1
 	github.com/awalterschulze/gographviz v2.0.3+incompatible
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
@@ -19,7 +20,9 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/kayac/go-config v0.7.0
+	github.com/motemen/go-testutil v0.0.0-20231019055648-af6add1c10c8
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/sebdah/goldie/v2 v2.5.3
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.27.1

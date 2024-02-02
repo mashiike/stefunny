@@ -82,6 +82,12 @@ type ScheduleConfig struct {
 	RoleArn     string `yaml:"role_arn,omitempty"`
 }
 
+type LoadConfigOption struct {
+	TFState string
+	ExtStr  map[string]string
+	ExtCode map[string]string
+}
+
 func (cfg *Config) Load(path string, opt LoadConfigOption) error {
 
 	loader := gc.New()

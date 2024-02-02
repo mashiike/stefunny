@@ -9,6 +9,7 @@ import (
 
 	"github.com/mashiike/stefunny"
 	"github.com/mashiike/stefunny/internal/testutil"
+	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,16 +25,19 @@ func TestAppRender(t *testing.T) {
 			casename: "default_config",
 			path:     "testdata/default.yaml",
 			expected: testutil.LoadString(t, "testdata/hello_world.dot"),
+			format:   "dot",
 		},
 		{
 			casename: "jsonnet_config",
 			path:     "testdata/jsonnet.yaml",
 			expected: testutil.LoadString(t, "testdata/hello_world.dot"),
+			format:   "dot",
 		},
 		{
 			casename: "full_def",
 			path:     "testdata/full_def.yaml",
 			expected: testutil.LoadString(t, "testdata/workflow1.dot"),
+			format:   "dot",
 		},
 		{
 			casename: "default_config",
@@ -50,13 +54,14 @@ func TestAppRender(t *testing.T) {
 		{
 			casename: "env_config",
 			path:     "testdata/env_def.yaml",
-			format:   "json",
 			expected: testutil.LoadString(t, "testdata/hello_world.asl.json"),
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
+			loc := dataloc.L(c.casename)
+			t.Log("case location:", loc)
 			testutil.LoggerSetup(t, "debug")
 			cfg := stefunny.NewDefaultConfig()
 			err := cfg.Load(c.path, stefunny.LoadConfigOption{
@@ -73,9 +78,9 @@ func TestAppRender(t *testing.T) {
 			})
 			require.NoError(t, err)
 			switch c.format {
-			case "", "dot":
+			case "dot":
 				require.ElementsMatch(t, strings.Split(c.expected, "\n"), strings.Split(buf.String(), "\n"))
-			case "json":
+			case "", "json":
 				require.JSONEq(t, c.expected, buf.String())
 			case "yaml":
 				require.YAMLEq(t, c.expected, buf.String())

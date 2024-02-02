@@ -9,6 +9,29 @@ import (
 	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
+type DeployCommandOption struct {
+	DryRun bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+}
+
+type ScheduleCommandOption struct {
+	DryRun   bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	Enabled  bool `name:"enabled" help:"Enable schedule" xor:"schedule" required:"" json:"enabled,omitempty"`
+	Disabled bool `name:"disabled" help:"Disable schedule" xor:"schedule" required:"" json:"disabled,omitempty"`
+}
+
+type DeployOption struct {
+	DryRun                 bool
+	ScheduleEnabled        *bool
+	SkipDeployStateMachine bool
+}
+
+func (opt DeployOption) DryRunString() string {
+	if opt.DryRun {
+		return dryRunStr
+	}
+	return ""
+}
+
 func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	log.Println("[info] Starting deploy", opt.DryRunString())
 	if !opt.SkipDeployStateMachine {
