@@ -46,7 +46,7 @@ func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 	}, nil
 }
 
-func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
+func (app *App) LoadStateMachine() (*StateMachine, error) {
 
 	stateMachine := &StateMachine{
 		CreateStateMachineInput: app.cfg.NewCreateStateMachineInput(),

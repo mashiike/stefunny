@@ -75,7 +75,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		}
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
-	newStateMachine, err := app.LoadStateMachine(ctx)
+	newStateMachine, err := app.LoadStateMachine()
 	if err != nil {
 		return err
 	}
@@ -165,7 +165,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error {
-	stateMachine, err := app.LoadStateMachine(ctx)
+	stateMachine, err := app.LoadStateMachine()
 	if err != nil {
 		return err
 	}
