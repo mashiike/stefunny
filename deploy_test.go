@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
+	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,12 +23,12 @@ func TestDeploy(t *testing.T) {
 	}{
 		{
 			casename: "default_config dryrun",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			DryRun:   true,
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:      1,
 				DescribeStateMachine:   1,
-				DescribeLogGroups:      1,
+				DescribeLogGroups:      0,
 				UpdateStateMachine:     0,
 				SFnTagResource:         0,
 				DescribeRule:           0,
@@ -37,12 +38,12 @@ func TestDeploy(t *testing.T) {
 		},
 		{
 			casename: "default_config",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:      1,
 				DescribeStateMachine:   1,
-				DescribeLogGroups:      1,
+				DescribeLogGroups:      0,
 				UpdateStateMachine:     1,
 				SFnTagResource:         1,
 				DescribeRule:           0,
@@ -59,12 +60,12 @@ func TestDeploy(t *testing.T) {
 					}, nil
 				},
 			}),
-			path:   "testdata/default.yaml",
+			path:   "testdata/stefunny.yaml",
 			DryRun: false,
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:     1,
 				DescribeStateMachine:  0,
-				DescribeLogGroups:     1,
+				DescribeLogGroups:     0,
 				CreateStateMachine:    1,
 				SFnTagResource:        0,
 				EBTagResource:         0,
@@ -77,6 +78,7 @@ func TestDeploy(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			LoggerSetup(t, "debug")
+			t.Log("test location:", dataloc.L(c.casename))
 			if c.client == nil {
 				c.client = client
 			}

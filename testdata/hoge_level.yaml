@@ -4,7 +4,8 @@ state_machine:
   name: Hello
   definition: hello_world.asl.jsonnet
   role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
-  logging:
+  logging_configuration:
     level: hoge
-    destination:
-      log_group: /steps/hello
+    destinations:
+      - cloudwatch_logs_log_group:
+          log_group_arn: arn:aws:logs:us-east-1:012345678901:log-group:/steps/hello

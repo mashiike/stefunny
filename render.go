@@ -16,10 +16,13 @@ type RenderOption struct {
 }
 
 func (app *App) Render(_ context.Context, opt RenderOption) error {
-	def, err := app.cfg.LoadDefinition()
-	if err != nil {
-		return err
+	if app.cfg.StateMachine == nil {
+		return errors.New("state machine not found")
 	}
+	if app.cfg.StateMachine.Value.Definition == nil {
+		return errors.New("state machine definition not found")
+	}
+	def := *app.cfg.StateMachine.Value.Definition
 	switch strings.ToLower(opt.Format) {
 	case "dot":
 		log.Println("[warn] dot format is deprecated (since v0.5.0)")
@@ -27,7 +30,7 @@ func (app *App) Render(_ context.Context, opt RenderOption) error {
 		if err != nil {
 			return err
 		}
-		bs, err := stateMachine.MarshalDOT(app.cfg.StateMachine.Name)
+		bs, err := stateMachine.MarshalDOT(app.cfg.StateMachineName())
 		if err != nil {
 			return err
 		}

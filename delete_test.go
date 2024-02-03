@@ -19,7 +19,7 @@ func TestDelete(t *testing.T) {
 	}{
 		{
 			casename: "default_config dryrun",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			DryRun:   true,
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:      1,
@@ -32,7 +32,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			casename: "default_config",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			expectedCallCount: mockClientCallCount{
 				ListStateMachines:      1,

@@ -8,9 +8,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
-	awsarn "github.com/aws/aws-sdk-go-v2/aws/arn"
 	"gopkg.in/yaml.v3"
 )
 
@@ -59,7 +57,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	if err != nil {
 		return fmt.Errorf("failed definition path rel: %w", err)
 	}
-	cfg.StateMachine.Definition = defPath
+	cfg.StateMachine.SetDetinitionPath(defPath)
 	defFullPath := filepath.Join(configDir, defPath)
 	if err := createDefinitionFile(defFullPath, *stateMachine.Definition); err != nil {
 		return fmt.Errorf("failed create definition file: %w", err)
@@ -73,22 +71,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 }
 
 func setStateMachineConfig(cfg *StateMachineConfig, s *StateMachine) *StateMachineConfig {
-	cfg.Name = *s.Name
-	cfg.RoleArn = *s.RoleArn
-	cfg.Tracing = &StateMachineTracingConfig{
-		Enabled: &s.TracingConfiguration.Enabled,
-	}
-	cfg.Type = string(s.Type)
-	cfg.Logging = &StateMachineLoggingConfig{
-		Level:                string(s.LoggingConfiguration.Level),
-		IncludeExecutionData: &s.LoggingConfiguration.IncludeExecutionData,
-	}
-	if len(s.LoggingConfiguration.Destinations) > 0 {
-		cfg.Logging.Destination = &StateMachineLoggingDestinationConfig{
-			LogGroup: extractLogGroupName(*s.LoggingConfiguration.Destinations[0].CloudWatchLogsLogGroup.LogGroupArn),
-		}
-	}
-
+	cfg.KeysToSnakeCase.Value = s.CreateStateMachineInput
 	return cfg
 }
 
@@ -103,15 +86,6 @@ func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
 	cfg.RoleArn = coalesceString(s.Targets[0].RoleArn, "")
 	cfg.ID = coalesceString(s.Targets[0].Id, "")
 	return cfg, nil
-}
-
-func extractLogGroupName(arn string) string {
-	logGroupARN, err := awsarn.Parse(arn)
-	if err != nil {
-		log.Printf("[warn] failed to parse log group arn: %s", err)
-		return ""
-	}
-	return strings.TrimRight(strings.TrimPrefix(logGroupARN.Resource, "log-group:"), ":*")
 }
 
 func createDefinitionFile(path string, definition string) error {

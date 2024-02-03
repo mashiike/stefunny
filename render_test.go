@@ -22,13 +22,13 @@ func TestAppRender(t *testing.T) {
 	}{
 		{
 			casename: "default_config",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			expected: LoadString(t, "testdata/hello_world.dot"),
 			format:   "dot",
 		},
 		{
 			casename: "jsonnet_config",
-			path:     "testdata/jsonnet.yaml",
+			path:     "testdata/jsonnet_def.yaml",
 			expected: LoadString(t, "testdata/hello_world.dot"),
 			format:   "dot",
 		},
@@ -40,13 +40,13 @@ func TestAppRender(t *testing.T) {
 		},
 		{
 			casename: "default_config",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			format:   "json",
 			expected: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename: "default_config",
-			path:     "testdata/default.yaml",
+			path:     "testdata/stefunny.yaml",
 			format:   "yaml",
 			expected: LoadString(t, "testdata/hello_world.asl.yaml"),
 		},

@@ -4,10 +4,11 @@ state_machine:
   name: Scheduled
   definition: hello_world.asl.json
   role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
-  logging:
+  logging_configuration:
     level: ALL
-    destination:
-      log_group: /steps/hello
+    destinations:
+      - cloudwatch_logs_log_group:
+          log_group_arn: arn:aws:logs:us-east-1:012345678901:log-group:/steps/hello
 
 schedule:
   - rule_name: Scheduled-hourly

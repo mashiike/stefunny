@@ -13,6 +13,7 @@ import (
 	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -83,9 +84,9 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 		var b []byte
 		var err error
 		if withEnv {
-			b, err = os.ReadFile(path)
-		} else {
 			b, err = l.loader.ReadWithEnv(path)
+		} else {
+			b, err = os.ReadFile(path)
 		}
 		if err != nil {
 			return err
@@ -124,36 +125,9 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	}
 }
 
-type jsonRawMessage json.RawMessage
-
-func (j *jsonRawMessage) UnmarshalYAML(value *yaml.Node) error {
-	var data any
-	if err := value.Decode(&data); err != nil {
-		return fmt.Errorf("failed to decode yaml node: %w", err)
-	}
-	m, err := convertKeyString(data)
-	if err != nil {
-		return fmt.Errorf("failed to convert key string: %w", err)
-	}
-	bs, err := json.Marshal(m)
-	if err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
-	}
-	*j = jsonRawMessage(bs)
-	return nil
-}
-
-func (j *jsonRawMessage) UnmarshalJSON(bs []byte) error {
-	var raw json.RawMessage
-	if err := json.Unmarshal(bs, &raw); err != nil {
-		return fmt.Errorf("failed to unmarshal json: %w", err)
-	}
-	*j = jsonRawMessage(raw)
-	return nil
-}
-
 func (l *ConfigLoader) Load(path string) (*Config, error) {
 	cfg := NewDefaultConfig()
+	cfg.StateMachine.Strict = true
 	if err := l.load(path, true, true, cfg); err != nil {
 		return nil, fmt.Errorf("load config `%s`: %w", path, err)
 	}
@@ -163,20 +137,20 @@ func (l *ConfigLoader) Load(path string) (*Config, error) {
 	if err := cfg.ValidateVersion(Version); err != nil {
 		return nil, fmt.Errorf("config validate version:%w", err)
 	}
-	if cfg.StateMachine.Definition == "" {
+	if cfg.StateMachine.Value.Definition == nil || *cfg.StateMachine.Value.Definition == "" {
 		return nil, errors.New("state_machine.definition is required")
 	}
-	if json.Valid([]byte(cfg.StateMachine.Definition)) {
+	if json.Valid([]byte(*cfg.StateMachine.Value.Definition)) {
 		return cfg, nil
 	}
 	// cfg.StateMachine.Definition written definition file path
-	var definition jsonRawMessage
-	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.Definition))
+	var definition JSONRawMessage
+	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), *cfg.StateMachine.Value.Definition))
 	log.Println("[debug] definition path =", definitionPath)
 	if err := l.load(definitionPath, false, true, &definition); err != nil {
 		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
 	}
-	cfg.StateMachine.Definition = string(definition)
+	cfg.StateMachine.Value.Definition = aws.String(string(definition))
 	return cfg, nil
 }
 
@@ -195,29 +169,7 @@ type Config struct {
 }
 
 type StateMachineConfig struct {
-	Name             string                     `yaml:"name,omitempty" json:"name,omitempty"`
-	Type             string                     `yaml:"type,omitempty" json:"type,omitempty"`
-	RoleArn          string                     `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
-	Definition       string                     `yaml:"definition,omitempty" json:"definition,omitempty"`
-	Logging          *StateMachineLoggingConfig `yaml:"logging,omitempty" json:"logging,omitempty"`
-	Tracing          *StateMachineTracingConfig `yaml:"tracing,omitempty" json:"tracing,omitempty"`
-	stateMachineType sfntypes.StateMachineType  `yaml:"-,omitempty"`
-}
-
-type StateMachineLoggingConfig struct {
-	Level                string                                `yaml:"level,omitempty" json:"level,omitempty"`
-	IncludeExecutionData *bool                                 `yaml:"include_execution_data,omitempty" json:"include_execution_data,omitempty"`
-	Destination          *StateMachineLoggingDestinationConfig `yaml:"destination,omitempty" json:"destination,omitempty"`
-
-	logLevel sfntypes.LogLevel `yaml:"-,omitempty"`
-}
-
-type StateMachineLoggingDestinationConfig struct {
-	LogGroup string `yaml:"log_group,omitempty" json:"log_group,omitempty"`
-}
-
-type StateMachineTracingConfig struct {
-	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	KeysToSnakeCase[sfn.CreateStateMachineInput] `yaml:",inline" json:",inline"`
 }
 
 type EndpointsConfig struct {
@@ -252,7 +204,7 @@ func (cfg *Config) Restrict() error {
 	}
 	if len(cfg.Schedule) != 0 {
 		for i, s := range cfg.Schedule {
-			if err := s.Restrict(i, cfg.StateMachine.Name); err != nil {
+			if err := s.Restrict(i, *cfg.StateMachine.Value.Name); err != nil {
 				return fmt.Errorf("schedule[%d].%w", i, err)
 			}
 		}
@@ -260,75 +212,86 @@ func (cfg *Config) Restrict() error {
 	return nil
 }
 
+func (cfg *Config) StateMachineName() string {
+	return *cfg.StateMachine.Value.Name
+}
+
+func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
+	input := cfg.StateMachine.Value
+	found := false
+	for _, tag := range input.Tags {
+		if tag.Key == nil {
+			continue
+		}
+		if *tag.Key == tagManagedBy {
+			tag.Value = aws.String(appName)
+			found = true
+		}
+	}
+	if !found {
+		input.Tags = append(input.Tags, sfntypes.Tag{
+			Key:   aws.String(tagManagedBy),
+			Value: aws.String(appName),
+		})
+	}
+	return input
+}
+
+func (cfg *StateMachineConfig) SetDetinitionPath(path string) {
+	cfg.Value.Definition = aws.String(path)
+}
+
 // Restrict restricts a configuration.
 func (cfg *StateMachineConfig) Restrict() error {
-	if cfg.Name == "" {
+	if cfg.Value.Name == nil || *cfg.Value.Name == "" {
 		return errors.New("name is required")
 	}
-	if cfg.RoleArn == "" {
+	if cfg.Value.RoleArn == nil || *cfg.Value.RoleArn == "" {
 		return errors.New("role_arn is required")
 	}
-
-	var err error
-	cfg.stateMachineType, err = restrictSFnStateMachineType(cfg.Type)
-	if err != nil {
-		return fmt.Errorf("type is %w", err)
-	}
-	if cfg.Logging == nil {
-		return errors.New("logging is required")
-	}
-	if err := cfg.Logging.Restrict(); err != nil {
-		return fmt.Errorf("logging.%w", err)
-	}
-	if cfg.Tracing == nil {
-		return errors.New("tracing is required")
-	}
-	if err := cfg.Tracing.Restrict(); err != nil {
-		return fmt.Errorf("tracing.%w", err)
-	}
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *StateMachineLoggingConfig) Restrict() error {
-
-	if cfg.IncludeExecutionData == nil {
-		return errors.New("include_execution_data is required")
-	}
-
-	var err error
-	cfg.logLevel, err = restrictLogLevel(cfg.Level)
-	if err != nil {
-		return fmt.Errorf("level is %w", err)
-	}
-
-	if cfg.Destination == nil {
-		if cfg.logLevel != sfntypes.LogLevelOff {
-			return errors.New("destination is required, if log_level is not OFF")
-		}
+	if cfg.Value.Type == "" {
+		cfg.Value.Type = sfntypes.StateMachineTypeStandard
 	} else {
-		if err := cfg.Destination.Restrict(); err != nil {
-			return fmt.Errorf("destination.%w", err)
+		var err error
+		cfg.Value.Type, err = restrictSFnStateMachineType(string(cfg.Value.Type))
+		if err != nil {
+			return fmt.Errorf("type is %w", err)
 		}
 	}
-
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *StateMachineLoggingDestinationConfig) Restrict() error {
-
-	if cfg.LogGroup == "" {
-		return errors.New("log_group is required")
+	if cfg.Value.LoggingConfiguration == nil {
+		return errors.New("logging_configuration is required")
 	}
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *StateMachineTracingConfig) Restrict() error {
-
-	if cfg.Enabled == nil {
-		return errors.New("enabled is required")
+	if cfg.Value.LoggingConfiguration.Level == "" {
+		cfg.Value.LoggingConfiguration.Level = sfntypes.LogLevelOff
+	} else {
+		var err error
+		cfg.Value.LoggingConfiguration.Level, err = restrictLogLevel(string(cfg.Value.LoggingConfiguration.Level))
+		if err != nil {
+			return fmt.Errorf("logging_configuration.level is %w", err)
+		}
+	}
+	for i, dest := range cfg.Value.LoggingConfiguration.Destinations {
+		if dest.CloudWatchLogsLogGroup == nil {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group is required", i)
+		}
+		if dest.CloudWatchLogsLogGroup.LogGroupArn == nil || *dest.CloudWatchLogsLogGroup.LogGroupArn == "" {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is required", i)
+		}
+		logGroupARN, err := arn.Parse(*dest.CloudWatchLogsLogGroup.LogGroupArn)
+		if err != nil {
+			return fmt.Errorf(
+				"logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn = `%s` is invalid: %w",
+				i, *dest.CloudWatchLogsLogGroup.LogGroupArn, err,
+			)
+		}
+		if logGroupARN.Service != "logs" {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is not CloudWatch Logs ARN", i)
+		}
+	}
+	if cfg.Value.TracingConfiguration == nil {
+		cfg.Value.TracingConfiguration = &sfntypes.TracingConfiguration{
+			Enabled: false,
+		}
 	}
 	return nil
 }
@@ -412,28 +375,17 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		AWSRegion: os.Getenv("AWS_REGION"),
 		StateMachine: &StateMachineConfig{
-			Type:             string(sfntypes.StateMachineTypeStandard),
-			stateMachineType: sfntypes.StateMachineTypeStandard,
-			Logging: &StateMachineLoggingConfig{
-				Level:                string(sfntypes.LogLevelOff),
-				logLevel:             sfntypes.LogLevelOff,
-				IncludeExecutionData: aws.Bool(true),
-			},
-			Tracing: &StateMachineTracingConfig{
-				Enabled: aws.Bool(false),
-			},
+			KeysToSnakeCase: NewKeysToSnakeCase(sfn.CreateStateMachineInput{
+				Type: sfntypes.StateMachineTypeStandard,
+				LoggingConfiguration: &sfntypes.LoggingConfiguration{
+					Level: sfntypes.LogLevelOff,
+				},
+				TracingConfiguration: &sfntypes.TracingConfiguration{
+					Enabled: false,
+				},
+			}),
 		},
 		Tags: make(map[string]string),
-	}
-}
-
-func (cfg *Config) LoadDefinition() (string, error) {
-	return cfg.StateMachine.Definition, nil
-}
-
-func (cfg *StateMachineConfig) LoadTracingConfiguration() *sfntypes.TracingConfiguration {
-	return &sfntypes.TracingConfiguration{
-		Enabled: *cfg.Tracing.Enabled,
 	}
 }
 

@@ -4,11 +4,15 @@
     name: 'Hello',
     role_arn: 'arn:aws:iam::123456789012:role/StepFunctions-Hello-Role',
     definition: 'hello_world.asl.json',
-    logging: {
+    logging_configuration: {
       level: 'ALL',
-      destination: {
-        log_group: '/steps/hello',
-      },
+      destinations: [
+        {
+          cloud_watch_logs_log_group: {
+            log_group_arn: 'arn:aws:logs:us-east-1:123456789012:log-group:/aws/stepfunctions/Hello',
+          },
+        },
+      ],
     },
   },
 }

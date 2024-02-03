@@ -68,7 +68,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		if err == ErrStateMachineDoesNotExist && !opt.SkipDeployStateMachine {
 			return app.createStateMachine(ctx, opt)
@@ -89,12 +89,12 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachine.Name, *output.UpdateDate)
+	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachineName(), *output.UpdateDate)
 	return nil
 }
 
 func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error {
-	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
@@ -195,7 +195,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 		log.Printf("[notice] create schedule rules %s\n%s", opt.DryRunString(), rules.String())
 		return nil
 	}
-	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}

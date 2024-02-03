@@ -4,8 +4,9 @@ state_machine:
   name: Hello
   definition: tfstate.asl.jsonnet
   role_arn: "{{ tfstate `aws_iam_role.test.arn` }}"
-  logging:
+  logging_configuration:
     level: FATAL
-    destination:
-      log_group: /steps/hello
+    destinations:
+      - cloudwatch_logs_log_group:
+          log_group_arn: "{{ tfstate `aws_cloudwatch_log_group.test.arn` }}"
 

@@ -187,7 +187,8 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 // KeysToSnakeCase converts the keys of the given object to snake case.
 // The given object is expected struct, json struct key is CamelCase.
 type KeysToSnakeCase[T any] struct {
-	Value T
+	Value  T
+	Strict bool `yaml:"-"`
 }
 
 func NewKeysToSnakeCase[T any](v T) KeysToSnakeCase[T] {
@@ -224,8 +225,12 @@ func (k *KeysToSnakeCase[T]) UnmarshalYAML(value *yaml.Node) error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(bs, &k.Value); err != nil {
-		return err
+	dec := json.NewDecoder(bytes.NewReader(bs))
+	if k.Strict {
+		dec.DisallowUnknownFields()
+	}
+	if err := dec.Decode(&k.Value); err != nil {
+		return fmt.Errorf("snake to camel decode failed: %w", err)
 	}
 	return nil
 }
@@ -242,7 +247,11 @@ func (k *KeysToSnakeCase[T]) UnmarshalJSON(bs []byte) error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(bs, &k.Value); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(bs))
+	if k.Strict {
+		dec.DisallowUnknownFields()
+	}
+	if err := dec.Decode(&k.Value); err != nil {
 		return err
 	}
 	return nil
@@ -317,5 +326,33 @@ func walkSlilce(data []any, keyModifier func(string) string) error {
 			continue
 		}
 	}
+	return nil
+}
+
+type JSONRawMessage json.RawMessage
+
+func (j *JSONRawMessage) UnmarshalYAML(value *yaml.Node) error {
+	var data any
+	if err := value.Decode(&data); err != nil {
+		return fmt.Errorf("failed to decode yaml node: %w", err)
+	}
+	m, err := convertKeyString(data)
+	if err != nil {
+		return fmt.Errorf("failed to convert key string: %w", err)
+	}
+	bs, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("failed to marshal json: %w", err)
+	}
+	*j = JSONRawMessage(bs)
+	return nil
+}
+
+func (j *JSONRawMessage) UnmarshalJSON(bs []byte) error {
+	var raw json.RawMessage
+	if err := json.Unmarshal(bs, &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal json: %w", err)
+	}
+	*j = JSONRawMessage(raw)
 	return nil
 }

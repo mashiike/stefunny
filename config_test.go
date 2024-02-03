@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
+	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,12 +19,12 @@ func TestConfigLoadValid(t *testing.T) {
 	}{
 		{
 			casename:    "default_config",
-			path:        "testdata/default.yaml",
+			path:        "testdata/stefunny.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
-			casename:    "jsonnet_config",
-			path:        "testdata/jsonnet.yaml",
+			casename:    "yaml_config_with_jsonnet_def",
+			path:        "testdata/jsonnet_def.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
@@ -57,13 +58,15 @@ func TestConfigLoadValid(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			LoggerSetup(t, "debug")
+			t.Log("test location:", dataloc.L(c.casename))
 			l := stefunny.NewConfigLoader(c.extStr, c.extCode)
 			ctx := context.Background()
 			err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
 			require.NoError(t, err)
 			cfg, err := l.Load(c.path)
 			require.NoError(t, err)
-			require.JSONEq(t, c.expectedDef, cfg.StateMachine.Definition)
+			require.NotNil(t, cfg.StateMachine.Value.Definition)
+			require.JSONEq(t, c.expectedDef, *cfg.StateMachine.Value.Definition)
 		})
 	}
 
@@ -82,7 +85,7 @@ func TestConfigLoadInValid(t *testing.T) {
 		{
 			casename: "level_invalid",
 			path:     "testdata/hoge_level.yaml",
-			expected: "state_machine.logging.level is invalid level: please ALL, ERROR, FATAL, or OFF",
+			expected: "state_machine.logging_configuration.level is invalid level: please ALL, ERROR, FATAL, or OFF",
 		},
 		{
 			casename: "type_invalid",
@@ -94,6 +97,7 @@ func TestConfigLoadInValid(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			LoggerSetup(t, "debug")
+			t.Log("test location:", dataloc.L(c.casename))
 			l := stefunny.NewConfigLoader(nil, nil)
 			ctx := context.Background()
 			err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
