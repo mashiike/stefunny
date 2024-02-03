@@ -1,13 +1,16 @@
 package stefunny
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
@@ -20,7 +23,114 @@ import (
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
 	"github.com/serenize/snaker"
+	"gopkg.in/yaml.v3"
 )
+
+const (
+	jsonnetExt = ".jsonnet"
+	jsonExt    = ".json"
+	ymlExt     = ".yml"
+	yamlExt    = ".yaml"
+)
+
+type ConfigLoader struct {
+	loader  *gc.Loader
+	funcMap template.FuncMap
+	vm      *jsonnet.VM
+}
+
+func NewConfigLoader(extStr, extCode map[string]string) (*ConfigLoader, error) {
+	vm := jsonnet.MakeVM()
+	for k, v := range extStr {
+		vm.ExtVar(k, v)
+	}
+	for k, v := range extCode {
+		vm.ExtCode(k, v)
+	}
+	cl := &ConfigLoader{
+		loader:  gc.New(),
+		funcMap: make(template.FuncMap),
+		vm:      vm,
+	}
+	return cl, nil
+}
+
+func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState string) error {
+	funcs, err := tfstate.FuncMap(ctx, tfState)
+	if err != nil {
+		return fmt.Errorf("tfstate %w", err)
+	}
+	return l.AppendFuncMap(prefix, funcs)
+}
+
+func (l *ConfigLoader) AppendFuncMap(prefix string, funcMap template.FuncMap) error {
+	appendTarget := make(template.FuncMap, len(funcMap))
+	for k, v := range funcMap {
+		modifiedKey := prefix + k
+		if _, ok := l.funcMap[modifiedKey]; ok {
+			return fmt.Errorf("funcMap key %s already exists", modifiedKey)
+		}
+		l.funcMap[modifiedKey] = v
+		appendTarget[modifiedKey] = v
+	}
+	l.loader.Funcs(appendTarget)
+	return nil
+}
+
+type pathSettable interface {
+	SetPath(string)
+}
+
+func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error {
+	if ps, ok := v.(pathSettable); ok {
+		ps.SetPath(path)
+	}
+	ext := filepath.Ext(path)
+	switch ext {
+	case yamlExt, ymlExt:
+		var b []byte
+		var err error
+		if withEnv {
+			b, err = os.ReadFile(path)
+		} else {
+			b, err = l.loader.ReadWithEnv(path)
+		}
+		if err != nil {
+			return err
+		}
+
+		dec := yaml.NewDecoder(bytes.NewReader(b))
+		if strict {
+			dec.KnownFields(true)
+		}
+		if err := dec.Decode(v); err != nil {
+			return err
+		}
+		return nil
+	case jsonExt, jsonnetExt:
+		jsonStr, err := l.vm.EvaluateFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate jsonnet file: %w", err)
+		}
+		b := []byte(jsonStr)
+		if withEnv {
+			b, err = l.loader.ReadWithEnvBytes([]byte(jsonStr))
+			if err != nil {
+				return fmt.Errorf("failed to read template file: %w", err)
+			}
+		}
+		dec := json.NewDecoder(bytes.NewReader(b))
+		if strict {
+			dec.DisallowUnknownFields()
+		}
+		if err := dec.Decode(v); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported file extension: %s", ext)
+	}
+}
 
 type Config struct {
 	RequiredVersion string `yaml:"required_version,omitempty"`
@@ -38,6 +148,10 @@ type Config struct {
 	loader             *gc.Loader        `yaml:"-,omitempty"`
 	extStr             map[string]string `yaml:"-,omitempty"`
 	extCode            map[string]string `yaml:"-,omitempty"`
+}
+
+func (cfg *Config) SetPath(path string) {
+	cfg.dir = filepath.Dir(path)
 }
 
 type StateMachineConfig struct {
