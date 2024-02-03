@@ -412,10 +412,11 @@ func newStateMachineListItem(name string) sfntypes.StateMachineListItem {
 
 func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App {
 	t.Helper()
-	cfg := stefunny.NewDefaultConfig()
-	err := cfg.Load(path, stefunny.LoadConfigOption{
-		TFState: "testdata/terraform.tfstate",
-	})
+	l := stefunny.NewConfigLoader(nil, nil)
+	ctx := context.Background()
+	err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
+	require.NoError(t, err)
+	cfg, err := l.Load(path)
 	require.NoError(t, err)
 	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
 		SFnClient:         &mockSFnClient{aws: client},

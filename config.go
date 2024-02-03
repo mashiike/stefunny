@@ -39,7 +39,7 @@ type ConfigLoader struct {
 	vm      *jsonnet.VM
 }
 
-func NewConfigLoader(extStr, extCode map[string]string) (*ConfigLoader, error) {
+func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 	vm := jsonnet.MakeVM()
 	for k, v := range extStr {
 		vm.ExtVar(k, v)
@@ -47,12 +47,11 @@ func NewConfigLoader(extStr, extCode map[string]string) (*ConfigLoader, error) {
 	for k, v := range extCode {
 		vm.ExtCode(k, v)
 	}
-	cl := &ConfigLoader{
+	return &ConfigLoader{
 		loader:  gc.New(),
 		funcMap: make(template.FuncMap),
 		vm:      vm,
 	}
-	return cl, nil
 }
 
 func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState string) error {
@@ -77,14 +76,7 @@ func (l *ConfigLoader) AppendFuncMap(prefix string, funcMap template.FuncMap) er
 	return nil
 }
 
-type pathSettable interface {
-	SetPath(string)
-}
-
 func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error {
-	if ps, ok := v.(pathSettable); ok {
-		ps.SetPath(path)
-	}
 	ext := filepath.Ext(path)
 	switch ext {
 	case yamlExt, ymlExt:
@@ -132,6 +124,62 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	}
 }
 
+type jsonRawMessage json.RawMessage
+
+func (j *jsonRawMessage) UnmarshalYAML(value *yaml.Node) error {
+	var data any
+	if err := value.Decode(&data); err != nil {
+		return fmt.Errorf("failed to decode yaml node: %w", err)
+	}
+	m, err := convertKeyString(data)
+	if err != nil {
+		return fmt.Errorf("failed to convert key string: %w", err)
+	}
+	bs, err := json.Marshal(m)
+	if err != nil {
+		return fmt.Errorf("failed to marshal json: %w", err)
+	}
+	*j = jsonRawMessage(bs)
+	return nil
+}
+
+func (j *jsonRawMessage) UnmarshalJSON(bs []byte) error {
+	var raw json.RawMessage
+	if err := json.Unmarshal(bs, &raw); err != nil {
+		return fmt.Errorf("failed to unmarshal json: %w", err)
+	}
+	*j = jsonRawMessage(raw)
+	return nil
+}
+
+func (l *ConfigLoader) Load(path string) (*Config, error) {
+	cfg := NewDefaultConfig()
+	if err := l.load(path, true, true, cfg); err != nil {
+		return nil, fmt.Errorf("load config `%s`: %w", path, err)
+	}
+	if err := cfg.Restrict(); err != nil {
+		return nil, fmt.Errorf("config restrict:%w", err)
+	}
+	if err := cfg.ValidateVersion(Version); err != nil {
+		return nil, fmt.Errorf("config validate version:%w", err)
+	}
+	if cfg.StateMachine.Definition == "" {
+		return nil, errors.New("state_machine.definition is required")
+	}
+	if json.Valid([]byte(cfg.StateMachine.Definition)) {
+		return cfg, nil
+	}
+	// cfg.StateMachine.Definition written definition file path
+	var definition jsonRawMessage
+	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.Definition))
+	log.Println("[debug] definition path =", definitionPath)
+	if err := l.load(definitionPath, false, true, &definition); err != nil {
+		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
+	}
+	cfg.StateMachine.Definition = string(definition)
+	return cfg, nil
+}
+
 type Config struct {
 	RequiredVersion string `yaml:"required_version,omitempty" json:"required_version,omitempty" toml:"required_version,omitempty" env:"REQUIRED_VERSION" validate:"omitempty,version"`
 	AWSRegion       string `yaml:"aws_region,omitempty" json:"aws_region,omitempty" toml:"aws_region,omitempty" env:"AWS_REGION" validate:"omitempty,region"`
@@ -143,15 +191,7 @@ type Config struct {
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty" json:"endpoints,omitempty"`
 
 	//private field
-	versionConstraints gv.Constraints    `yaml:"-,omitempty"`
-	dir                string            `yaml:"-,omitempty"`
-	loader             *gc.Loader        `yaml:"-,omitempty"`
-	extStr             map[string]string `yaml:"-,omitempty"`
-	extCode            map[string]string `yaml:"-,omitempty"`
-}
-
-func (cfg *Config) SetPath(path string) {
-	cfg.dir = filepath.Dir(path)
+	versionConstraints gv.Constraints `yaml:"-,omitempty"`
 }
 
 type StateMachineConfig struct {
@@ -195,32 +235,6 @@ type ScheduleConfig struct {
 	RoleArn     string `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
-type LoadConfigOption struct {
-	TFState string
-	ExtStr  map[string]string
-	ExtCode map[string]string
-}
-
-func (cfg *Config) Load(path string, opt LoadConfigOption) error {
-
-	loader := gc.New()
-	cfg.dir = filepath.Dir(path)
-	if opt.TFState != "" {
-		funcs, err := tfstate.FuncMap(context.Background(), opt.TFState)
-		if err != nil {
-			return fmt.Errorf("tfstate %w", err)
-		}
-		loader.Funcs(funcs)
-	}
-	if err := loader.LoadWithEnv(cfg, path); err != nil {
-		return fmt.Errorf("config load:%w", err)
-	}
-	cfg.loader = loader
-	cfg.extStr = opt.ExtStr
-	cfg.extCode = opt.ExtCode
-	return cfg.Restrict()
-}
-
 // Restrict restricts a configuration.
 func (cfg *Config) Restrict() error {
 	if cfg.RequiredVersion != "" {
@@ -253,9 +267,6 @@ func (cfg *StateMachineConfig) Restrict() error {
 	}
 	if cfg.RoleArn == "" {
 		return errors.New("role_arn is required")
-	}
-	if cfg.Definition == "" {
-		return errors.New("definition is required")
 	}
 
 	var err error
@@ -417,41 +428,13 @@ func NewDefaultConfig() *Config {
 }
 
 func (cfg *Config) LoadDefinition() (string, error) {
-	path := filepath.Join(cfg.dir, cfg.StateMachine.Definition)
-	log.Printf("[debug] try load definition `%s`\n", path)
-	bs, err := cfg.loadDefinition(path)
-	return string(bs), err
+	return cfg.StateMachine.Definition, nil
 }
 
 func (cfg *StateMachineConfig) LoadTracingConfiguration() *sfntypes.TracingConfiguration {
 	return &sfntypes.TracingConfiguration{
 		Enabled: *cfg.Tracing.Enabled,
 	}
-}
-
-func (cfg *Config) loadDefinition(path string) ([]byte, error) {
-	switch filepath.Ext(path) {
-	case ".jsonnet":
-		vm := jsonnet.MakeVM()
-		for k, v := range cfg.extStr {
-			vm.ExtVar(k, v)
-		}
-		for k, v := range cfg.extCode {
-			vm.ExtCode(k, v)
-		}
-		jsonStr, err := vm.EvaluateFile(path)
-		if err != nil {
-			return nil, err
-		}
-		return cfg.loader.ReadWithEnvBytes([]byte(jsonStr))
-	case ".yaml", ".yml":
-		bs, err := cfg.loader.ReadWithEnv(path)
-		if err != nil {
-			return nil, err
-		}
-		return YAML2JSON(bs)
-	}
-	return cfg.loader.ReadWithEnv(path)
 }
 
 func (cfg *Config) EndpointResolver() (aws.EndpointResolverWithOptions, bool) {

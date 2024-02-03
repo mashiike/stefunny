@@ -159,16 +159,17 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 		}
 		extCode[kv[0]] = kv[1]
 	}
-	opt := LoadConfigOption{
-		TFState: cli.TFState,
-		ExtStr:  extStr,
-		ExtCode: extCode,
+	configLoader := NewConfigLoader(extStr, extCode)
+	if cli.TFState != "" {
+		log.Println("[warn] tfstate flag is deprecated, use tfstate in config file")
+		err := configLoader.AppendTFState(ctx, "", cli.TFState)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append tfstate: %w", err)
+		}
 	}
-	if err := cfg.Load(cli.Config, opt); err != nil {
+	cfg, err := configLoader.Load(cli.Config)
+	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-	if err := cfg.ValidateVersion(Version); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 	app, err := New(ctx, cfg)
 	if err != nil {

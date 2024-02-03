@@ -1,6 +1,7 @@
 package stefunny_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/mashiike/stefunny"
@@ -12,7 +13,6 @@ func TestConfigLoadValid(t *testing.T) {
 		casename    string
 		path        string
 		expectedDef string
-		isYaml      bool
 		extStr      map[string]string
 		extCode     map[string]string
 	}{
@@ -46,28 +46,19 @@ func TestConfigLoadValid(t *testing.T) {
 			casename:    "yaml",
 			path:        "testdata/yaml_def.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
-			isYaml:      true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			LoggerSetup(t, "debug")
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-				ExtStr:  c.extStr,
-				ExtCode: c.extCode,
-			})
+			l := stefunny.NewConfigLoader(c.extStr, c.extCode)
+			ctx := context.Background()
+			err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
 			require.NoError(t, err)
-			def, err := cfg.LoadDefinition()
+			cfg, err := l.Load(c.path)
 			require.NoError(t, err)
-			if c.isYaml {
-				bs, err := stefunny.YAML2JSON([]byte(def))
-				require.NoError(t, err)
-				def = string(bs)
-			}
-			require.JSONEq(t, c.expectedDef, def)
+			require.JSONEq(t, c.expectedDef, cfg.StateMachine.Definition)
 		})
 	}
 
@@ -98,13 +89,14 @@ func TestConfigLoadInValid(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			LoggerSetup(t, "debug")
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-			})
+			l := stefunny.NewConfigLoader(nil, nil)
+			ctx := context.Background()
+			err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
+			require.NoError(t, err)
+			_, err = l.Load(c.path)
 			require.Error(t, err)
 			if c.expected != "" {
-				require.EqualError(t, err, c.expected)
+				require.ErrorContains(t, err, c.expected)
 			}
 		})
 	}

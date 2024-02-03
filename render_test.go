@@ -62,12 +62,12 @@ func TestAppRender(t *testing.T) {
 			loc := dataloc.L(c.casename)
 			t.Log("case location:", loc)
 			LoggerSetup(t, "debug")
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-			})
-			require.NoError(t, err)
+			l := stefunny.NewConfigLoader(nil, nil)
 			ctx := context.Background()
+			err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
+			require.NoError(t, err)
+			cfg, err := l.Load(c.path)
+			require.NoError(t, err)
 			app, err := stefunny.New(ctx, cfg)
 			require.NoError(t, err)
 			var buf bytes.Buffer

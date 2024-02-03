@@ -5,6 +5,6 @@ state_machine:
   definition: hello_world.asl.jsonnet
   role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
   logging:
+    level: FATAL
     destination:
-      level: FATAL
       log_group: /steps/hello
