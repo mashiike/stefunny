@@ -16,7 +16,7 @@ const dryRunStr = "DRY RUN"
 
 type CLI struct {
 	LogLevel  string   `name:"log-level" help:"Set log level (debug, info, notice, warn, error)" default:"info" env:"STEFUNNY_LOG_LEVEL" json:"log_level,omitempty"`
-	Config    string   `name:"config" short:"c" help:"Path to config file" default:"config.yaml" env:"STEFUNNY_CONFIG" json:"config,omitempty"`
+	Config    string   `name:"config" short:"c" help:"Path to config file" default:"config.yaml" env:"STEFUNNY_CONFIG" type:"path" json:"config,omitempty"`
 	TFState   string   `name:"tfstate" help:"URL to terraform.tfstate referenced in config" env:"STEFUNNY_TFSTATE" json:"tfstate,omitempty"`
 	ExtStr    []string `name:"ext-str" help:"external string values for Jsonnet" default:"" json:"ext_str,omitempty"`
 	ExtCode   []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
@@ -179,19 +179,29 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 
 // Run() runs the command
 func (cli *CLI) Run(ctx context.Context, args []string) error {
+	log.Println("[debug] start run: args =", args)
 	cmd, err := cli.Parse(args)
 	if err != nil {
 		return err
 	}
+	log.Println("[debug] command is ", cmd)
+	if cmd == "init" {
+		log.Println("[debug] run init, use default config")
+		cli.Init.ConfigPath = cli.Config
+		cli.Init.AWSRegion = cli.AWSRegion
+		cfg := NewDefaultConfig()
+		app, err := New(ctx, cfg)
+		if err != nil {
+			return err
+		}
+		return app.Init(ctx, cli.Init)
+	}
+	log.Println("[debug] create new app")
 	app, err := cli.NewApp(ctx)
 	if err != nil {
 		return err
 	}
 	switch cmd {
-	case "init":
-		cli.Init.ConfigPath = cli.Config
-		cli.Init.AWSRegion = cli.AWSRegion
-		return app.Init(ctx, cli.Init)
 	case "deploy":
 		return app.Deploy(ctx, cli.Deploy.DeployOption())
 	case "schedule":
