@@ -166,7 +166,7 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 			return nil, fmt.Errorf("failed to append tfstate: %w", err)
 		}
 	}
-	cfg, err := configLoader.Load(cli.Config)
+	cfg, err := configLoader.Load(ctx, cli.Config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}

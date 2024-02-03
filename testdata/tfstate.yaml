@@ -8,5 +8,10 @@ state_machine:
     level: FATAL
     destinations:
       - cloudwatch_logs_log_group:
-          log_group_arn: "{{ tfstate `aws_cloudwatch_log_group.test.arn` }}"
+          log_group_arn: "{{ second_tfstate `aws_cloudwatch_log_group.test.arn` }}"
 
+
+tfstate:
+  - path: ./terraform.tfstate
+  - url: ./terraform.tfstate
+    func_prefix: second_

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,8 +126,37 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	}
 }
 
-func (l *ConfigLoader) Load(path string) (*Config, error) {
+func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
+	// pre load for tfstate path read
+	if err := l.load(path, false, false, cfg); err != nil {
+		return nil, fmt.Errorf("pre load config `%s`: %w", path, err)
+	}
+	for i, tfstate := range cfg.TFState {
+		var loc string
+		if tfstate.URL != "" {
+			u, err := url.Parse(tfstate.URL)
+			if err != nil {
+				return nil, fmt.Errorf("tfstate[%d].url parse error: %w", i, err)
+			}
+			if u.Scheme == "" {
+				tfstate.Path = tfstate.URL
+			}
+		}
+		if tfstate.Path != "" {
+			loc = tfstate.Path
+			if !filepath.IsAbs(loc) {
+				loc = filepath.Join(filepath.Dir(path), loc)
+			}
+		}
+		if loc == "" {
+			return nil, fmt.Errorf("tfstate[%d].path or tfstate[%d].url is required", i, i)
+		}
+		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
+			return nil, fmt.Errorf("tfstate[%d] %w", i, err)
+		}
+	}
+
 	cfg.StateMachine.Strict = true
 	if err := l.load(path, true, true, cfg); err != nil {
 		return nil, fmt.Errorf("load config `%s`: %w", path, err)
@@ -164,8 +194,16 @@ type Config struct {
 
 	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty" json:"endpoints,omitempty"`
 
+	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
+
 	//private field
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
+}
+
+type TFStateConfig struct {
+	FuncPrefix string `yaml:"func_prefix,omitempty" json:"func_prefix,omitempty"`
+	Path       string `yaml:"path,omitempty" json:"path,omitempty"`
+	URL        string `yaml:"url,omitempty" json:"url,omitempty"`
 }
 
 type StateMachineConfig struct {

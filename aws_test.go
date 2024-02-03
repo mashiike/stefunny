@@ -414,9 +414,7 @@ func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App 
 	t.Helper()
 	l := stefunny.NewConfigLoader(nil, nil)
 	ctx := context.Background()
-	err := l.AppendTFState(ctx, "", "testdata/terraform.tfstate")
-	require.NoError(t, err)
-	cfg, err := l.Load(path)
+	cfg, err := l.Load(ctx, path)
 	require.NoError(t, err)
 	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
 		SFnClient:         &mockSFnClient{aws: client},
