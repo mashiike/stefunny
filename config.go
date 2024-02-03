@@ -314,6 +314,10 @@ func (cfg *StateMachineConfig) SetDetinitionPath(path string) {
 	cfg.DefinitionPath = path
 }
 
+func (cfg *StateMachineConfig) SetDefinition(definition string) {
+	cfg.Value.Definition = aws.String(definition)
+}
+
 // Restrict restricts a configuration.
 func (cfg *StateMachineConfig) Restrict() error {
 	if cfg.Value.Name == nil || *cfg.Value.Name == "" {
