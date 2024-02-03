@@ -5,9 +5,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 type RenderOption struct {
@@ -56,18 +58,58 @@ func NewRenderer(cfg *Config) *Renderer {
 	}
 }
 
+func (r *Renderer) RenderConfigFile(path string) error {
+	fmt, err := r.detectFormat(path)
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return r.RenderConfig(f, fmt)
+}
+
 func (r *Renderer) RenderConfig(w io.Writer, format string) error {
 	def := r.cfg.StateMachineDefinition()
-	r.cfg.StateMachine.Value.Definition = &r.cfg.StateMachine.DefinitionPath
+	r.cfg.StateMachine.SetDefinition(r.cfg.StateMachine.DefinitionPath)
 	defer func() {
-		r.cfg.StateMachine.Value.Definition = &def
+		r.cfg.StateMachine.SetDefinition(def)
 	}()
 	return r.render(w, format, r.cfg)
+}
+
+func (r *Renderer) RenderDefinitionFile(path string) error {
+	fmt, err := r.detectFormat(path)
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return r.RenderStateMachine(f, fmt)
 }
 
 func (r *Renderer) RenderStateMachine(w io.Writer, format string) error {
 	def := JSONRawMessage(r.cfg.StateMachineDefinition())
 	return r.render(w, format, def)
+}
+
+func (r *Renderer) detectFormat(path string) (string, error) {
+	ext := filepath.Ext(path)
+	switch strings.ToLower(ext) {
+	case jsonExt:
+		return "json", nil
+	case jsonnetExt:
+		return "jsonnet", nil
+	case yamlExt, ymlExt:
+		return "yaml", nil
+	default:
+		return "", fmt.Errorf("unknown file extention: %s", ext)
+	}
 }
 
 func (r *Renderer) render(w io.Writer, format string, v any) error {

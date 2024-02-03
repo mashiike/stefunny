@@ -179,6 +179,10 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 			}
 			replaceSlice = append(replaceSlice, item)
 		}
+		if len(replaceSlice) == 0 {
+			delete(v, key)
+			continue
+		}
 		v[key] = replaceSlice
 	}
 	return v
