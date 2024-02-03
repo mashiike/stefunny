@@ -108,7 +108,7 @@ func (r *Renderer) detectFormat(path string) (string, error) {
 	case yamlExt, ymlExt:
 		return "yaml", nil
 	default:
-		return "", fmt.Errorf("unknown file extention: %s", ext)
+		return "", fmt.Errorf("unknown file extension: %s", ext)
 	}
 }
 

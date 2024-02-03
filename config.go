@@ -122,7 +122,7 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 		}
 		return nil
 	default:
-		return fmt.Errorf("unsupported file extention: %s", ext)
+		return fmt.Errorf("unsupported file extension: %s", ext)
 	}
 }
 
