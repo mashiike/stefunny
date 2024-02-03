@@ -47,6 +47,11 @@ func TestConfigLoadValid(t *testing.T) {
 			path:        "testdata/yaml_def.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
+		{
+			casename:    "jsonnet",
+			path:        "testdata/stefunny.jsonnet",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
 	}
 
 	for _, c := range cases {
