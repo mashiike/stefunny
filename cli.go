@@ -179,7 +179,6 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 
 // Run() runs the command
 func (cli *CLI) Run(ctx context.Context, args []string) error {
-	log.Println("[debug] start run: args =", args)
 	cmd, err := cli.Parse(args)
 	if err != nil {
 		return err
