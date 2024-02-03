@@ -167,12 +167,97 @@ state_machine:
 tags:
   env: "{{ must_env `ENV` }}" 
 
+tfstate:
+  - path: "./terraform.tfstate"
+
 schedule:
   expression: rate(1 hour)
   role_arn: "{{ tfstae `aws_iam_role.eventbridge.arn` }}"
 ```
 
 Configuration files and definition files are read by go-config. go-config has template functions env, must_env and json_escape.
+
+
+### Template syntax
+
+stefunny uses the [text/template standard package in Go](https://pkg.go.dev/text/template) to render template files, and parses as YAML/JSON/Jsonnet. 
+
+#### `env`
+
+```
+"{{ env `NAME` `default value` }}"
+```
+
+If the environment variable `NAME` is set, it will replace with its value. If it's not set, it will replace with "default value".
+
+#### `must_env`
+
+```
+"{{ must_env `NAME` }}"
+```
+
+It replaces with the value of the environment variable `NAME`. If the variable isn't set at the time of execution, stefunny will panic and stop forcefully.
+
+By defining values that can cause issues when running without meaningful values with must_env, you can prevent unintended deployments.
+
+#### `json_escape`
+
+```
+"{{ must_env `JSON_VALUE` | json_escape }}"
+```
+
+It escapes values as JSON strings. Use it when you want to escape values that need to be embedded as strings and require escaping, like quotes.
+
+#### `tfstate`
+
+If written `tfstate` section in the configuration file, it will be use `tfstate` template function. as following.
+
+stefunny.yaml
+```yaml
+required_version: ">v0.0.0"
+
+state_machine:
+  name: send_sns
+  definition: send_sns.asl.jsonnet
+  role_arn: "{{ tfstae `aws_iam_role.stepfunctions.arn` }}"
+  logging_configuration:
+    level: OFF
+
+tfstate:
+  - path: "./terraform.tfstate"
+  - url: s3://my-bucket/terraform.tfstate
+    func_prefix: s3_
+```
+
+send_sns.asl.jsonnet
+```jsonnet
+{
+  Comment: "A simple AWS Step Functions state machine that sends a message to an SNS topic", 
+  StartAt: "Send SNS Message",
+  States: {
+    "Send SNS Message": {
+      Type: "Task",
+      Resource: "arn:aws:states:::sns:publish",
+      Parameters: {
+        "TopicArn": "{{ s3_tfstate `aws_sns_topic.topic.arn` }}",
+        "Message.$": "$"
+      },
+      End: true,
+    }
+  }
+}
+```
+
+`{{ tfstate "resource_type.resource_name.attr" }}` will expand to an attribute value of the resource in tfstate.
+
+`{{ tfstatef "resource_type.resource_name['%s'].attr" "index" }}` is similar to `{{ tfstatef "resource_type.resource_name['index'].attr" }}`. This function is useful to build a resource address with environment variables.
+
+```
+{{ tfstatef `aws_subnet.ecs['%s'].id` (must_env `SERVICE`) }}
+```
+
+This function uses [tfstate-lookup](https://github.com/fujiwara/tfstate-lookup) to load tfstate.
+
 
 ## Special Thanks
 
