@@ -348,6 +348,18 @@ func (j *JSONRawMessage) UnmarshalYAML(value *yaml.Node) error {
 	return nil
 }
 
+func (j JSONRawMessage) MarshalYAML() (interface{}, error) {
+	bs, err := JSON2YAML(j)
+	if err != nil {
+		return nil, err
+	}
+	return string(bs), nil
+}
+
+func (j JSONRawMessage) MarshalJSON() ([]byte, error) {
+	return j, nil
+}
+
 func (j *JSONRawMessage) UnmarshalJSON(bs []byte) error {
 	var raw json.RawMessage
 	if err := json.Unmarshal(bs, &raw); err != nil {

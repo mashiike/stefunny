@@ -11,9 +11,7 @@
     "dry_run": true
   },
   "schedule": {},
-  "render": {
-    "format": "json"
-  },
+  "render": {},
   "execute": {
     "input": "-"
   }

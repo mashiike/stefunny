@@ -1,0 +1,105 @@
+{
+  Comment: 'A description of my state machine',
+  StartAt: 'Choice',
+  States: {
+    Choice: {
+      Choices: [
+        {
+          Next: 'Pass',
+          StringMatches: 'hoge',
+          Variable: '$.hoge.key',
+        },
+        {
+          Next: 'Map',
+          StringMatches: 'hoge',
+          Variable: '$.hoge',
+        },
+      ],
+      Default: 'Default',
+      Type: 'Choice',
+    },
+    Default: {
+      Next: 'Pass',
+      Type: 'Pass',
+    },
+    Fail: {
+      Type: 'Fail',
+    },
+    Map: {
+      Catch: [
+        {
+          ErrorEquals: [
+            'States.ALL',
+          ],
+          Next: 'Pass',
+        },
+      ],
+      Iterator: {
+        StartAt: 'Map1',
+        States: {
+          Map1: {
+            End: true,
+            Type: 'Pass',
+          },
+        },
+      },
+      Next: 'Wait',
+      Type: 'Map',
+    },
+    Parallel: {
+      Branches: [
+        {
+          StartAt: 'pass2',
+          States: {
+            pass2: {
+              End: true,
+              Type: 'Pass',
+            },
+          },
+        },
+        {
+          StartAt: 'pass3',
+          States: {
+            pass3: {
+              End: true,
+              Type: 'Pass',
+            },
+          },
+        },
+      ],
+      Next: 'Success',
+      Type: 'Parallel',
+    },
+    Pass: {
+      Next: 'Parallel',
+      Type: 'Pass',
+    },
+    Success: {
+      Type: 'Succeed',
+    },
+    Wait: {
+      Next: 'Fail',
+      Seconds: 5,
+      Type: 'Wait',
+    },
+  },
+}
+{
+  ConfigDir: 'testdata',
+  aws_region: 'ap-northeast-1',
+  required_version: '>v0.0.0',
+  state_machine: {
+    definition: 'workflow1.asl.json',
+    logging_configuration: {
+      include_execution_data: false,
+      level: 'OFF',
+    },
+    name: 'Hello',
+    publish: false,
+    role_arn: 'arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role',
+    tracing_configuration: {
+      enabled: false,
+    },
+    type: 'STANDARD',
+  },
+}
