@@ -133,14 +133,14 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 }
 
 type Config struct {
-	RequiredVersion string `yaml:"required_version,omitempty"`
-	AWSRegion       string `yaml:"aws_region,omitempty"`
+	RequiredVersion string `yaml:"required_version,omitempty" json:"required_version,omitempty" toml:"required_version,omitempty" env:"REQUIRED_VERSION" validate:"omitempty,version"`
+	AWSRegion       string `yaml:"aws_region,omitempty" json:"aws_region,omitempty" toml:"aws_region,omitempty" env:"AWS_REGION" validate:"omitempty,region"`
 
-	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
-	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty"`
-	Tags         map[string]string   `yaml:"tags,omitempty"`
+	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty" json:"state_machine,omitempty"`
+	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty" json:"schedule,omitempty"`
+	Tags         map[string]string   `yaml:"tags,omitempty" json:"tags,omitempty"`
 
-	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
+	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty" json:"endpoints,omitempty"`
 
 	//private field
 	versionConstraints gv.Constraints    `yaml:"-,omitempty"`
@@ -155,44 +155,44 @@ func (cfg *Config) SetPath(path string) {
 }
 
 type StateMachineConfig struct {
-	Name             string                     `yaml:"name,omitempty"`
-	Type             string                     `yaml:"type,omitempty"`
-	RoleArn          string                     `yaml:"role_arn,omitempty"`
-	Definition       string                     `yaml:"definition,omitempty"`
-	Logging          *StateMachineLoggingConfig `yaml:"logging,omitempty"`
-	Tracing          *StateMachineTracingConfig `yaml:"tracing,omitempty"`
+	Name             string                     `yaml:"name,omitempty" json:"name,omitempty"`
+	Type             string                     `yaml:"type,omitempty" json:"type,omitempty"`
+	RoleArn          string                     `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
+	Definition       string                     `yaml:"definition,omitempty" json:"definition,omitempty"`
+	Logging          *StateMachineLoggingConfig `yaml:"logging,omitempty" json:"logging,omitempty"`
+	Tracing          *StateMachineTracingConfig `yaml:"tracing,omitempty" json:"tracing,omitempty"`
 	stateMachineType sfntypes.StateMachineType  `yaml:"-,omitempty"`
 }
 
 type StateMachineLoggingConfig struct {
-	Level                string                                `yaml:"level,omitempty"`
-	IncludeExecutionData *bool                                 `yaml:"include_execution_data,omitempty"`
-	Destination          *StateMachineLoggingDestinationConfig `yaml:"destination,omitempty"`
+	Level                string                                `yaml:"level,omitempty" json:"level,omitempty"`
+	IncludeExecutionData *bool                                 `yaml:"include_execution_data,omitempty" json:"include_execution_data,omitempty"`
+	Destination          *StateMachineLoggingDestinationConfig `yaml:"destination,omitempty" json:"destination,omitempty"`
 
 	logLevel sfntypes.LogLevel `yaml:"-,omitempty"`
 }
 
 type StateMachineLoggingDestinationConfig struct {
-	LogGroup string `yaml:"log_group,omitempty"`
+	LogGroup string `yaml:"log_group,omitempty" json:"log_group,omitempty"`
 }
 
 type StateMachineTracingConfig struct {
-	Enabled *bool `yaml:"enabled,omitempty"`
+	Enabled *bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 }
 
 type EndpointsConfig struct {
-	StepFunctions  string `yaml:"stepfunctions,omitempty"`
-	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty"`
-	STS            string `yaml:"sts,omitempty"`
-	EventBridge    string `yaml:"eventbridge,omitempty"`
+	StepFunctions  string `yaml:"stepfunctions,omitempty" json:"step_functions,omitempty"`
+	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty" json:"cloud_watch_logs,omitempty"`
+	STS            string `yaml:"sts,omitempty" json:"sts,omitempty"`
+	EventBridge    string `yaml:"eventbridge,omitempty" json:"event_bridge,omitempty"`
 }
 
 type ScheduleConfig struct {
-	ID          string `yaml:"id,omitempty"`
-	RuleName    string `yaml:"rule_name,omitempty"`
-	Description string `yaml:"description,omitempty"`
-	Expression  string `yaml:"expression,omitempty"`
-	RoleArn     string `yaml:"role_arn,omitempty"`
+	ID          string `yaml:"id,omitempty" json:"id,omitempty"`
+	RuleName    string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	Expression  string `yaml:"expression,omitempty" json:"expression,omitempty"`
+	RoleArn     string `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
 type LoadConfigOption struct {
