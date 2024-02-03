@@ -158,10 +158,11 @@ state_machine:
   name: hello_world
   definition: hello_world.asl.jsonnet
   role_arn: "{{ tfstae `aws_iam_role.stepfunctions.arn` }}"
-  logging:
+  logging_configuration:
     level: ALL
-    destination:
-      log_group:  "{{ must_env `LOG_GROUP` }}"
+    destinations:
+      - cloudwatch_log_group:
+          log_group_arn: "{{ must_env `LOG_GROUP_ARN` }}"
 
 tags:
   env: "{{ must_env `ENV` }}" 

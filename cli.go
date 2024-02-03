@@ -141,7 +141,6 @@ func (cli *CLI) Parse(args []string) (string, error) {
 
 // NewApp creates a new App instance from the CLI configuration
 func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
-	cfg := NewDefaultConfig()
 	log.Println("[debug] config flag", cli.Config)
 	extStr := make(map[string]string)
 	for _, s := range cli.ExtStr {
