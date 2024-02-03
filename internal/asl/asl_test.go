@@ -3,8 +3,8 @@ package asl_test
 import (
 	"testing"
 
+	gc "github.com/kayac/go-config"
 	"github.com/mashiike/stefunny/internal/asl"
-	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -130,7 +130,9 @@ func TestParse(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.path, func(t *testing.T) {
-			stateMachine, err := asl.Parse(testutil.LoadString(t, c.path))
+			bs, err := gc.ReadWithEnv(c.path)
+			require.NoError(t, err)
+			stateMachine, err := asl.Parse(string(bs))
 			require.NoError(t, err)
 			require.EqualValues(t, c.expected, stateMachine)
 		})

@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-
-	"github.com/mashiike/stefunny/internal/jsonutil"
 )
 
 type DeployCommandOption struct {
@@ -70,14 +68,14 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		if err == ErrStateMachineDoesNotExist && !opt.SkipDeployStateMachine {
 			return app.createStateMachine(ctx, opt)
 		}
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
-	newStateMachine, err := app.LoadStateMachine(ctx)
+	newStateMachine, err := app.LoadStateMachine()
 	if err != nil {
 		return err
 	}
@@ -91,12 +89,12 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachine.Name, *output.UpdateDate)
+	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachineName(), *output.UpdateDate)
 	return nil
 }
 
 func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error {
-	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
@@ -135,7 +133,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	}
 
 	deleteRules := rules.Exclude(newRules)
-	log.Printf("[debug] delete rules:\n%s\n", jsonutil.MarshalJSONString(deleteRules))
+	log.Printf("[debug] delete rules:\n%s\n", MarshalJSONString(deleteRules))
 	if opt.DryRun {
 		diffString := rules.DiffString(newRules)
 		log.Printf("[notice] change schedule rule %s\n%s", opt.DryRunString(), diffString)
@@ -156,7 +154,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	}
 	if output.FailedEntryCount() != 0 {
 		for _, o := range output {
-			log.Printf("[error] deploy schedule rule with failed entries %s", jsonutil.MarshalJSONString(o.FailedEntries))
+			log.Printf("[error] deploy schedule rule with failed entries %s", MarshalJSONString(o.FailedEntries))
 		}
 		return errors.New("failed entry count > 0")
 	}
@@ -167,7 +165,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error {
-	stateMachine, err := app.LoadStateMachine(ctx)
+	stateMachine, err := app.LoadStateMachine()
 	if err != nil {
 		return err
 	}
@@ -197,7 +195,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 		log.Printf("[notice] create schedule rules %s\n%s", opt.DryRunString(), rules.String())
 		return nil
 	}
-	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachine.Name)
+	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
@@ -209,7 +207,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	log.Printf("[info] deploy schedule rule %s\n", jsonutil.MarshalJSONString(output))
+	log.Printf("[info] deploy schedule rule %s\n", MarshalJSONString(output))
 	if output.FailedEntryCount() != 0 {
 		return errors.New("failed entry count > 0")
 	}

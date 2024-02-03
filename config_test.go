@@ -1,10 +1,11 @@
 package stefunny_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutil"
+	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,24 +14,23 @@ func TestConfigLoadValid(t *testing.T) {
 		casename    string
 		path        string
 		expectedDef string
-		isYaml      bool
 		extStr      map[string]string
 		extCode     map[string]string
 	}{
 		{
 			casename:    "default_config",
-			path:        "testdata/default.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			path:        "testdata/stefunny.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
-			casename:    "jsonnet_config",
-			path:        "testdata/jsonnet.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			casename:    "yaml_config_with_jsonnet_def",
+			path:        "testdata/jsonnet_def.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename:    "log_level_off",
 			path:        "testdata/logging_off.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
 			casename: "tfstate_read",
@@ -41,32 +41,30 @@ func TestConfigLoadValid(t *testing.T) {
 			extCode: map[string]string{
 				"WaitSeconds": "60*2",
 			},
-			expectedDef: testutil.LoadString(t, "testdata/tfstate.asl.json"),
+			expectedDef: LoadString(t, "testdata/tfstate.asl.json"),
 		},
 		{
 			casename:    "yaml",
 			path:        "testdata/yaml_def.yaml",
-			expectedDef: testutil.LoadString(t, "testdata/hello_world.asl.json"),
-			isYaml:      true,
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
+			casename:    "jsonnet",
+			path:        "testdata/stefunny.jsonnet",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			testutil.LoggerSetup(t, "debug")
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-				ExtStr:  c.extStr,
-				ExtCode: c.extCode,
-			})
+			LoggerSetup(t, "debug")
+			t.Log("test location:", dataloc.L(c.casename))
+			l := stefunny.NewConfigLoader(c.extStr, c.extCode)
+			ctx := context.Background()
+			cfg, err := l.Load(ctx, c.path)
 			require.NoError(t, err)
-			def, err := cfg.LoadDefinition()
-			require.NoError(t, err)
-			if c.isYaml {
-				def = testutil.YAML2JSON(t, def)
-			}
-			require.JSONEq(t, c.expectedDef, def)
+			require.NotNil(t, cfg.StateMachine.Value.Definition)
+			require.JSONEq(t, c.expectedDef, *cfg.StateMachine.Value.Definition)
 		})
 	}
 
@@ -85,7 +83,7 @@ func TestConfigLoadInValid(t *testing.T) {
 		{
 			casename: "level_invalid",
 			path:     "testdata/hoge_level.yaml",
-			expected: "state_machine.logging.level is invalid level: please ALL, ERROR, FATAL, or OFF",
+			expected: "state_machine.logging_configuration.level is invalid level: please ALL, ERROR, FATAL, or OFF",
 		},
 		{
 			casename: "type_invalid",
@@ -96,14 +94,14 @@ func TestConfigLoadInValid(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
-			testutil.LoggerSetup(t, "debug")
-			cfg := stefunny.NewDefaultConfig()
-			err := cfg.Load(c.path, stefunny.LoadConfigOption{
-				TFState: "testdata/terraform.tfstate",
-			})
+			LoggerSetup(t, "debug")
+			t.Log("test location:", dataloc.L(c.casename))
+			l := stefunny.NewConfigLoader(nil, nil)
+			ctx := context.Background()
+			_, err := l.Load(ctx, c.path)
 			require.Error(t, err)
 			if c.expected != "" {
-				require.EqualError(t, err, c.expected)
+				require.ErrorContains(t, err, c.expected)
 			}
 		})
 	}

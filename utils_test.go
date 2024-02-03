@@ -1,4 +1,4 @@
-package testutil
+package stefunny_test
 
 import (
 	"bytes"
@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	gc "github.com/kayac/go-config"
-	"github.com/mashiike/stefunny/internal/jsonutil"
-	"github.com/mashiike/stefunny/internal/logger"
+	"github.com/mashiike/stefunny"
 )
 
 func LoadString(t *testing.T, path string) string {
@@ -19,20 +18,11 @@ func LoadString(t *testing.T, path string) string {
 	return string(bs)
 }
 
-func YAML2JSON(t *testing.T, str string) string {
-	t.Helper()
-	j, err := jsonutil.YAML2JSON([]byte(str))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(j)
-}
-
 func LoggerSetup(t *testing.T, minLevel string) func() {
 	var buf bytes.Buffer
-	logger.Setup(&buf, minLevel)
+	stefunny.LoggerSetup(&buf, minLevel)
 	return func() {
-		logger.Setup(os.Stderr, minLevel)
+		stefunny.LoggerSetup(os.Stderr, minLevel)
 		t.Log(buf.String())
 	}
 }

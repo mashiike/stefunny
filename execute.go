@@ -12,7 +12,6 @@ import (
 	"time"
 
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/term"
 )
@@ -56,7 +55,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	}
 	input := string(bs)
 	log.Printf("[info] input:\n%s\n", input)
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return err
 	}
@@ -140,7 +139,7 @@ func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachi
 		table.Render()
 	}
 	if waitOutput.Datail != nil {
-		log.Printf("[info] execution detail:\n%s", jsonutil.MarshalJSONString(waitOutput.Datail))
+		log.Printf("[info] execution detail:\n%s", MarshalJSONString(waitOutput.Datail))
 	}
 	if waitOutput.Failed {
 		return errors.New("state machine execution failed")

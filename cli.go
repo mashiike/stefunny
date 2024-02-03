@@ -16,7 +16,7 @@ const dryRunStr = "DRY RUN"
 
 type CLI struct {
 	LogLevel  string   `name:"log-level" help:"Set log level (debug, info, notice, warn, error)" default:"info" env:"STEFUNNY_LOG_LEVEL" json:"log_level,omitempty"`
-	Config    string   `name:"config" short:"c" help:"Path to config file" default:"config.yaml" env:"STEFUNNY_CONFIG" json:"config,omitempty"`
+	Config    string   `name:"config" short:"c" help:"Path to config file" default:"config.yaml" env:"STEFUNNY_CONFIG" type:"path" json:"config,omitempty"`
 	TFState   string   `name:"tfstate" help:"URL to terraform.tfstate referenced in config" env:"STEFUNNY_TFSTATE" json:"tfstate,omitempty"`
 	ExtStr    []string `name:"ext-str" help:"external string values for Jsonnet" default:"" json:"ext_str,omitempty"`
 	ExtCode   []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
@@ -34,17 +34,13 @@ type CLI struct {
 	exitFunc       func(int)
 	stderr, stdout io.Writer
 	namedMappers   map[string]kong.Mapper
-	setLogLevel    func(string) error
 }
 
 func NewCLI() *CLI {
 	return &CLI{
-		exitFunc: os.Exit,
-		stderr:   os.Stderr,
-		stdout:   os.Stdout,
-		setLogLevel: func(string) error {
-			return nil
-		},
+		exitFunc:     os.Exit,
+		stderr:       os.Stderr,
+		stdout:       os.Stdout,
 		namedMappers: map[string]kong.Mapper{},
 		Render: RenderOption{
 			Writer: os.Stdout,
@@ -104,10 +100,6 @@ func (cli *CLI) NoExpandPath() {
 	)
 }
 
-func (cli *CLI) SetLogLevelFunc(f func(string) error) {
-	cli.setLogLevel = f
-}
-
 // Parse parses the command line arguments and returns the command name
 func (cli *CLI) Parse(args []string) (string, error) {
 	kongOpts := []kong.Option{
@@ -133,9 +125,7 @@ func (cli *CLI) Parse(args []string) (string, error) {
 		parser.FatalIfErrorf(err)
 		return "", err
 	}
-	if err := cli.setLogLevel(cli.LogLevel); err != nil {
-		return "", fmt.Errorf("failed to set log level: %w", err)
-	}
+	LoggerSetup(os.Stderr, cli.LogLevel)
 	cli.kctx = kctx
 	cmdStr := kctx.Command()
 	if cmdStr == "" {
@@ -151,7 +141,6 @@ func (cli *CLI) Parse(args []string) (string, error) {
 
 // NewApp creates a new App instance from the CLI configuration
 func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
-	cfg := NewDefaultConfig()
 	log.Println("[debug] config flag", cli.Config)
 	extStr := make(map[string]string)
 	for _, s := range cli.ExtStr {
@@ -169,16 +158,17 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 		}
 		extCode[kv[0]] = kv[1]
 	}
-	opt := LoadConfigOption{
-		TFState: cli.TFState,
-		ExtStr:  extStr,
-		ExtCode: extCode,
+	configLoader := NewConfigLoader(extStr, extCode)
+	if cli.TFState != "" {
+		log.Println("[warn] tfstate flag is deprecated, use tfstate in config file")
+		err := configLoader.AppendTFState(ctx, "", cli.TFState)
+		if err != nil {
+			return nil, fmt.Errorf("failed to append tfstate: %w", err)
+		}
 	}
-	if err := cfg.Load(cli.Config, opt); err != nil {
+	cfg, err := configLoader.Load(ctx, cli.Config)
+	if err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
-	}
-	if err := cfg.ValidateVersion(Version); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 	app, err := New(ctx, cfg)
 	if err != nil {
@@ -189,19 +179,29 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 
 // Run() runs the command
 func (cli *CLI) Run(ctx context.Context, args []string) error {
+	log.Println("[debug] start run: args =", args)
 	cmd, err := cli.Parse(args)
 	if err != nil {
 		return err
 	}
+	log.Println("[debug] command is ", cmd)
+	if cmd == "init" {
+		log.Println("[debug] run init, use default config")
+		cli.Init.ConfigPath = cli.Config
+		cli.Init.AWSRegion = cli.AWSRegion
+		cfg := NewDefaultConfig()
+		app, err := New(ctx, cfg)
+		if err != nil {
+			return err
+		}
+		return app.Init(ctx, cli.Init)
+	}
+	log.Println("[debug] create new app")
 	app, err := cli.NewApp(ctx)
 	if err != nil {
 		return err
 	}
 	switch cmd {
-	case "init":
-		cli.Init.ConfigPath = cli.Config
-		cli.Init.AWSRegion = cli.AWSRegion
-		return app.Init(ctx, cli.Init)
 	case "deploy":
 		return app.Deploy(ctx, cli.Deploy.DeployOption())
 	case "schedule":

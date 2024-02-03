@@ -1,15 +1,20 @@
 package stefunny
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -19,93 +24,205 @@ import (
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
-	"github.com/mashiike/stefunny/internal/jsonutil"
 	"github.com/serenize/snaker"
+	"gopkg.in/yaml.v3"
 )
 
+const (
+	jsonnetExt = ".jsonnet"
+	jsonExt    = ".json"
+	ymlExt     = ".yml"
+	yamlExt    = ".yaml"
+)
+
+type ConfigLoader struct {
+	loader  *gc.Loader
+	funcMap template.FuncMap
+	vm      *jsonnet.VM
+}
+
+func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
+	vm := jsonnet.MakeVM()
+	for k, v := range extStr {
+		vm.ExtVar(k, v)
+	}
+	for k, v := range extCode {
+		vm.ExtCode(k, v)
+	}
+	return &ConfigLoader{
+		loader:  gc.New(),
+		funcMap: make(template.FuncMap),
+		vm:      vm,
+	}
+}
+
+func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState string) error {
+	funcs, err := tfstate.FuncMap(ctx, tfState)
+	if err != nil {
+		return fmt.Errorf("tfstate %w", err)
+	}
+	return l.AppendFuncMap(prefix, funcs)
+}
+
+func (l *ConfigLoader) AppendFuncMap(prefix string, funcMap template.FuncMap) error {
+	appendTarget := make(template.FuncMap, len(funcMap))
+	for k, v := range funcMap {
+		modifiedKey := prefix + k
+		if _, ok := l.funcMap[modifiedKey]; ok {
+			return fmt.Errorf("funcMap key %s already exists", modifiedKey)
+		}
+		l.funcMap[modifiedKey] = v
+		appendTarget[modifiedKey] = v
+	}
+	l.loader.Funcs(appendTarget)
+	return nil
+}
+
+func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error {
+	ext := filepath.Ext(path)
+	switch ext {
+	case yamlExt, ymlExt:
+		var b []byte
+		var err error
+		if withEnv {
+			b, err = l.loader.ReadWithEnv(path)
+		} else {
+			b, err = os.ReadFile(path)
+		}
+		if err != nil {
+			return err
+		}
+
+		dec := yaml.NewDecoder(bytes.NewReader(b))
+		if strict {
+			dec.KnownFields(true)
+		}
+		if err := dec.Decode(v); err != nil {
+			return err
+		}
+		return nil
+	case jsonExt, jsonnetExt:
+		jsonStr, err := l.vm.EvaluateFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to evaluate jsonnet file: %w", err)
+		}
+		b := []byte(jsonStr)
+		if withEnv {
+			b, err = l.loader.ReadWithEnvBytes([]byte(jsonStr))
+			if err != nil {
+				return fmt.Errorf("failed to read template file: %w", err)
+			}
+		}
+		dec := json.NewDecoder(bytes.NewReader(b))
+		if strict {
+			dec.DisallowUnknownFields()
+		}
+		if err := dec.Decode(v); err != nil {
+			return err
+		}
+		return nil
+	default:
+		return fmt.Errorf("unsupported file extension: %s", ext)
+	}
+}
+
+func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
+	cfg := NewDefaultConfig()
+	// pre load for tfstate path read
+	if err := l.load(path, false, false, cfg); err != nil {
+		return nil, fmt.Errorf("pre load config `%s`: %w", path, err)
+	}
+	for i, tfstate := range cfg.TFState {
+		var loc string
+		if tfstate.URL != "" {
+			u, err := url.Parse(tfstate.URL)
+			if err != nil {
+				return nil, fmt.Errorf("tfstate[%d].url parse error: %w", i, err)
+			}
+			if u.Scheme == "" {
+				tfstate.Path = tfstate.URL
+			}
+		}
+		if tfstate.Path != "" {
+			loc = tfstate.Path
+			if !filepath.IsAbs(loc) {
+				loc = filepath.Join(filepath.Dir(path), loc)
+			}
+		}
+		if loc == "" {
+			return nil, fmt.Errorf("tfstate[%d].path or tfstate[%d].url is required", i, i)
+		}
+		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
+			return nil, fmt.Errorf("tfstate[%d] %w", i, err)
+		}
+	}
+
+	cfg.StateMachine.Strict = true
+	if err := l.load(path, true, true, cfg); err != nil {
+		return nil, fmt.Errorf("load config `%s`: %w", path, err)
+	}
+	if err := cfg.Restrict(); err != nil {
+		return nil, fmt.Errorf("config restrict:%w", err)
+	}
+	if err := cfg.ValidateVersion(Version); err != nil {
+		return nil, fmt.Errorf("config validate version:%w", err)
+	}
+	if cfg.StateMachine.Value.Definition == nil || *cfg.StateMachine.Value.Definition == "" {
+		return nil, errors.New("state_machine.definition is required")
+	}
+	if json.Valid([]byte(*cfg.StateMachine.Value.Definition)) {
+		return cfg, nil
+	}
+	// cfg.StateMachine.Definition written definition file path
+	var definition JSONRawMessage
+	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), *cfg.StateMachine.Value.Definition))
+	log.Println("[debug] definition path =", definitionPath)
+	if err := l.load(definitionPath, false, true, &definition); err != nil {
+		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
+	}
+	cfg.StateMachine.Value.Definition = aws.String(string(definition))
+	return cfg, nil
+}
+
 type Config struct {
-	RequiredVersion string `yaml:"required_version,omitempty"`
-	AWSRegion       string `yaml:"aws_region,omitempty"`
+	RequiredVersion string `yaml:"required_version,omitempty" json:"required_version,omitempty" toml:"required_version,omitempty" env:"REQUIRED_VERSION" validate:"omitempty,version"`
+	AWSRegion       string `yaml:"aws_region,omitempty" json:"aws_region,omitempty" toml:"aws_region,omitempty" env:"AWS_REGION" validate:"omitempty,region"`
 
-	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty"`
-	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty"`
-	Tags         map[string]string   `yaml:"tags,omitempty"`
+	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty" json:"state_machine,omitempty"`
+	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty" json:"schedule,omitempty"`
+	Tags         map[string]string   `yaml:"tags,omitempty" json:"tags,omitempty"`
 
-	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty"`
+	Endpoints *EndpointsConfig `yaml:"endpoints,omitempty" json:"endpoints,omitempty"`
+
+	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
 
 	//private field
-	versionConstraints gv.Constraints    `yaml:"-,omitempty"`
-	dir                string            `yaml:"-,omitempty"`
-	loader             *gc.Loader        `yaml:"-,omitempty"`
-	extStr             map[string]string `yaml:"-,omitempty"`
-	extCode            map[string]string `yaml:"-,omitempty"`
+	versionConstraints gv.Constraints `yaml:"-,omitempty"`
+}
+
+type TFStateConfig struct {
+	FuncPrefix string `yaml:"func_prefix,omitempty" json:"func_prefix,omitempty"`
+	Path       string `yaml:"path,omitempty" json:"path,omitempty"`
+	URL        string `yaml:"url,omitempty" json:"url,omitempty"`
 }
 
 type StateMachineConfig struct {
-	Name             string                     `yaml:"name,omitempty"`
-	Type             string                     `yaml:"type,omitempty"`
-	RoleArn          string                     `yaml:"role_arn,omitempty"`
-	Definition       string                     `yaml:"definition,omitempty"`
-	Logging          *StateMachineLoggingConfig `yaml:"logging,omitempty"`
-	Tracing          *StateMachineTracingConfig `yaml:"tracing,omitempty"`
-	stateMachineType sfntypes.StateMachineType  `yaml:"-,omitempty"`
-}
-
-type StateMachineLoggingConfig struct {
-	Level                string                                `yaml:"level,omitempty"`
-	IncludeExecutionData *bool                                 `yaml:"include_execution_data,omitempty"`
-	Destination          *StateMachineLoggingDestinationConfig `yaml:"destination,omitempty"`
-
-	logLevel sfntypes.LogLevel `yaml:"-,omitempty"`
-}
-
-type StateMachineLoggingDestinationConfig struct {
-	LogGroup string `yaml:"log_group,omitempty"`
-}
-
-type StateMachineTracingConfig struct {
-	Enabled *bool `yaml:"enabled,omitempty"`
+	KeysToSnakeCase[sfn.CreateStateMachineInput] `yaml:",inline" json:",inline"`
 }
 
 type EndpointsConfig struct {
-	StepFunctions  string `yaml:"stepfunctions,omitempty"`
-	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty"`
-	STS            string `yaml:"sts,omitempty"`
-	EventBridge    string `yaml:"eventbridge,omitempty"`
+	StepFunctions  string `yaml:"stepfunctions,omitempty" json:"step_functions,omitempty"`
+	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty" json:"cloud_watch_logs,omitempty"`
+	STS            string `yaml:"sts,omitempty" json:"sts,omitempty"`
+	EventBridge    string `yaml:"eventbridge,omitempty" json:"event_bridge,omitempty"`
 }
 
 type ScheduleConfig struct {
-	ID          string `yaml:"id,omitempty"`
-	RuleName    string `yaml:"rule_name,omitempty"`
-	Description string `yaml:"description,omitempty"`
-	Expression  string `yaml:"expression,omitempty"`
-	RoleArn     string `yaml:"role_arn,omitempty"`
-}
-
-type LoadConfigOption struct {
-	TFState string
-	ExtStr  map[string]string
-	ExtCode map[string]string
-}
-
-func (cfg *Config) Load(path string, opt LoadConfigOption) error {
-
-	loader := gc.New()
-	cfg.dir = filepath.Dir(path)
-	if opt.TFState != "" {
-		funcs, err := tfstate.FuncMap(context.Background(), opt.TFState)
-		if err != nil {
-			return fmt.Errorf("tfstate %w", err)
-		}
-		loader.Funcs(funcs)
-	}
-	if err := loader.LoadWithEnv(cfg, path); err != nil {
-		return fmt.Errorf("config load:%w", err)
-	}
-	cfg.loader = loader
-	cfg.extStr = opt.ExtStr
-	cfg.extCode = opt.ExtCode
-	return cfg.Restrict()
+	ID          string `yaml:"id,omitempty" json:"id,omitempty"`
+	RuleName    string `yaml:"rule_name,omitempty" json:"rule_name,omitempty"`
+	Description string `yaml:"description,omitempty" json:"description,omitempty"`
+	Expression  string `yaml:"expression,omitempty" json:"expression,omitempty"`
+	RoleArn     string `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
 // Restrict restricts a configuration.
@@ -125,7 +242,7 @@ func (cfg *Config) Restrict() error {
 	}
 	if len(cfg.Schedule) != 0 {
 		for i, s := range cfg.Schedule {
-			if err := s.Restrict(i, cfg.StateMachine.Name); err != nil {
+			if err := s.Restrict(i, *cfg.StateMachine.Value.Name); err != nil {
 				return fmt.Errorf("schedule[%d].%w", i, err)
 			}
 		}
@@ -133,78 +250,86 @@ func (cfg *Config) Restrict() error {
 	return nil
 }
 
+func (cfg *Config) StateMachineName() string {
+	return *cfg.StateMachine.Value.Name
+}
+
+func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
+	input := cfg.StateMachine.Value
+	found := false
+	for _, tag := range input.Tags {
+		if tag.Key == nil {
+			continue
+		}
+		if *tag.Key == tagManagedBy {
+			tag.Value = aws.String(appName)
+			found = true
+		}
+	}
+	if !found {
+		input.Tags = append(input.Tags, sfntypes.Tag{
+			Key:   aws.String(tagManagedBy),
+			Value: aws.String(appName),
+		})
+	}
+	return input
+}
+
+func (cfg *StateMachineConfig) SetDetinitionPath(path string) {
+	cfg.Value.Definition = aws.String(path)
+}
+
 // Restrict restricts a configuration.
 func (cfg *StateMachineConfig) Restrict() error {
-	if cfg.Name == "" {
+	if cfg.Value.Name == nil || *cfg.Value.Name == "" {
 		return errors.New("name is required")
 	}
-	if cfg.RoleArn == "" {
+	if cfg.Value.RoleArn == nil || *cfg.Value.RoleArn == "" {
 		return errors.New("role_arn is required")
 	}
-	if cfg.Definition == "" {
-		return errors.New("definition is required")
-	}
-
-	var err error
-	cfg.stateMachineType, err = restrictSFnStateMachineType(cfg.Type)
-	if err != nil {
-		return fmt.Errorf("type is %w", err)
-	}
-	if cfg.Logging == nil {
-		return errors.New("logging is required")
-	}
-	if err := cfg.Logging.Restrict(); err != nil {
-		return fmt.Errorf("logging.%w", err)
-	}
-	if cfg.Tracing == nil {
-		return errors.New("tracing is required")
-	}
-	if err := cfg.Tracing.Restrict(); err != nil {
-		return fmt.Errorf("tracing.%w", err)
-	}
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *StateMachineLoggingConfig) Restrict() error {
-
-	if cfg.IncludeExecutionData == nil {
-		return errors.New("include_execution_data is required")
-	}
-
-	var err error
-	cfg.logLevel, err = restrictLogLevel(cfg.Level)
-	if err != nil {
-		return fmt.Errorf("level is %w", err)
-	}
-
-	if cfg.Destination == nil {
-		if cfg.logLevel != sfntypes.LogLevelOff {
-			return errors.New("destination is required, if log_level is not OFF")
-		}
+	if cfg.Value.Type == "" {
+		cfg.Value.Type = sfntypes.StateMachineTypeStandard
 	} else {
-		if err := cfg.Destination.Restrict(); err != nil {
-			return fmt.Errorf("destination.%w", err)
+		var err error
+		cfg.Value.Type, err = restrictSFnStateMachineType(string(cfg.Value.Type))
+		if err != nil {
+			return fmt.Errorf("type is %w", err)
 		}
 	}
-
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *StateMachineLoggingDestinationConfig) Restrict() error {
-
-	if cfg.LogGroup == "" {
-		return errors.New("log_group is required")
+	if cfg.Value.LoggingConfiguration == nil {
+		return errors.New("logging_configuration is required")
 	}
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *StateMachineTracingConfig) Restrict() error {
-
-	if cfg.Enabled == nil {
-		return errors.New("enabled is required")
+	if cfg.Value.LoggingConfiguration.Level == "" {
+		cfg.Value.LoggingConfiguration.Level = sfntypes.LogLevelOff
+	} else {
+		var err error
+		cfg.Value.LoggingConfiguration.Level, err = restrictLogLevel(string(cfg.Value.LoggingConfiguration.Level))
+		if err != nil {
+			return fmt.Errorf("logging_configuration.level is %w", err)
+		}
+	}
+	for i, dest := range cfg.Value.LoggingConfiguration.Destinations {
+		if dest.CloudWatchLogsLogGroup == nil {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group is required", i)
+		}
+		if dest.CloudWatchLogsLogGroup.LogGroupArn == nil || *dest.CloudWatchLogsLogGroup.LogGroupArn == "" {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is required", i)
+		}
+		logGroupARN, err := arn.Parse(*dest.CloudWatchLogsLogGroup.LogGroupArn)
+		if err != nil {
+			return fmt.Errorf(
+				"logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn = `%s` is invalid: %w",
+				i, *dest.CloudWatchLogsLogGroup.LogGroupArn, err,
+			)
+		}
+		if logGroupARN.Service != "logs" {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is not CloudWatch Logs ARN", i)
+		}
+	}
+	if cfg.Value.TracingConfiguration == nil {
+		cfg.Value.TracingConfiguration = &sfntypes.TracingConfiguration{
+			Enabled: false,
+		}
 	}
 	return nil
 }
@@ -288,57 +413,18 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		AWSRegion: os.Getenv("AWS_REGION"),
 		StateMachine: &StateMachineConfig{
-			Type:             string(sfntypes.StateMachineTypeStandard),
-			stateMachineType: sfntypes.StateMachineTypeStandard,
-			Logging: &StateMachineLoggingConfig{
-				Level:                string(sfntypes.LogLevelOff),
-				logLevel:             sfntypes.LogLevelOff,
-				IncludeExecutionData: aws.Bool(true),
-			},
-			Tracing: &StateMachineTracingConfig{
-				Enabled: aws.Bool(false),
-			},
+			KeysToSnakeCase: NewKeysToSnakeCase(sfn.CreateStateMachineInput{
+				Type: sfntypes.StateMachineTypeStandard,
+				LoggingConfiguration: &sfntypes.LoggingConfiguration{
+					Level: sfntypes.LogLevelOff,
+				},
+				TracingConfiguration: &sfntypes.TracingConfiguration{
+					Enabled: false,
+				},
+			}),
 		},
 		Tags: make(map[string]string),
 	}
-}
-
-func (cfg *Config) LoadDefinition() (string, error) {
-	path := filepath.Join(cfg.dir, cfg.StateMachine.Definition)
-	log.Printf("[debug] try load definition `%s`\n", path)
-	bs, err := cfg.loadDefinition(path)
-	return string(bs), err
-}
-
-func (cfg *StateMachineConfig) LoadTracingConfiguration() *sfntypes.TracingConfiguration {
-	return &sfntypes.TracingConfiguration{
-		Enabled: *cfg.Tracing.Enabled,
-	}
-}
-
-func (cfg *Config) loadDefinition(path string) ([]byte, error) {
-	switch filepath.Ext(path) {
-	case ".jsonnet":
-		vm := jsonnet.MakeVM()
-		for k, v := range cfg.extStr {
-			vm.ExtVar(k, v)
-		}
-		for k, v := range cfg.extCode {
-			vm.ExtCode(k, v)
-		}
-		jsonStr, err := vm.EvaluateFile(path)
-		if err != nil {
-			return nil, err
-		}
-		return cfg.loader.ReadWithEnvBytes([]byte(jsonStr))
-	case ".yaml", ".yml":
-		bs, err := cfg.loader.ReadWithEnv(path)
-		if err != nil {
-			return nil, err
-		}
-		return jsonutil.YAML2JSON(bs)
-	}
-	return cfg.loader.ReadWithEnv(path)
 }
 
 func (cfg *Config) EndpointResolver() (aws.EndpointResolverWithOptions, bool) {

@@ -22,7 +22,7 @@ func (opt DeleteOption) DryRunString() string {
 
 func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachine.Name)
+	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
@@ -50,11 +50,11 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 		return nil
 	}
 	if !opt.Force {
-		name, err := prompt(ctx, fmt.Sprintf(`Enter the state machine name [%s] to DELETE`, app.cfg.StateMachine.Name), "")
+		name, err := prompt(ctx, fmt.Sprintf(`Enter the state machine name [%s] to DELETE`, app.cfg.StateMachineName()), "")
 		if err != nil {
 			return err
 		}
-		if !strings.EqualFold(name, app.cfg.StateMachine.Name) {
+		if !strings.EqualFold(name, app.cfg.StateMachineName()) {
 			log.Println("[info] Aborted")
 			return errors.New("confirmation failed")
 		}

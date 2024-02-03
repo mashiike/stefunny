@@ -16,7 +16,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
-	"github.com/mashiike/stefunny/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -267,7 +266,7 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 			return &sfn.DescribeStateMachineOutput{
 				CreationDate:    aws.Time(time.Date(2021, 10, 1, 2, 3, 4, 5, time.UTC)),
 				StateMachineArn: params.StateMachineArn,
-				Definition:      aws.String(testutil.LoadString(t, "testdata/hello_world.asl.json")),
+				Definition:      aws.String(LoadString(t, "testdata/hello_world.asl.json")),
 				Status:          status,
 				Type:            sfntypes.StateMachineTypeStandard,
 				RoleArn:         aws.String(fmt.Sprintf("arn:aws:iam::123456789012:role/service-role/StepFunctions-%s-role", name)),
@@ -413,10 +412,9 @@ func newStateMachineListItem(name string) sfntypes.StateMachineListItem {
 
 func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App {
 	t.Helper()
-	cfg := stefunny.NewDefaultConfig()
-	err := cfg.Load(path, stefunny.LoadConfigOption{
-		TFState: "testdata/terraform.tfstate",
-	})
+	l := stefunny.NewConfigLoader(nil, nil)
+	ctx := context.Background()
+	cfg, err := l.Load(ctx, path)
 	require.NoError(t, err)
 	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
 		SFnClient:         &mockSFnClient{aws: client},

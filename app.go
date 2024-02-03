@@ -2,7 +2,6 @@ package stefunny
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -10,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
-	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 )
 
 const (
@@ -48,58 +46,11 @@ func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
 	}, nil
 }
 
-func (app *App) LoadLoggingConfiguration(ctx context.Context) (*sfntypes.LoggingConfiguration, error) {
-	ret := &sfntypes.LoggingConfiguration{
-		Level: sfntypes.LogLevelOff,
-	}
-	cfg := app.cfg.StateMachine
-	if cfg.Logging == nil {
-		return ret, nil
-	}
-	ret.Level = cfg.Logging.logLevel
-	ret.IncludeExecutionData = *cfg.Logging.IncludeExecutionData
-	if cfg.Logging.Destination == nil {
-		return ret, nil
-	}
-	arn, err := app.aws.GetLogGroupArn(ctx, cfg.Logging.Destination.LogGroup)
-	if err != nil {
-		return nil, fmt.Errorf("get log group arn: %w", err)
-	}
-	ret.Destinations = []sfntypes.LogDestination{
-		{
-			CloudWatchLogsLogGroup: &sfntypes.CloudWatchLogsLogGroup{
-				LogGroupArn: &arn,
-			},
-		},
-	}
-	return ret, nil
-}
+func (app *App) LoadStateMachine() (*StateMachine, error) {
 
-func (app *App) LoadStateMachine(ctx context.Context) (*StateMachine, error) {
-	definition, err := app.cfg.LoadDefinition()
-	if err != nil {
-		return nil, fmt.Errorf("load definition failed: %w", err)
-	}
-	logging, err := app.LoadLoggingConfiguration(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("load logging config failed: %w", err)
-	}
 	stateMachine := &StateMachine{
-		CreateStateMachineInput: sfn.CreateStateMachineInput{
-			Name:                 &app.cfg.StateMachine.Name,
-			Type:                 app.cfg.StateMachine.stateMachineType,
-			RoleArn:              &app.cfg.StateMachine.RoleArn,
-			Definition:           &definition,
-			LoggingConfiguration: logging,
-			TracingConfiguration: app.cfg.StateMachine.LoadTracingConfiguration(),
-			Tags: []sfntypes.Tag{
-				{
-					Key:   aws.String(tagManagedBy),
-					Value: aws.String(appName),
-				},
-			},
-		},
-		Tags: app.cfg.Tags,
+		CreateStateMachineInput: app.cfg.NewCreateStateMachineInput(),
+		Tags:                    app.cfg.Tags,
 	}
 	stateMachine.Tags[tagManagedBy] = appName
 	return stateMachine, nil

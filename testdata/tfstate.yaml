@@ -3,9 +3,15 @@ required_version: ">v0.0.0"
 state_machine:
   name: Hello
   definition: tfstate.asl.jsonnet
-  role_arn: {{ tfstate `aws_iam_role.test.arn` }}
-  logging:
-    destination:
-      level: FATAL
-      log_group: /steps/hello
+  role_arn: "{{ tfstate `aws_iam_role.test.arn` }}"
+  logging_configuration:
+    level: FATAL
+    destinations:
+      - cloudwatch_logs_log_group:
+          log_group_arn: "{{ second_tfstate `aws_cloudwatch_log_group.test.arn` }}"
 
+
+tfstate:
+  - path: ./terraform.tfstate
+  - url: ./terraform.tfstate
+    func_prefix: second_
