@@ -3,7 +3,6 @@ package stefunny_test
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	"github.com/mashiike/stefunny"
@@ -13,7 +12,8 @@ import (
 )
 
 func TestAppRender(t *testing.T) {
-	os.Setenv("START_AT", "Hello")
+	t.Setenv("START_AT", "Hello")
+	t.Setenv("AWS_REGION", "us-east-1")
 	g := goldie.New(
 		t,
 		goldie.WithFixtureDir("testdata/render"),
