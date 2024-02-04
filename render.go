@@ -1,52 +1,141 @@
 package stefunny
 
 import (
+	"bufio"
 	"context"
-	"errors"
+	"fmt"
 	"io"
-	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/mashiike/stefunny/internal/asl"
+	"gopkg.in/yaml.v3"
 )
 
 type RenderOption struct {
-	Writer io.Writer `kong:"-" json:"-"`
-	Format string    `name:"format" help:"output format" default:"json" enum:"json,yaml,dot" json:"format,omitempty"`
+	Writer  io.Writer `kong:"-" json:"-"`
+	Targets []string  `arg:"" help:"target to render (config, definition, def)" enum:"config,definition,def" json:"targets,omitempty"`
+	Format  string    `name:"format" help:"output format(json, jsonnet, yaml)" default:"" enum:",json,jsonnet,yaml" json:"format,omitempty"`
 }
 
 func (app *App) Render(_ context.Context, opt RenderOption) error {
-	if app.cfg.StateMachine == nil {
-		return errors.New("state machine not found")
-	}
-	if app.cfg.StateMachine.Value.Definition == nil {
-		return errors.New("state machine definition not found")
-	}
-	def := *app.cfg.StateMachine.Value.Definition
-	switch strings.ToLower(opt.Format) {
-	case "dot":
-		log.Println("[warn] dot format is deprecated (since v0.5.0)")
-		stateMachine, err := asl.Parse(def)
-		if err != nil {
-			return err
+	out := bufio.NewWriter(opt.Writer)
+	defer out.Flush()
+	renderer := NewRenderer(app.cfg)
+
+	for _, target := range opt.Targets {
+		switch target {
+		case "config":
+			format := opt.Format
+			if format == "" {
+				format = "yaml"
+			}
+			if err := renderer.RenderConfig(out, format); err != nil {
+				return err
+			}
+		case "definition", "def":
+			format := opt.Format
+			if format == "" {
+				format = "json"
+			}
+			if err := renderer.RenderStateMachine(out, format); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("unknown target: %s", target)
 		}
-		bs, err := stateMachine.MarshalDOT(app.cfg.StateMachineName())
-		if err != nil {
-			return err
-		}
-		_, err = opt.Writer.Write(bs)
+	}
+	return nil
+}
+
+type Renderer struct {
+	cfg *Config
+}
+
+func NewRenderer(cfg *Config) *Renderer {
+	return &Renderer{
+		cfg: cfg,
+	}
+}
+
+func (r *Renderer) RenderConfigFile(path string) error {
+	fmt, err := r.detectFormat(path)
+	if err != nil {
 		return err
-	case "", "json":
-		_, err := io.WriteString(opt.Writer, def)
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return r.RenderConfig(f, fmt)
+}
+
+func (r *Renderer) RenderConfig(w io.Writer, format string) error {
+	def := r.cfg.StateMachineDefinition()
+	r.cfg.StateMachine.SetDefinition(r.cfg.StateMachine.DefinitionPath)
+	defer func() {
+		r.cfg.StateMachine.SetDefinition(def)
+	}()
+	return r.render(w, format, r.cfg)
+}
+
+func (r *Renderer) RenderDefinitionFile(path string) error {
+	fmt, err := r.detectFormat(path)
+	if err != nil {
+		return err
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return r.RenderStateMachine(f, fmt)
+}
+
+func (r *Renderer) RenderStateMachine(w io.Writer, format string) error {
+	def := JSONRawMessage(r.cfg.StateMachineDefinition())
+	return r.render(w, format, def)
+}
+
+func (r *Renderer) detectFormat(path string) (string, error) {
+	ext := filepath.Ext(path)
+	switch strings.ToLower(ext) {
+	case jsonExt:
+		return "json", nil
+	case jsonnetExt:
+		return "jsonnet", nil
+	case yamlExt, ymlExt:
+		return "yaml", nil
+	default:
+		return "", fmt.Errorf("unknown file extension: %s", ext)
+	}
+}
+
+func (r *Renderer) render(w io.Writer, format string, v any) error {
+	switch f := strings.ToLower(format); f {
+	case "json", "jsonnet":
+		buf, err := marshalJSON(v)
+		if err != nil {
+			return err
+		}
+		if f == "json" {
+			_, err = w.Write(buf.Bytes())
+			return err
+		}
+		bs, err := JSON2Jsonnet(r.cfg.ConfigDir, buf.Bytes())
+		if err != nil {
+			return err
+		}
+		_, err = w.Write(bs)
 		return err
 	case "yaml":
-		log.Println("[warn] yaml format is deprecated (since v0.5.0)")
-		bs, err := JSON2YAML([]byte(def))
-		if err != nil {
+		enc := yaml.NewEncoder(w)
+		if err := enc.Encode(v); err != nil {
 			return err
 		}
-		_, err = opt.Writer.Write(bs)
-		return err
+		return enc.Close()
+	default:
+		return fmt.Errorf("unknown format: %s", format)
 	}
-	return errors.New("unknown format")
 }

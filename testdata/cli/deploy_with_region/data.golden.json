@@ -9,9 +9,7 @@
   "delete": {},
   "deploy": {},
   "schedule": {},
-  "render": {
-    "format": "json"
-  },
+  "render": {},
   "execute": {
     "input": "-"
   }

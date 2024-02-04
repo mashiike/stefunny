@@ -35,7 +35,7 @@ func TestJSON2Jsonnet(t *testing.T) {
 	require.NoError(t, err)
 	g := goldie.New(
 		t,
-		goldie.WithFixtureDir("testdata"),
+		goldie.WithFixtureDir("testdata/encoding"),
 		goldie.WithNameSuffix(".golden.asl.jsonnet"),
 	)
 	g.Assert(t, "json2jsonnet", bs)

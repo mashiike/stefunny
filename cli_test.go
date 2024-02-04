@@ -126,7 +126,7 @@ func TestCLI__Parse(t *testing.T) {
 		},
 		{
 			name: "render",
-			args: []string{"render", "--log-level", "debug"},
+			args: []string{"render", "--log-level", "debug", "config"},
 			cmd:  "render",
 		},
 		{
@@ -136,7 +136,7 @@ func TestCLI__Parse(t *testing.T) {
 		},
 		{
 			name: "render with format",
-			args: []string{"render", "--format", "yaml"},
+			args: []string{"render", "--format", "yaml", "def"},
 			cmd:  "render",
 		},
 		{

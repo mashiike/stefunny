@@ -128,6 +128,7 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
+	cfg.ConfigDir = filepath.Dir(path)
 	// pre load for tfstate path read
 	if err := l.load(path, false, false, cfg); err != nil {
 		return nil, fmt.Errorf("pre load config `%s`: %w", path, err)
@@ -167,15 +168,15 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	if err := cfg.ValidateVersion(Version); err != nil {
 		return nil, fmt.Errorf("config validate version:%w", err)
 	}
-	if cfg.StateMachine.Value.Definition == nil || *cfg.StateMachine.Value.Definition == "" {
-		return nil, errors.New("state_machine.definition is required")
-	}
-	if json.Valid([]byte(*cfg.StateMachine.Value.Definition)) {
+	if cfg.StateMachine.Value.Definition != nil {
 		return cfg, nil
+	}
+	if cfg.StateMachine.DefinitionPath == "" {
+		return nil, errors.New("state_machine.definition is required")
 	}
 	// cfg.StateMachine.Definition written definition file path
 	var definition JSONRawMessage
-	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), *cfg.StateMachine.Value.Definition))
+	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.DefinitionPath))
 	log.Println("[debug] definition path =", definitionPath)
 	if err := l.load(definitionPath, false, true, &definition); err != nil {
 		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
@@ -196,6 +197,7 @@ type Config struct {
 
 	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
 
+	ConfigDir string `yaml:"-"`
 	//private field
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
 }
@@ -208,6 +210,35 @@ type TFStateConfig struct {
 
 type StateMachineConfig struct {
 	KeysToSnakeCase[sfn.CreateStateMachineInput] `yaml:",inline" json:",inline"`
+	DefinitionPath                               string `yaml:"definition,omitempty" json:"definition,omitempty"`
+}
+
+func (cfg *StateMachineConfig) UnmarshalYAML(node *yaml.Node) error {
+	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	if cfg.Value.Definition != nil {
+		if json.Valid([]byte(*cfg.Value.Definition)) {
+			return nil
+		}
+		cfg.DefinitionPath = *cfg.Value.Definition
+		cfg.Value.Definition = nil
+	}
+	return nil
+}
+
+func (cfg *StateMachineConfig) UnmarshalJSON(b []byte) error {
+	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	if cfg.Value.Definition != nil {
+		if json.Valid([]byte(*cfg.Value.Definition)) {
+			return nil
+		}
+		cfg.DefinitionPath = *cfg.Value.Definition
+		cfg.Value.Definition = nil
+	}
+	return nil
 }
 
 type EndpointsConfig struct {
@@ -254,6 +285,10 @@ func (cfg *Config) StateMachineName() string {
 	return *cfg.StateMachine.Value.Name
 }
 
+func (cfg *Config) StateMachineDefinition() string {
+	return *cfg.StateMachine.Value.Definition
+}
+
 func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
 	input := cfg.StateMachine.Value
 	found := false
@@ -276,7 +311,11 @@ func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
 }
 
 func (cfg *StateMachineConfig) SetDetinitionPath(path string) {
-	cfg.Value.Definition = aws.String(path)
+	cfg.DefinitionPath = path
+}
+
+func (cfg *StateMachineConfig) SetDefinition(definition string) {
+	cfg.Value.Definition = aws.String(definition)
 }
 
 // Restrict restricts a configuration.

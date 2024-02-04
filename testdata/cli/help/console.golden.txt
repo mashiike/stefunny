@@ -29,7 +29,7 @@ Commands:
   schedule --enabled --disabled
     Enable or disable schedule rules
 
-  render
+  render <targets> ...
     Render state machine definition
 
   execute

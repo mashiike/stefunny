@@ -1,6 +1,9 @@
-Usage: stefunny render
+Usage: stefunny render <targets> ...
 
 Render state machine definition
+
+Arguments:
+  <targets> ...    target to render (config, definition, def)
 
 Flags:
   -h, --help                    Show context-sensitive help.
@@ -13,6 +16,6 @@ Flags:
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
 
-      --format="json"           output format
+      --format=""               output format(json, jsonnet, yaml)
 
-stefunny: error: --format must be one of "json","yaml","dot" but got "invalid"
+stefunny: error: --format must be one of "","json","jsonnet","yaml" but got "invalid"

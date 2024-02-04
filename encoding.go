@@ -179,6 +179,10 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 			}
 			replaceSlice = append(replaceSlice, item)
 		}
+		if len(replaceSlice) == 0 {
+			delete(v, key)
+			continue
+		}
 		v[key] = replaceSlice
 	}
 	return v
@@ -346,6 +350,18 @@ func (j *JSONRawMessage) UnmarshalYAML(value *yaml.Node) error {
 	}
 	*j = JSONRawMessage(bs)
 	return nil
+}
+
+func (j JSONRawMessage) MarshalYAML() (interface{}, error) {
+	bs, err := JSON2YAML(j)
+	if err != nil {
+		return nil, err
+	}
+	return string(bs), nil
+}
+
+func (j JSONRawMessage) MarshalJSON() ([]byte, error) {
+	return j, nil
 }
 
 func (j *JSONRawMessage) UnmarshalJSON(bs []byte) error {

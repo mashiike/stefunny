@@ -12,9 +12,7 @@
     "dry_run": true,
     "enabled": true
   },
-  "render": {
-    "format": "json"
-  },
+  "render": {},
   "execute": {
     "input": "-"
   }

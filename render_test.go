@@ -3,57 +3,63 @@ package stefunny_test
 import (
 	"bytes"
 	"context"
-	"os"
-	"strings"
 	"testing"
 
 	"github.com/mashiike/stefunny"
 	"github.com/motemen/go-testutil/dataloc"
+	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
 )
 
 func TestAppRender(t *testing.T) {
-	os.Setenv("START_AT", "Hello")
+	t.Setenv("START_AT", "Hello")
+	t.Setenv("AWS_REGION", "us-east-1")
+	g := goldie.New(
+		t,
+		goldie.WithFixtureDir("testdata/render"),
+		goldie.WithNameSuffix(".golden.txt"),
+	)
 	cases := []struct {
 		casename string
 		path     string
+		target   []string
 		format   string
-		expected string
 	}{
 		{
-			casename: "default_config",
+			casename: "default",
 			path:     "testdata/stefunny.yaml",
-			expected: LoadString(t, "testdata/hello_world.dot"),
-			format:   "dot",
+			target:   []string{"config", "definition"},
+			format:   "",
 		},
 		{
-			casename: "jsonnet_config",
-			path:     "testdata/jsonnet_def.yaml",
-			expected: LoadString(t, "testdata/hello_world.dot"),
-			format:   "dot",
-		},
-		{
-			casename: "full_def",
-			path:     "testdata/full_def.yaml",
-			expected: LoadString(t, "testdata/workflow1.dot"),
-			format:   "dot",
-		},
-		{
-			casename: "default_config",
+			casename: "jsonnet",
 			path:     "testdata/stefunny.yaml",
-			format:   "json",
-			expected: LoadString(t, "testdata/hello_world.asl.json"),
+			target:   []string{"config", "definition"},
+			format:   "jsonnet",
 		},
 		{
-			casename: "default_config",
+			casename: "yaml",
 			path:     "testdata/stefunny.yaml",
+			target:   []string{"config", "definition"},
 			format:   "yaml",
-			expected: LoadString(t, "testdata/hello_world.asl.yaml"),
+		},
+		{
+			casename: "jsonnet_to_json",
+			path:     "testdata/jsonnet_def.yaml",
+			target:   []string{"definition"},
+			format:   "json",
+		},
+		{
+			casename: "full_def_to_jsonnet",
+			path:     "testdata/full_def.yaml",
+			target:   []string{"def", "config"},
+			format:   "jsonnet",
 		},
 		{
 			casename: "env_config",
 			path:     "testdata/env_def.yaml",
-			expected: LoadString(t, "testdata/hello_world.asl.json"),
+			target:   []string{"def", "config"},
+			format:   "jsonnet",
 		},
 	}
 
@@ -70,18 +76,12 @@ func TestAppRender(t *testing.T) {
 			require.NoError(t, err)
 			var buf bytes.Buffer
 			err = app.Render(ctx, stefunny.RenderOption{
-				Writer: &buf,
-				Format: c.format,
+				Writer:  &buf,
+				Targets: c.target,
+				Format:  c.format,
 			})
 			require.NoError(t, err)
-			switch c.format {
-			case "dot":
-				require.ElementsMatch(t, strings.Split(c.expected, "\n"), strings.Split(buf.String(), "\n"))
-			case "", "json":
-				require.JSONEq(t, c.expected, buf.String())
-			case "yaml":
-				require.YAMLEq(t, c.expected, buf.String())
-			}
+			g.Assert(t, c.casename, buf.Bytes())
 		})
 	}
 

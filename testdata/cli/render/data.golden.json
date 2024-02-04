@@ -10,7 +10,9 @@
   "deploy": {},
   "schedule": {},
   "render": {
-    "format": "json"
+    "targets": [
+      "config"
+    ]
   },
   "execute": {
     "input": "-"

@@ -2,14 +2,9 @@ package stefunny
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"path/filepath"
-
-	"gopkg.in/yaml.v3"
 )
 
 type InitOption struct {
@@ -23,10 +18,6 @@ type InitOption struct {
 func (app *App) Init(ctx context.Context, opt InitOption) error {
 	log.Println("[debug] config path =", opt.ConfigPath)
 	configDir := filepath.Dir(opt.ConfigPath)
-	configExt := filepath.Ext(opt.ConfigPath)
-	if configExt != ".yaml" && configExt != ".yml" {
-		return errors.New("config file ext unexpected yaml or yml")
-	}
 	cfg := NewDefaultConfig()
 	cfg.RequiredVersion = ">=" + Version
 	cfg.AWSRegion = opt.AWSRegion
@@ -58,20 +49,31 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		return fmt.Errorf("failed definition path rel: %w", err)
 	}
 	cfg.StateMachine.SetDetinitionPath(defPath)
-	defFullPath := filepath.Join(configDir, defPath)
-	if err := createDefinitionFile(defFullPath, *stateMachine.Definition); err != nil {
-		return fmt.Errorf("failed create definition file: %w", err)
-	}
-	log.Printf("[notice] StateMachine/%s save state machine definition to %s", *stateMachine.Name, defFullPath)
-	if err := createConfigFile(opt.ConfigPath, cfg); err != nil {
-		return fmt.Errorf("failed create config file: %w", err)
-	}
+	cfg.StateMachine.SetDefinition(*stateMachine.Definition)
+	renderer := NewRenderer(cfg)
 	log.Printf("[notice] StateMachine/%s save config to %s", *stateMachine.Name, opt.ConfigPath)
+	if err := renderer.RenderConfigFile(opt.ConfigPath); err != nil {
+		return fmt.Errorf("failed render config file: %w", err)
+	}
+
+	defFullPath := filepath.Join(configDir, defPath)
+	log.Printf("[notice] StateMachine/%s save state machine definition to %s", *stateMachine.Name, defFullPath)
+	if err := renderer.RenderDefinitionFile(defFullPath); err != nil {
+		return fmt.Errorf("failed render state machine definition file: %w", err)
+	}
 	return nil
 }
 
 func setStateMachineConfig(cfg *StateMachineConfig, s *StateMachine) *StateMachineConfig {
-	cfg.KeysToSnakeCase.Value = s.CreateStateMachineInput
+	cfg.Value = s.CreateStateMachineInput
+	for i := 0; i < len(cfg.Value.Tags); i++ {
+		tag := cfg.Value.Tags[i]
+		if *tag.Key == tagManagedBy {
+			cfg.Value.Tags = append(cfg.Value.Tags[:i], cfg.Value.Tags[i+1:]...)
+			continue
+		}
+	}
+
 	return cfg
 }
 
@@ -86,49 +88,4 @@ func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
 	cfg.RoleArn = coalesceString(s.Targets[0].RoleArn, "")
 	cfg.ID = coalesceString(s.Targets[0].Id, "")
 	return cfg, nil
-}
-
-func createDefinitionFile(path string, definition string) error {
-	fp, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer fp.Close()
-	switch filepath.Ext(path) {
-	case ".json":
-		io.WriteString(fp, definition)
-	case ".jsonnet":
-		formatted, err := JSON2Jsonnet(filepath.Base(path), []byte(definition))
-		if err != nil {
-			return err
-		}
-		if _, err := fp.Write(formatted); err != nil {
-			return err
-		}
-	case ".yaml", ".yml":
-		bs, err := JSON2YAML([]byte(definition))
-		if err != nil {
-			return err
-		}
-		if _, err := fp.Write(bs); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func createConfigFile(path string, cfg *Config) error {
-	fp, err := os.Create(path)
-	if err != nil {
-		return err
-	}
-	defer fp.Close()
-	bs, err := yaml.Marshal(cfg)
-	if err != nil {
-		return err
-	}
-	if _, err := fp.Write(bs); err != nil {
-		return err
-	}
-	return nil
 }
