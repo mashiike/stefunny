@@ -2,6 +2,8 @@ package stefunny
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
@@ -20,28 +22,112 @@ type App struct {
 	aws *AWSService
 }
 
-func New(ctx context.Context, cfg *Config) (*App, error) {
-	opts := []func(*awsConfig.LoadOptions) error{
-		awsConfig.WithRegion(cfg.AWSRegion),
+type newAppOptions struct {
+	mu                sync.Mutex
+	cfg               *Config
+	sfnClient         SFnClient
+	eventBridgeClient EventBridgeClient
+	awsCfg            *aws.Config
+}
+
+type NewAppOption func(*newAppOptions)
+
+func (o *newAppOptions) GetAWSConfig(ctx context.Context) (aws.Config, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.awsCfg != nil {
+		return *o.awsCfg, nil
 	}
-	if endpointsResolver, ok := cfg.EndpointResolver(); ok {
+	opts := []func(*awsConfig.LoadOptions) error{
+		awsConfig.WithRegion(o.cfg.AWSRegion),
+	}
+	if endpointsResolver, ok := o.cfg.EndpointResolver(); ok {
 		opts = append(opts, awsConfig.WithEndpointResolverWithOptions(endpointsResolver))
 	}
 	awsCfg, err := awsConfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
-		return nil, err
+		return aws.Config{}, err
 	}
-	return NewWithClient(cfg, AWSClients{
-		SFnClient:         sfn.NewFromConfig(awsCfg),
-		EventBridgeClient: eventbridge.NewFromConfig(awsCfg),
-	})
+	o.awsCfg = &awsCfg
+	return awsCfg, nil
 }
 
-func NewWithClient(cfg *Config, clients AWSClients) (*App, error) {
-	return &App{
+func (o *newAppOptions) GetSFNClient(ctx context.Context) (SFnClient, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.sfnClient != nil {
+		return o.sfnClient, nil
+	}
+	awsCfg, err := o.GetAWSConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	o.sfnClient = sfn.NewFromConfig(awsCfg)
+	return o.sfnClient, nil
+}
+
+func (o *newAppOptions) GetEventBridgeClient(ctx context.Context) (EventBridgeClient, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.eventBridgeClient != nil {
+		return o.eventBridgeClient, nil
+	}
+	awsCfg, err := o.GetAWSConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	o.eventBridgeClient = eventbridge.NewFromConfig(awsCfg)
+	return o.eventBridgeClient, nil
+}
+
+// WithSFNClient sets the SFN client for New(ctx, cfg, opts...)
+// this is for testing
+func WithSFnClient(sfnClient SFnClient) NewAppOption {
+	return func(o *newAppOptions) {
+		o.sfnClient = sfnClient
+	}
+}
+
+// WithEventBridgeClient sets the EventBridge client for New(ctx, cfg, opts...)
+// this is for testing
+func WithEventBridgeClient(eventBridgeClient EventBridgeClient) NewAppOption {
+	return func(o *newAppOptions) {
+		o.eventBridgeClient = eventBridgeClient
+	}
+}
+
+// WithAWSConfig sets the AWS config for New(ctx, cfg, opts...)
+// this is for testing
+func WithAWSConfig(awsCfg aws.Config) NewAppOption {
+	return func(o *newAppOptions) {
+		o.awsCfg = &awsCfg
+	}
+}
+
+// New creates a new App
+func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
+	o := newAppOptions{
 		cfg: cfg,
-		aws: NewAWSService(clients),
-	}, nil
+	}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	sfnClient, err := o.GetSFNClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SFN client: %w", err)
+	}
+	eventBridgeClient, err := o.GetEventBridgeClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
+	}
+	app := &App{
+		cfg: cfg,
+		aws: NewAWSService(AWSClients{
+			SFnClient:         sfnClient,
+			EventBridgeClient: eventBridgeClient,
+		}),
+	}
+	return app, nil
 }
 
 func (app *App) LoadStateMachine() (*StateMachine, error) {

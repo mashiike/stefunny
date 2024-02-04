@@ -390,10 +390,11 @@ func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App 
 	ctx := context.Background()
 	cfg, err := l.Load(ctx, path)
 	require.NoError(t, err)
-	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
-		SFnClient:         &mockSFnClient{aws: client},
-		EventBridgeClient: &mockEBClient{aws: client},
-	})
+	app, err := stefunny.New(
+		ctx, cfg,
+		stefunny.WithSFnClient(&mockSFnClient{aws: client}),
+		stefunny.WithEventBridgeClient(&mockEBClient{aws: client}),
+	)
 	require.NoError(t, err)
 	return app
 }
