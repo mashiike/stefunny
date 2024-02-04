@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -31,10 +30,6 @@ type SFnClient interface {
 	GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
-
-type CWLogsClient interface {
-	cloudwatchlogs.DescribeLogGroupsAPIClient
-}
 type EventBridgeClient interface {
 	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
 	ListRuleNamesByTarget(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error)
@@ -49,24 +44,18 @@ type EventBridgeClient interface {
 
 type AWSClients struct {
 	SFnClient
-	CWLogsClient
 	EventBridgeClient
 }
 type AWSService struct {
 	SFnClient
-	CWLogsClient
 	EventBridgeClient
-	cacheArnByGroupName        map[string]string
 	cacheStateMachineArnByName map[string]string
 }
 
 func NewAWSService(clients AWSClients) *AWSService {
 	return &AWSService{
-		SFnClient:           clients.SFnClient,
-		CWLogsClient:        clients.CWLogsClient,
-		EventBridgeClient:   clients.EventBridgeClient,
-		cacheArnByGroupName: make(map[string]string),
-
+		SFnClient:                  clients.SFnClient,
+		EventBridgeClient:          clients.EventBridgeClient,
 		cacheStateMachineArnByName: make(map[string]string),
 	}
 }
@@ -75,7 +64,6 @@ var (
 	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
 	ErrRuleIsNotSchedule        = errors.New("this rule is not schedule")
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
-	ErrLogGroupNotFound         = errors.New("log group not found")
 )
 
 type StateMachine struct {
@@ -148,29 +136,6 @@ func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optF
 		}
 	}
 	return "", ErrStateMachineDoesNotExist
-}
-
-func (svc *AWSService) GetLogGroupArn(ctx context.Context, name string, optFns ...func(*cloudwatchlogs.Options)) (string, error) {
-	if arn, ok := svc.cacheArnByGroupName[name]; ok {
-		return arn, nil
-	}
-	p := cloudwatchlogs.NewDescribeLogGroupsPaginator(svc.CWLogsClient, &cloudwatchlogs.DescribeLogGroupsInput{
-		Limit:              aws.Int32(32),
-		LogGroupNamePrefix: &name,
-	})
-	for p.HasMorePages() {
-		output, err := p.NextPage(ctx, optFns...)
-		if err != nil {
-			return "", err
-		}
-		for _, lg := range output.LogGroups {
-			if *lg.LogGroupName == name {
-				svc.cacheArnByGroupName[name] = *lg.Arn
-				return svc.cacheArnByGroupName[name], nil
-			}
-		}
-	}
-	return "", ErrLogGroupNotFound
 }
 
 type DeployStateMachineOutput struct {

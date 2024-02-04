@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	logstypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -28,8 +26,6 @@ type mockAWSClient struct {
 	UpdateStateMachineFunc     func(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
 	SFnListTagsForResourceFunc func(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error)
 	SFnTagResourceFunc         func(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
-
-	DescribeLogGroupsFunc func(context.Context, *cloudwatchlogs.DescribeLogGroupsInput, ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error)
 
 	PutRuleFunc               func(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
 	DescribeRuleFunc          func(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error)
@@ -90,7 +86,6 @@ type mockSFnClient struct {
 }
 
 type mockCWLogsClient struct {
-	stefunny.CWLogsClient
 	aws *mockAWSClient
 }
 
@@ -145,14 +140,6 @@ func (m *mockSFnClient) ListTagsForResource(ctx context.Context, params *sfn.Lis
 		return nil, errors.New("unexpected Call ListTagsForResource")
 	}
 	return m.aws.SFnListTagsForResourceFunc(ctx, params, optFns...)
-}
-
-func (m *mockCWLogsClient) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-	m.aws.CallCount.DescribeLogGroups++
-	if m.aws.DescribeLogGroupsFunc == nil {
-		return nil, errors.New("unexpected Call DescribeLogGroups")
-	}
-	return m.aws.DescribeLogGroupsFunc(ctx, params, optFns...)
 }
 
 func (m *mockSFnClient) TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
@@ -235,16 +222,6 @@ func getDefaultMock(t *testing.T) *mockAWSClient {
 		CreateStateMachineFunc: func(_ context.Context, params *sfn.CreateStateMachineInput, _ ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
 			return &sfn.CreateStateMachineOutput{
 				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:%s", *params.Name)),
-			}, nil
-		},
-		DescribeLogGroupsFunc: func(_ context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, _ ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
-			return &cloudwatchlogs.DescribeLogGroupsOutput{
-				LogGroups: []logstypes.LogGroup{
-					{
-						LogGroupName: params.LogGroupNamePrefix,
-						Arn:          aws.String("arn:aws:logs:us-east-1:123456789012:log-group:" + *params.LogGroupNamePrefix),
-					},
-				},
 			}, nil
 		},
 		ListStateMachinesFunc: func(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error) {
@@ -374,9 +351,6 @@ func (m *mockAWSClient) Overwrite(o *mockAWSClient) *mockAWSClient {
 	if o.EBTagResourceFunc != nil {
 		ret.EBTagResourceFunc = o.EBTagResourceFunc
 	}
-	if o.DescribeLogGroupsFunc != nil {
-		ret.DescribeLogGroupsFunc = o.DescribeLogGroupsFunc
-	}
 	if o.PutRuleFunc != nil {
 		ret.PutRuleFunc = o.PutRuleFunc
 	}
@@ -418,7 +392,6 @@ func newMockApp(t *testing.T, path string, client *mockAWSClient) *stefunny.App 
 	require.NoError(t, err)
 	app, err := stefunny.NewWithClient(cfg, stefunny.AWSClients{
 		SFnClient:         &mockSFnClient{aws: client},
-		CWLogsClient:      &mockCWLogsClient{aws: client},
 		EventBridgeClient: &mockEBClient{aws: client},
 	})
 	require.NoError(t, err)
