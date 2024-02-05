@@ -18,11 +18,13 @@ func LoadString(t *testing.T, path string) string {
 	return string(bs)
 }
 
-func LoggerSetup(t *testing.T, minLevel string) func() {
+func LoggerSetup(t *testing.T, minLevel string) {
 	var buf bytes.Buffer
 	stefunny.LoggerSetup(&buf, minLevel)
-	return func() {
-		stefunny.LoggerSetup(os.Stderr, minLevel)
-		t.Log(buf.String())
-	}
+	t.Cleanup(
+		func() {
+			stefunny.LoggerSetup(os.Stderr, minLevel)
+			t.Log(buf.String())
+		},
+	)
 }
