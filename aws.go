@@ -65,6 +65,7 @@ var (
 	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
 	ErrRuleIsNotSchedule        = errors.New("this rule is not schedule")
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
+	ErrRollbackTargetNotFound   = errors.New("rollback target not found")
 )
 
 type SFnService interface {
@@ -254,7 +255,7 @@ func (svc *SFnServiceImpl) describeStateMachineAlias(ctx context.Context, stateM
 	if err != nil {
 		return nil, err
 	}
-	svc.cacheStateMAchineAliasByArn[*stateMachine.StateMachineArn] = alias
+	svc.cacheStateMAchineAliasByArn[aliasArn] = alias
 	return alias, nil
 }
 
@@ -408,7 +409,7 @@ func (svc *SFnServiceImpl) RollbackStateMachine(ctx context.Context, stateMachin
 	log.Println("[debug] target version: ", targetVersion)
 	if targetVersionArn == currentVersionArn {
 		log.Println("[notice] no previous version found, can not rollback")
-		return nil
+		return ErrRollbackTargetNotFound
 	}
 	log.Printf("[info] rollback to version `%d`", targetVersion)
 	if !dryRun {
@@ -465,7 +466,8 @@ func (svc *SFnServiceImpl) deleteStateMachineVersion(ctx context.Context, versio
 				}
 			}
 			if !found {
-				return err
+				log.Printf("[warn] `%s` is referenced by other alias [%s], skip delete", versionARN, strings.Join(aliases, ","))
+				return nil
 			}
 			continue
 		}
