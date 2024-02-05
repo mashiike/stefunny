@@ -146,7 +146,16 @@ func (m *mockSFnClient) TagResource(ctx context.Context, params *sfn.TagResource
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.TagResourceOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.TagResourceOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.TagResourceOutput")
+		return nil, errors.New("mock data is not *sfn.TagResourceOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) DescribeExecution(ctx context.Context, params *sfn.DescribeExecutionInput, optFns ...func(*sfn.Options)) (*sfn.DescribeExecutionOutput, error) {
@@ -156,7 +165,16 @@ func (m *mockSFnClient) DescribeExecution(ctx context.Context, params *sfn.Descr
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.DescribeExecutionOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.DescribeExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.DescribeExecutionOutput")
+		return nil, errors.New("mock data is not *sfn.DescribeExecutionOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) StartExecution(ctx context.Context, params *sfn.StartExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartExecutionOutput, error) {
@@ -166,7 +184,16 @@ func (m *mockSFnClient) StartExecution(ctx context.Context, params *sfn.StartExe
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.StartExecutionOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.StartExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.StartExecutionOutput")
+		return nil, errors.New("mock data is not *sfn.StartExecutionOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) StartSyncExecution(ctx context.Context, params *sfn.StartSyncExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StartSyncExecutionOutput, error) {
@@ -186,7 +213,16 @@ func (m *mockSFnClient) StopExecution(ctx context.Context, params *sfn.StopExecu
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.StopExecutionOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.StopExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.StopExecutionOutput")
+		return nil, errors.New("mock data is not *sfn.StopExecutionOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error) {
@@ -196,7 +232,16 @@ func (m *mockSFnClient) GetExecutionHistory(ctx context.Context, params *sfn.Get
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.GetExecutionHistoryOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.GetExecutionHistoryOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.GetExecutionHistoryOutput")
+		return nil, errors.New("mock data is not *sfn.GetExecutionHistoryOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) TagResource(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error) {
