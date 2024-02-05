@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -31,10 +30,6 @@ type SFnClient interface {
 	GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
 }
-
-type CWLogsClient interface {
-	cloudwatchlogs.DescribeLogGroupsAPIClient
-}
 type EventBridgeClient interface {
 	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
 	ListRuleNamesByTarget(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error)
@@ -47,51 +42,43 @@ type EventBridgeClient interface {
 	TagResource(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error)
 }
 
-type AWSClients struct {
-	SFnClient
-	CWLogsClient
-	EventBridgeClient
-}
-type AWSService struct {
-	SFnClient
-	CWLogsClient
-	EventBridgeClient
-	cacheArnByGroupName        map[string]string
-	cacheStateMachineArnByName map[string]string
-}
-
-func NewAWSService(clients AWSClients) *AWSService {
-	return &AWSService{
-		SFnClient:           clients.SFnClient,
-		CWLogsClient:        clients.CWLogsClient,
-		EventBridgeClient:   clients.EventBridgeClient,
-		cacheArnByGroupName: make(map[string]string),
-
-		cacheStateMachineArnByName: make(map[string]string),
-	}
-}
-
 var (
 	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
 	ErrRuleIsNotSchedule        = errors.New("this rule is not schedule")
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
-	ErrLogGroupNotFound         = errors.New("log group not found")
 )
 
-type StateMachine struct {
-	sfn.CreateStateMachineInput
-	CreationDate    *time.Time
-	StateMachineArn *string
-	Status          sfntypes.StateMachineStatus
-	Tags            map[string]string
+type SFnService interface {
+	DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*StateMachine, error)
+	GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error)
+	DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error)
+	DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error
+	WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error)
+	StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error)
+	StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error)
+	GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error)
 }
 
-func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*StateMachine, error) {
+type SFnServiceImpl struct {
+	client                     SFnClient
+	cacheStateMachineArnByName map[string]string
+}
+
+var _ SFnService = (*SFnServiceImpl)(nil)
+
+func NewSFnService(client SFnClient) *SFnServiceImpl {
+	return &SFnServiceImpl{
+		client:                     client,
+		cacheStateMachineArnByName: make(map[string]string),
+	}
+}
+
+func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*StateMachine, error) {
 	arn, err := svc.GetStateMachineArn(ctx, name, optFns...)
 	if err != nil {
 		return nil, err
 	}
-	output, err := svc.SFnClient.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
+	output, err := svc.client.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
 		StateMachineArn: &arn,
 	}, optFns...)
 	if err != nil {
@@ -100,7 +87,7 @@ func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, op
 		}
 		return nil, err
 	}
-	tagsOutput, err := svc.SFnClient.ListTagsForResource(ctx, &sfn.ListTagsForResourceInput{
+	tagsOutput, err := svc.client.ListTagsForResource(ctx, &sfn.ListTagsForResourceInput{
 		ResourceArn: &arn,
 	}, optFns...)
 	if err != nil {
@@ -120,19 +107,14 @@ func (svc *AWSService) DescribeStateMachine(ctx context.Context, name string, op
 		StateMachineArn: output.StateMachineArn,
 		Status:          output.Status,
 	}
-	tags := make(map[string]string, len(tagsOutput.Tags))
-	for _, tag := range tagsOutput.Tags {
-		tags[*tag.Key] = *tag.Value
-	}
-	stateMachine.Tags = tags
 	return stateMachine, nil
 }
 
-func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
+func (svc *SFnServiceImpl) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
 	if arn, ok := svc.cacheStateMachineArnByName[name]; ok {
 		return arn, nil
 	}
-	p := sfn.NewListStateMachinesPaginator(svc.SFnClient, &sfn.ListStateMachinesInput{
+	p := sfn.NewListStateMachinesPaginator(svc.client, &sfn.ListStateMachinesInput{
 		MaxResults: 32,
 	})
 	for p.HasMorePages() {
@@ -150,40 +132,20 @@ func (svc *AWSService) GetStateMachineArn(ctx context.Context, name string, optF
 	return "", ErrStateMachineDoesNotExist
 }
 
-func (svc *AWSService) GetLogGroupArn(ctx context.Context, name string, optFns ...func(*cloudwatchlogs.Options)) (string, error) {
-	if arn, ok := svc.cacheArnByGroupName[name]; ok {
-		return arn, nil
-	}
-	p := cloudwatchlogs.NewDescribeLogGroupsPaginator(svc.CWLogsClient, &cloudwatchlogs.DescribeLogGroupsInput{
-		Limit:              aws.Int32(32),
-		LogGroupNamePrefix: &name,
-	})
-	for p.HasMorePages() {
-		output, err := p.NextPage(ctx, optFns...)
-		if err != nil {
-			return "", err
-		}
-		for _, lg := range output.LogGroups {
-			if *lg.LogGroupName == name {
-				svc.cacheArnByGroupName[name] = *lg.Arn
-				return svc.cacheArnByGroupName[name], nil
-			}
-		}
-	}
-	return "", ErrLogGroupNotFound
-}
-
 type DeployStateMachineOutput struct {
 	CreationDate    *time.Time
 	UpdateDate      *time.Time
 	StateMachineArn *string
 }
 
-func (svc *AWSService) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
+func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
 	var output *DeployStateMachineOutput
+	stateMachine.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
 	if stateMachine.StateMachineArn == nil {
 		log.Println("[debug] try create state machine")
-		createOutput, err := svc.SFnClient.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
+		createOutput, err := svc.client.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
 		if err != nil {
 			return nil, fmt.Errorf("create failed: %w", err)
 		}
@@ -204,9 +166,9 @@ func (svc *AWSService) DeployStateMachine(ctx context.Context, stateMachine *Sta
 	return output, nil
 }
 
-func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
+func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
 	log.Println("[debug] try update state machine")
-	output, err := svc.SFnClient.UpdateStateMachine(ctx, &sfn.UpdateStateMachineInput{
+	output, err := svc.client.UpdateStateMachine(ctx, &sfn.UpdateStateMachineInput{
 		StateMachineArn:      stateMachine.StateMachineArn,
 		Definition:           stateMachine.Definition,
 		LoggingConfiguration: stateMachine.LoggingConfiguration,
@@ -219,14 +181,9 @@ func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *Sta
 	log.Println("[debug] finish update state machine")
 
 	log.Println("[debug] try update state machine tags")
-	_, err = svc.SFnClient.TagResource(ctx, &sfn.TagResourceInput{
+	_, err = svc.client.TagResource(ctx, &sfn.TagResourceInput{
 		ResourceArn: stateMachine.StateMachineArn,
-		Tags: []sfntypes.Tag{
-			{
-				Key:   aws.String(tagManagedBy),
-				Value: aws.String(appName),
-			},
-		},
+		Tags:        stateMachine.Tags,
 	})
 	if err != nil {
 		return nil, err
@@ -239,15 +196,52 @@ func (svc *AWSService) updateStateMachine(ctx context.Context, stateMachine *Sta
 	}, nil
 }
 
-func (svc *AWSService) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
+func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
 	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
 		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
 		return nil
 	}
-	_, err := svc.SFnClient.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
+	_, err := svc.client.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 	}, optFns...)
 	return err
+}
+
+type StateMachine struct {
+	sfn.CreateStateMachineInput
+	CreationDate    *time.Time
+	StateMachineArn *string
+	Status          sfntypes.StateMachineStatus
+}
+
+func (s *StateMachine) AppendTags(tags map[string]string) {
+	notExists := make([]sfntypes.Tag, 0, len(tags))
+	aleradyExists := make(map[string]string, len(s.Tags))
+	pos := make(map[string]int, len(s.Tags))
+	for i, tag := range s.Tags {
+		aleradyExists[*tag.Key] = *tag.Value
+		pos[*tag.Key] = i
+	}
+	for key, value := range tags {
+		if _, ok := aleradyExists[key]; !ok {
+			notExists = append(notExists, sfntypes.Tag{
+				Key:   aws.String(key),
+				Value: aws.String(value),
+			})
+			continue
+		}
+		s.Tags[pos[key]].Value = aws.String(value)
+	}
+	s.Tags = append(s.Tags, notExists...)
+}
+
+func (s *StateMachine) IsManagedBy() bool {
+	for _, tag := range s.Tags {
+		if *tag.Key == tagManagedBy && *tag.Value == appName {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *StateMachine) String() string {
@@ -269,6 +263,10 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 }
 
 func (s *StateMachine) configureJSON() string {
+	tags := make(map[string]string, len(s.Tags))
+	for _, tag := range s.Tags {
+		tags[*tag.Key] = *tag.Value
+	}
 	params := map[string]interface{}{
 		"Name":                 s.Name,
 		"RoleArn":              s.RoleArn,
@@ -277,7 +275,7 @@ func (s *StateMachine) configureJSON() string {
 			Enabled: false,
 		},
 		"Type": s.Type,
-		"Tags": s.Tags,
+		"Tags": tags,
 	}
 	if s.TracingConfiguration != nil {
 		params["TracingConfiguration"] = s.TracingConfiguration
@@ -289,13 +287,31 @@ type ScheduleRule struct {
 	eventbridge.PutRuleInput
 	TargetRoleArn string
 	Targets       []eventbridgetypes.Target
-	Tags          map[string]string
 }
 
 type ScheduleRules []*ScheduleRule
 
-func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
-	describeOutput, err := svc.EventBridgeClient.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
+type EventBridgeService interface {
+	DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error)
+	SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error)
+	DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error)
+	DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error
+}
+
+var _ EventBridgeService = (*EventBridgeServiceImpl)(nil)
+
+type EventBridgeServiceImpl struct {
+	client EventBridgeClient
+}
+
+func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
+	return &EventBridgeServiceImpl{
+		client: client,
+	}
+}
+
+func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
+	describeOutput, err := svc.client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
 	if err != nil {
 		if strings.Contains(err.Error(), "ResourceNotFoundException") {
 			return nil, ErrScheduleRuleDoesNotExist
@@ -306,7 +322,7 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 	if describeOutput.ScheduleExpression == nil {
 		return nil, ErrRuleIsNotSchedule
 	}
-	listTargetsOutput, err := svc.EventBridgeClient.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
+	listTargetsOutput, err := svc.client.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
 		Rule:  &ruleName,
 		Limit: aws.Int32(5),
 	}, optFns...)
@@ -314,7 +330,7 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 		return nil, err
 	}
 	log.Println("[debug] list targets by rule:", MarshalJSONString(listTargetsOutput))
-	tagsOutput, err := svc.EventBridgeClient.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
+	tagsOutput, err := svc.client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
 		ResourceARN: describeOutput.Arn,
 	}, optFns...)
 	if err != nil {
@@ -333,11 +349,6 @@ func (svc *AWSService) DescribeScheduleRule(ctx context.Context, ruleName string
 		},
 		Targets: listTargetsOutput.Targets,
 	}
-	tags := make(map[string]string, len(tagsOutput.Tags))
-	for _, tag := range tagsOutput.Tags {
-		tags[*tag.Key] = *tag.Value
-	}
-	rule.Tags = tags
 	return rule, nil
 }
 
@@ -387,9 +398,9 @@ func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ..
 	return result, nil
 }
 
-func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
+func (svc *EventBridgeServiceImpl) SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
 	log.Printf("[debug] call SearchScheduleRule(ctx,%s)", stateMachineArn)
-	p := newListRuleNamesByTargetPaginator(svc.EventBridgeClient, &eventbridge.ListRuleNamesByTargetInput{
+	p := newListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
 		TargetArn: aws.String(stateMachineArn),
 	})
 	rules := make([]*ScheduleRule, 0)
@@ -407,7 +418,7 @@ func (svc *AWSService) SearchScheduleRule(ctx context.Context, stateMachineArn s
 			if err == ErrRuleIsNotSchedule {
 				continue
 			}
-			if schedule.HasTagKeyValue(tagManagedBy, appName) {
+			if schedule.IsManagedBy() {
 				rules = append(rules, schedule)
 			} else {
 				name := ""
@@ -428,14 +439,14 @@ type DeployScheduleRuleOutput struct {
 	FailedEntryCount int32
 }
 
-func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) (*DeployScheduleRuleOutput, error) {
+func (svc *EventBridgeServiceImpl) DeployScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) (*DeployScheduleRuleOutput, error) {
 	log.Println("[debug] deploy put rule")
-	putRuleOutput, err := svc.EventBridgeClient.PutRule(ctx, &rule.PutRuleInput, optFns...)
+	putRuleOutput, err := svc.client.PutRule(ctx, &rule.PutRuleInput, optFns...)
 	if err != nil {
 		return nil, err
 	}
 	log.Println("[debug] deploy put targets")
-	putTargetsOutput, err := svc.EventBridgeClient.PutTargets(ctx, &eventbridge.PutTargetsInput{
+	putTargetsOutput, err := svc.client.PutTargets(ctx, &eventbridge.PutTargetsInput{
 		Rule:    rule.Name,
 		Targets: rule.Targets,
 	}, optFns...)
@@ -444,14 +455,10 @@ func (svc *AWSService) DeployScheduleRule(ctx context.Context, rule *ScheduleRul
 	}
 
 	log.Println("[debug] deploy update tag")
-	rule.PutRuleInput.Tags = make([]eventbridgetypes.Tag, 0, len(rule.Tags))
-	for key, value := range rule.Tags {
-		rule.PutRuleInput.Tags = append(rule.PutRuleInput.Tags, eventbridgetypes.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
-	_, err = svc.EventBridgeClient.TagResource(ctx, &eventbridge.TagResourceInput{
+	rule.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
+	_, err = svc.client.TagResource(ctx, &eventbridge.TagResourceInput{
 		ResourceARN: putRuleOutput.RuleArn,
 		Tags:        rule.PutRuleInput.Tags,
 	})
@@ -476,7 +483,7 @@ func (o DeployScheduleRulesOutput) FailedEntryCount() int32 {
 	return total
 }
 
-func (svc *AWSService) DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error) {
+func (svc *EventBridgeServiceImpl) DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error) {
 	ret := make([]*DeployScheduleRuleOutput, 0, len(rules))
 	for _, rule := range rules {
 		output, err := svc.DeployScheduleRule(ctx, rule, optFns...)
@@ -488,12 +495,12 @@ func (svc *AWSService) DeployScheduleRules(ctx context.Context, rules ScheduleRu
 	return ret, nil
 }
 
-func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
+func (svc *EventBridgeServiceImpl) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
 	targetIDs := make([]string, 0, len(rule.Targets))
 	for _, target := range rule.Targets {
 		targetIDs = append(targetIDs, *target.Id)
 	}
-	_, err := svc.EventBridgeClient.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{
+	_, err := svc.client.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{
 		Ids:          targetIDs,
 		Rule:         rule.Name,
 		EventBusName: rule.EventBusName,
@@ -501,14 +508,14 @@ func (svc *AWSService) DeleteScheduleRule(ctx context.Context, rule *ScheduleRul
 	if err != nil {
 		return err
 	}
-	_, err = svc.EventBridgeClient.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
+	_, err = svc.client.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
 		Name:         rule.Name,
 		EventBusName: rule.EventBusName,
 	}, optFns...)
 	return err
 }
 
-func (svc *AWSService) DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error {
+func (svc *EventBridgeServiceImpl) DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error {
 	for _, rule := range rules {
 		if err := svc.DeleteScheduleRule(ctx, rule, optFns...); err != nil {
 			return fmt.Errorf("%s :%w", *rule.Name, err)
@@ -534,14 +541,48 @@ func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
 	}
 }
 
+func (rule *ScheduleRule) IsManagedBy() bool {
+	for _, tag := range rule.Tags {
+		if *tag.Key == tagManagedBy && *tag.Value == appName {
+			return true
+		}
+	}
+	return false
+}
+
+func (rule *ScheduleRule) AppendTags(tags map[string]string) {
+	notExists := make([]eventbridgetypes.Tag, 0, len(tags))
+	aleradyExists := make(map[string]string, len(rule.Tags))
+	pos := make(map[string]int, len(rule.Tags))
+	for i, tag := range rule.Tags {
+		aleradyExists[*tag.Key] = *tag.Value
+		pos[*tag.Key] = i
+	}
+	for key, value := range tags {
+		if _, ok := aleradyExists[key]; !ok {
+			notExists = append(notExists, eventbridgetypes.Tag{
+				Key:   aws.String(key),
+				Value: aws.String(value),
+			})
+			continue
+		}
+		rule.Tags[pos[key]].Value = aws.String(value)
+	}
+	rule.Tags = append(rule.Tags, notExists...)
+}
+
 func (rule *ScheduleRule) configureJSON() string {
+	tags := make(map[string]string, len(rule.Tags))
+	for _, tag := range rule.Tags {
+		tags[*tag.Key] = *tag.Value
+	}
 	params := map[string]interface{}{
 		"Name":               rule.Name,
 		"Description":        rule.Description,
 		"ScheduleExpression": rule.ScheduleExpression,
 		"State":              rule.State,
 		"Targets":            rule.Targets,
-		"Tags":               rule.Tags,
+		"Tags":               tags,
 	}
 	return MarshalJSONString(params)
 }
@@ -564,15 +605,6 @@ func (rule *ScheduleRule) SetEnabled(enabled bool) {
 	} else {
 		rule.State = eventbridgetypes.RuleStateDisabled
 	}
-}
-
-func (rule *ScheduleRule) HasTagKeyValue(otherKey, otherValue string) bool {
-	for key, value := range rule.Tags {
-		if key == otherKey && value == otherValue {
-			return true
-		}
-	}
-	return false
 }
 
 func (rules ScheduleRules) SetStateMachineArn(stateMachineArn string) {
@@ -695,7 +727,7 @@ type StartExecutionOutput struct {
 	StartDate    time.Time
 }
 
-func (svc *AWSService) StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error) {
+func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error) {
 	if executionName == "" {
 		uuidObj, err := uuid.NewRandom()
 		if err != nil {
@@ -703,7 +735,7 @@ func (svc *AWSService) StartExecution(ctx context.Context, stateMachine *StateMa
 		}
 		executionName = uuidObj.String()
 	}
-	output, err := svc.SFnClient.StartExecution(ctx, &sfn.StartExecutionInput{
+	output, err := svc.client.StartExecution(ctx, &sfn.StartExecutionInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		Input:           aws.String(input),
 		Name:            aws.String(executionName),
@@ -731,11 +763,11 @@ func (o *WaitExecutionOutput) Elapsed() time.Duration {
 	return o.StopDate.Sub(o.StartDate)
 }
 
-func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error) {
+func (svc *SFnServiceImpl) WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error) {
 	input := &sfn.DescribeExecutionInput{
 		ExecutionArn: aws.String(executionArn),
 	}
-	output, err := svc.SFnClient.DescribeExecution(ctx, input)
+	output, err := svc.client.DescribeExecution(ctx, input)
 	if err != nil {
 		return nil, err
 	}
@@ -752,7 +784,7 @@ func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (
 				Success: false,
 				Failed:  false,
 			}
-			output, err = svc.SFnClient.DescribeExecution(stopCtx, input)
+			output, err = svc.client.DescribeExecution(stopCtx, input)
 			if err != nil {
 				return result, err
 			}
@@ -760,7 +792,7 @@ func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (
 				log.Printf("[warn] already stopped execution: %s", executionArn)
 				return result, ctx.Err()
 			}
-			_, err := svc.SFnClient.StopExecution(stopCtx, &sfn.StopExecutionInput{
+			_, err := svc.client.StopExecution(stopCtx, &sfn.StopExecutionInput{
 				ExecutionArn: aws.String(executionArn),
 				Error:        aws.String("stefunny.ContextCanceled"),
 				Cause:        aws.String(ctx.Err().Error()),
@@ -772,7 +804,7 @@ func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (
 			return result, ctx.Err()
 		case <-ticker.C:
 		}
-		output, err = svc.SFnClient.DescribeExecution(ctx, input)
+		output, err = svc.client.DescribeExecution(ctx, input)
 		if err != nil {
 			return nil, err
 		}
@@ -787,7 +819,7 @@ func (svc *AWSService) WaitExecution(ctx context.Context, executionArn string) (
 	if output.Output != nil {
 		result.Output = *output.Output
 	}
-	historyOutput, err := svc.SFnClient.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
+	historyOutput, err := svc.client.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),
 		MaxResults:           5,
@@ -819,14 +851,14 @@ type HistoryEvent struct {
 	sfntypes.HistoryEvent
 }
 
-func (svc *AWSService) GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error) {
-	describeOutput, err := svc.SFnClient.DescribeExecution(ctx, &sfn.DescribeExecutionInput{
+func (svc *SFnServiceImpl) GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error) {
+	describeOutput, err := svc.client.DescribeExecution(ctx, &sfn.DescribeExecutionInput{
 		ExecutionArn: aws.String(executionArn),
 	})
 	if err != nil {
 		return nil, err
 	}
-	p := sfn.NewGetExecutionHistoryPaginator(svc.SFnClient, &sfn.GetExecutionHistoryInput{
+	p := sfn.NewGetExecutionHistoryPaginator(svc.client, &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
 		IncludeExecutionData: aws.Bool(true),
 		MaxResults:           100,
@@ -857,7 +889,7 @@ func (event HistoryEvent) Elapsed() time.Duration {
 	return event.HistoryEvent.Timestamp.Sub(event.StartDate)
 }
 
-func (svc *AWSService) StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
+func (svc *SFnServiceImpl) StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
 
 	if executionName == "" {
 		uuidObj, err := uuid.NewRandom()
@@ -866,7 +898,7 @@ func (svc *AWSService) StartSyncExecution(ctx context.Context, stateMachine *Sta
 		}
 		executionName = uuidObj.String()
 	}
-	output, err := svc.SFnClient.StartSyncExecution(ctx, &sfn.StartSyncExecutionInput{
+	output, err := svc.client.StartSyncExecution(ctx, &sfn.StartSyncExecutionInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		Input:           aws.String(input),
 		Name:            aws.String(executionName),

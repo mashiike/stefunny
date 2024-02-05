@@ -22,21 +22,21 @@ func (opt DeleteOption) DryRunString() string {
 
 func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
 
-	rules, err := app.aws.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
+	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
 	if err != nil {
 		return err
 	}
 	//Ignore no managed rule
 	noManageRules := make(ScheduleRules, 0, len(rules))
 	for _, rule := range rules {
-		if !rule.HasTagKeyValue(tagManagedBy, appName) {
+		if !rule.IsManagedBy() {
 			log.Printf("[warn] found a scheduled rule `%s` that %s does not manage. this rule is not delete.", *rule.Name, appName)
 			noManageRules = append(noManageRules, rule)
 		}
@@ -59,12 +59,12 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 			return errors.New("confirmation failed")
 		}
 	}
-	err = app.aws.DeleteStateMachine(ctx, stateMachine)
+	err = app.sfnSvc.DeleteStateMachine(ctx, stateMachine)
 	if err != nil {
 		return fmt.Errorf("failed to delete state machine status: %w", err)
 	}
 	if len(rules) > 0 {
-		err := app.aws.DeleteScheduleRules(ctx, rules)
+		err := app.eventbridgeSvc.DeleteScheduleRules(ctx, rules)
 		if err != nil {
 			return fmt.Errorf("failed to delete rules: %w", err)
 		}

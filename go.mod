@@ -6,7 +6,6 @@ require (
 	github.com/Cside/jsondiff v0.0.0-20230202095914-52b2619434ef
 	github.com/Songmu/prompter v0.5.1
 	github.com/alecthomas/kong v0.8.1
-	github.com/awalterschulze/gographviz v2.0.3+incompatible
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.31.0
@@ -99,6 +98,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rivo/uniseg v0.4.6 // indirect
 	github.com/sergi/go-diff v1.3.1 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.47.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.47.0 // indirect
