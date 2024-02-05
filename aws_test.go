@@ -485,3 +485,46 @@ func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
 	_, err := svc.DeployStateMachine(ctx, stateMachine)
 	require.ErrorIs(t, err, expectedErr)
 }
+
+func TestSFnService_DeleteStateMachine_Success(t *testing.T) {
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	stateMachineArn := "arn:aws:states:us-east-1:123456789012:stateMachine:Hello"
+	m.On("DeleteStateMachine", mock.Anything, &sfn.DeleteStateMachineInput{
+		StateMachineArn: aws.String(stateMachineArn),
+	}).Return(&sfn.DeleteStateMachineOutput{}, nil).Once()
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String(stateMachineArn),
+	}
+	err := svc.DeleteStateMachine(ctx, stateMachine)
+	require.NoError(t, err)
+}
+
+func TestSFnService_DeleteStateMachine_Deleting(t *testing.T) {
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		Status:          sfntypes.StateMachineStatusDeleting,
+	}
+	err := svc.DeleteStateMachine(ctx, stateMachine)
+	require.NoError(t, err)
+}
+
+func TestSFnService_DeleteStateMachine_Failed(t *testing.T) {
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	expectedErr := errors.New("this is testing")
+	m.On("DeleteStateMachine", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+	}
+	err := svc.DeleteStateMachine(ctx, stateMachine)
+	require.ErrorIs(t, err, expectedErr)
+}

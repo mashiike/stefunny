@@ -70,7 +70,16 @@ func (m *mockSFnClient) DeleteStateMachine(ctx context.Context, params *sfn.Dele
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.DeleteStateMachineOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.DeleteStateMachineOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.DeleteStateMachineOutput")
+		return nil, errors.New("mock data is not *sfn.DeleteStateMachineOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) ListStateMachines(ctx context.Context, params *sfn.ListStateMachinesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachinesOutput, error) {
