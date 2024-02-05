@@ -171,9 +171,6 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 		log.Println("[debug] try create state machine")
 		cloned := stateMachine.CreateStateMachineInput
 		cloned.Publish = true
-		if cloned.VersionDescription == nil {
-			cloned.VersionDescription = aws.String(fmt.Sprintf("created by %s", appName))
-		}
 		createOutput, err := svc.client.CreateStateMachine(ctx, &cloned, optFns...)
 		if err != nil {
 			return nil, fmt.Errorf("create failed: %w", err)
@@ -209,10 +206,6 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 
 func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
 	log.Println("[debug] try update state machine")
-	versionDesc := stateMachine.VersionDescription
-	if versionDesc == nil {
-		versionDesc = aws.String(fmt.Sprintf("updated by %s", appName))
-	}
 	output, err := svc.client.UpdateStateMachine(ctx, &sfn.UpdateStateMachineInput{
 		StateMachineArn:      stateMachine.StateMachineArn,
 		Definition:           stateMachine.Definition,
@@ -220,7 +213,7 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 		RoleArn:              stateMachine.RoleArn,
 		TracingConfiguration: stateMachine.TracingConfiguration,
 		Publish:              true,
-		VersionDescription:   versionDesc,
+		VersionDescription:   stateMachine.VersionDescription,
 	}, optFns...)
 	if err != nil {
 		return nil, err

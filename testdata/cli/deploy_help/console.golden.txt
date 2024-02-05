@@ -16,3 +16,5 @@ Flags:
       --dry-run                 Dry run
       --skip-deploy-state-machine
                                 Skip deploy state machine
+      --version-description=STRING
+                                Version description

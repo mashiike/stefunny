@@ -333,10 +333,8 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 		stateMachine.CreateStateMachineInput.Tags = input.Tags
 		isPublish := assert.True(t, input.Publish)
 		stateMachine.CreateStateMachineInput.Publish = input.Publish
-		sameVersionDescription := assert.Equal(t, "created by stefunny", *input.VersionDescription)
-		stateMachine.CreateStateMachineInput.VersionDescription = input.VersionDescription
 		return assert.EqualValues(t, stateMachine.CreateStateMachineInput, *input) &&
-			result && isPublish && sameVersionDescription
+			result && isPublish
 	})).Return(&sfn.CreateStateMachineOutput{
 		StateMachineArn:        aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
@@ -371,7 +369,9 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 			},
 		},
 	}).Return(
-		&sfn.CreateStateMachineAliasOutput{},
+		&sfn.CreateStateMachineAliasOutput{
+			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		},
 		nil,
 	).Once()
 
@@ -462,7 +462,6 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 			LoggingConfiguration: stateMachine.LoggingConfiguration,
 			RoleArn:              stateMachine.RoleArn,
 			Publish:              true,
-			VersionDescription:   aws.String("updated by stefunny"),
 			TracingConfiguration: stateMachine.TracingConfiguration,
 		}, input)
 

@@ -5,17 +5,21 @@ import (
 	"errors"
 	"fmt"
 	"log"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type DeployCommandOption struct {
-	DryRun                 bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	SkipDeployStateMachine bool `name:"skip-deploy-state-machine" help:"Skip deploy state machine" json:"skip_deploy_state_machine,omitempty"`
+	DryRun                 bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	SkipDeployStateMachine bool   `name:"skip-deploy-state-machine" help:"Skip deploy state machine" json:"skip_deploy_state_machine,omitempty"`
+	VersionDescription     string `name:"version-description" help:"Version description" json:"version_description,omitempty"`
 }
 
 func (cmd *DeployCommandOption) DeployOption() DeployOption {
 	return DeployOption{
 		DryRun:                 cmd.DryRun,
 		SkipDeployStateMachine: cmd.SkipDeployStateMachine,
+		VersionDescription:     cmd.VersionDescription,
 	}
 }
 
@@ -44,6 +48,7 @@ type DeployOption struct {
 	DryRun                 bool
 	ScheduleEnabled        *bool
 	SkipDeployStateMachine bool
+	VersionDescription     string
 }
 
 func (opt DeployOption) DryRunString() string {
@@ -84,6 +89,9 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		diffString := stateMachine.DiffString(newStateMachine)
 		log.Printf("[notice] change state machine %s\n%s", opt.DryRunString(), diffString)
 		return nil
+	}
+	if opt.VersionDescription != "" {
+		newStateMachine.CreateStateMachineInput.VersionDescription = aws.String(opt.VersionDescription)
 	}
 	output, err := app.sfnSvc.DeployStateMachine(ctx, newStateMachine)
 	if err != nil {
