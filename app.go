@@ -18,16 +18,17 @@ const (
 )
 
 type App struct {
-	cfg *Config
-	aws *AWSService
+	cfg            *Config
+	sfnSvc         SFnService
+	eventbridgeSvc EventBridgeService
 }
 
 type newAppOptions struct {
-	mu                sync.Mutex
-	cfg               *Config
-	sfnClient         SFnClient
-	eventBridgeClient EventBridgeClient
-	awsCfg            *aws.Config
+	mu             sync.Mutex
+	cfg            *Config
+	sfnSvc         SFnService
+	eventbridgeSvc EventBridgeService
+	awsCfg         *aws.Config
 }
 
 type NewAppOption func(*newAppOptions)
@@ -52,39 +53,41 @@ func (o *newAppOptions) GetAWSConfig(ctx context.Context) (aws.Config, error) {
 	return awsCfg, nil
 }
 
-func (o *newAppOptions) GetSFNClient(ctx context.Context) (SFnClient, error) {
+func (o *newAppOptions) GetSFnService(ctx context.Context) (SFnService, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.sfnClient != nil {
-		return o.sfnClient, nil
+	if o.sfnSvc != nil {
+		return o.sfnSvc, nil
 	}
 	awsCfg, err := o.GetAWSConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	o.sfnClient = sfn.NewFromConfig(awsCfg)
-	return o.sfnClient, nil
+	client := sfn.NewFromConfig(awsCfg)
+	o.sfnSvc = NewSFnService(client)
+	return o.sfnSvc, nil
 }
 
-func (o *newAppOptions) GetEventBridgeClient(ctx context.Context) (EventBridgeClient, error) {
+func (o *newAppOptions) GetEventBridgeService(ctx context.Context) (EventBridgeService, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if o.eventBridgeClient != nil {
-		return o.eventBridgeClient, nil
+	if o.eventbridgeSvc != nil {
+		return o.eventbridgeSvc, nil
 	}
 	awsCfg, err := o.GetAWSConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
-	o.eventBridgeClient = eventbridge.NewFromConfig(awsCfg)
-	return o.eventBridgeClient, nil
+	client := eventbridge.NewFromConfig(awsCfg)
+	o.eventbridgeSvc = NewEventBridgeService(client)
+	return o.eventbridgeSvc, nil
 }
 
 // WithSFNClient sets the SFN client for New(ctx, cfg, opts...)
 // this is for testing
 func WithSFnClient(sfnClient SFnClient) NewAppOption {
 	return func(o *newAppOptions) {
-		o.sfnClient = sfnClient
+		o.sfnSvc = NewSFnService(sfnClient)
 	}
 }
 
@@ -92,7 +95,7 @@ func WithSFnClient(sfnClient SFnClient) NewAppOption {
 // this is for testing
 func WithEventBridgeClient(eventBridgeClient EventBridgeClient) NewAppOption {
 	return func(o *newAppOptions) {
-		o.eventBridgeClient = eventBridgeClient
+		o.eventbridgeSvc = NewEventBridgeService(eventBridgeClient)
 	}
 }
 
@@ -112,20 +115,18 @@ func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 	for _, opt := range opts {
 		opt(&o)
 	}
-	sfnClient, err := o.GetSFNClient(ctx)
+	sfnSvc, err := o.GetSFnService(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get SFN client: %w", err)
 	}
-	eventBridgeClient, err := o.GetEventBridgeClient(ctx)
+	eventbridgeSvc, err := o.GetEventBridgeService(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
 	}
 	app := &App{
-		cfg: cfg,
-		aws: NewAWSService(AWSClients{
-			SFnClient:         sfnClient,
-			EventBridgeClient: eventBridgeClient,
-		}),
+		cfg:            cfg,
+		sfnSvc:         sfnSvc,
+		eventbridgeSvc: eventbridgeSvc,
 	}
 	return app, nil
 }

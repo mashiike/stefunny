@@ -72,6 +72,8 @@ func TestAppRender(t *testing.T) {
 			ctx := context.Background()
 			cfg, err := l.Load(ctx, c.path)
 			require.NoError(t, err)
+			mocks := NewMocks(t)
+			defer mocks.AssertExpectations(t)
 			app, err := stefunny.New(ctx, cfg)
 			require.NoError(t, err)
 			var buf bytes.Buffer

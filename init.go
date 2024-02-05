@@ -21,13 +21,13 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	cfg := NewDefaultConfig()
 	cfg.RequiredVersion = ">=" + Version
 	cfg.AWSRegion = opt.AWSRegion
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, opt.StateMachineName)
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, opt.StateMachineName)
 	if err != nil {
 		return fmt.Errorf("failed describe state machine: %w", err)
 	}
 	cfg.StateMachine = setStateMachineConfig(cfg.StateMachine, stateMachine)
 
-	rules, err := app.aws.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
+	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
 	if err != nil {
 		return err
 	}

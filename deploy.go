@@ -68,7 +68,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		if err == ErrStateMachineDoesNotExist && !opt.SkipDeployStateMachine {
 			return app.createStateMachine(ctx, opt)
@@ -85,7 +85,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		log.Printf("[notice] change state machine %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}
-	output, err := app.aws.DeployStateMachine(ctx, newStateMachine)
+	output, err := app.sfnSvc.DeployStateMachine(ctx, newStateMachine)
 	if err != nil {
 		return err
 	}
@@ -94,11 +94,11 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error {
-	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	rules, err := app.aws.SearchScheduleRule(ctx, stateMachineArn)
+	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, stateMachineArn)
 	if err != nil {
 		return err
 	}
@@ -141,14 +141,14 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	}
 	if len(deleteRules) != 0 {
 		log.Printf("[debug] try delete %d rules", len(deleteRules))
-		err := app.aws.DeleteScheduleRules(ctx, deleteRules)
+		err := app.eventbridgeSvc.DeleteScheduleRules(ctx, deleteRules)
 		if err != nil {
 			return err
 		}
 		log.Printf("[info] delete %d schedule rule", len(deleteRules))
 		return nil
 	}
-	output, err := app.aws.DeployScheduleRules(ctx, newRules)
+	output, err := app.eventbridgeSvc.DeployScheduleRules(ctx, newRules)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (app *App) createStateMachine(ctx context.Context, opt DeployOption) error 
 		log.Printf("[notice] create state machine %s\n%s", opt.DryRunString(), stateMachine.String())
 		return nil
 	}
-	output, err := app.aws.DeployStateMachine(ctx, stateMachine)
+	output, err := app.sfnSvc.DeployStateMachine(ctx, stateMachine)
 	if err != nil {
 		return fmt.Errorf("create failed: %w", err)
 	}
@@ -195,7 +195,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 		log.Printf("[notice] create schedule rules %s\n%s", opt.DryRunString(), rules.String())
 		return nil
 	}
-	stateMachineArn, err := app.aws.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
@@ -203,7 +203,7 @@ func (app *App) createScheduleRule(ctx context.Context, opt DeployOption) error 
 	if err != nil {
 		return err
 	}
-	output, err := app.aws.DeployScheduleRules(ctx, rules)
+	output, err := app.eventbridgeSvc.DeployScheduleRules(ctx, rules)
 	if err != nil {
 		return err
 	}

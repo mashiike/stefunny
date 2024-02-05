@@ -55,7 +55,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	}
 	input := string(bs)
 	log.Printf("[info] input:\n%s\n", input)
-	stateMachine, err := app.aws.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachin
 		log.Println("[warn] this state machine is EXPRESS type, history is not supported.")
 	}
 	if opt.Async {
-		output, err := app.aws.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
+		output, err := app.sfnSvc.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
 		if err != nil {
 			return err
 		}
@@ -81,7 +81,7 @@ func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachin
 		log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
 		return nil
 	}
-	output, err := app.aws.StartSyncExecution(ctx, stateMachine, opt.ExecutionName, input)
+	output, err := app.sfnSvc.StartSyncExecution(ctx, stateMachine, opt.ExecutionName, input)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachin
 }
 
 func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
-	output, err := app.aws.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
+	output, err := app.sfnSvc.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
 	if err != nil {
 		return err
 	}
@@ -115,13 +115,13 @@ func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachi
 	if opt.Async {
 		return nil
 	}
-	waitOutput, err := app.aws.WaitExecution(ctx, output.ExecutionArn)
+	waitOutput, err := app.sfnSvc.WaitExecution(ctx, output.ExecutionArn)
 	if err != nil {
 		return err
 	}
 	log.Printf("[info] execution time: %s", waitOutput.Elapsed())
 	if opt.DumpHistory {
-		events, err := app.aws.GetExecutionHistory(ctx, output.ExecutionArn)
+		events, err := app.sfnSvc.GetExecutionHistory(ctx, output.ExecutionArn)
 		if err != nil {
 			return err
 		}
