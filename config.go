@@ -278,6 +278,9 @@ func (cfg *Config) Restrict() error {
 			}
 		}
 	}
+	if len(cfg.Tags) > 0 {
+		log.Println("[warn] tags is deprecated. Use state_machine.tags instead. (since v0.6.0)")
+	}
 	return nil
 }
 

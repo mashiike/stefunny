@@ -32,7 +32,16 @@ func (m *mockSFnClient) CreateStateMachine(ctx context.Context, params *sfn.Crea
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.CreateStateMachineOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.CreateStateMachineOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.CreateStateMachineOutput")
+		return nil, errors.New("mock data is not *sfn.CreateStateMachineOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) DescribeStateMachine(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error) {
@@ -90,7 +99,16 @@ func (m *mockSFnClient) UpdateStateMachine(ctx context.Context, params *sfn.Upda
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.UpdateStateMachineOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.UpdateStateMachineOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.UpdateStateMachineOutput")
+		return nil, errors.New("mock data is not *sfn.UpdateStateMachineOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) ListTagsForResource(ctx context.Context, params *sfn.ListTagsForResourceInput, optFns ...func(*sfn.Options)) (*sfn.ListTagsForResourceOutput, error) {

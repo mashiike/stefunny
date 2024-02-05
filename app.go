@@ -132,12 +132,10 @@ func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 }
 
 func (app *App) LoadStateMachine() (*StateMachine, error) {
-
 	stateMachine := &StateMachine{
 		CreateStateMachineInput: app.cfg.NewCreateStateMachineInput(),
-		Tags:                    app.cfg.Tags,
 	}
-	stateMachine.Tags[tagManagedBy] = appName
+	stateMachine.AppendTags(app.cfg.Tags)
 	return stateMachine, nil
 }
 

@@ -73,14 +73,6 @@ func NewSFnService(client SFnClient) *SFnServiceImpl {
 	}
 }
 
-type StateMachine struct {
-	sfn.CreateStateMachineInput
-	CreationDate    *time.Time
-	StateMachineArn *string
-	Status          sfntypes.StateMachineStatus
-	Tags            map[string]string
-}
-
 func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*StateMachine, error) {
 	arn, err := svc.GetStateMachineArn(ctx, name, optFns...)
 	if err != nil {
@@ -115,11 +107,6 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, name string
 		StateMachineArn: output.StateMachineArn,
 		Status:          output.Status,
 	}
-	tags := make(map[string]string, len(tagsOutput.Tags))
-	for _, tag := range tagsOutput.Tags {
-		tags[*tag.Key] = *tag.Value
-	}
-	stateMachine.Tags = tags
 	return stateMachine, nil
 }
 
@@ -153,6 +140,9 @@ type DeployStateMachineOutput struct {
 
 func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
 	var output *DeployStateMachineOutput
+	stateMachine.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
 	if stateMachine.StateMachineArn == nil {
 		log.Println("[debug] try create state machine")
 		createOutput, err := svc.client.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
@@ -193,12 +183,7 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 	log.Println("[debug] try update state machine tags")
 	_, err = svc.client.TagResource(ctx, &sfn.TagResourceInput{
 		ResourceArn: stateMachine.StateMachineArn,
-		Tags: []sfntypes.Tag{
-			{
-				Key:   aws.String(tagManagedBy),
-				Value: aws.String(appName),
-			},
-		},
+		Tags:        stateMachine.Tags,
 	})
 	if err != nil {
 		return nil, err
@@ -220,6 +205,34 @@ func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine 
 		StateMachineArn: stateMachine.StateMachineArn,
 	}, optFns...)
 	return err
+}
+
+type StateMachine struct {
+	sfn.CreateStateMachineInput
+	CreationDate    *time.Time
+	StateMachineArn *string
+	Status          sfntypes.StateMachineStatus
+}
+
+func (s *StateMachine) AppendTags(tags map[string]string) {
+	notExists := make([]sfntypes.Tag, 0, len(tags))
+	aleradyExists := make(map[string]string, len(s.Tags))
+	pos := make(map[string]int, len(s.Tags))
+	for i, tag := range s.Tags {
+		aleradyExists[*tag.Key] = *tag.Value
+		pos[*tag.Key] = i
+	}
+	for key, value := range tags {
+		if _, ok := aleradyExists[key]; !ok {
+			notExists = append(notExists, sfntypes.Tag{
+				Key:   aws.String(key),
+				Value: aws.String(value),
+			})
+			continue
+		}
+		s.Tags[pos[key]].Value = aws.String(value)
+	}
+	s.Tags = append(s.Tags, notExists...)
 }
 
 func (s *StateMachine) String() string {
