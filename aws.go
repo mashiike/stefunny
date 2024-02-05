@@ -145,9 +145,10 @@ func (svc *SFnServiceImpl) GetStateMachineArn(ctx context.Context, name string, 
 }
 
 type DeployStateMachineOutput struct {
-	CreationDate    *time.Time
-	UpdateDate      *time.Time
-	StateMachineArn *string
+	CreationDate           *time.Time
+	UpdateDate             *time.Time
+	StateMachineArn        *string
+	StateMachineVersionArn *string
 }
 
 func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
@@ -157,15 +158,21 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 	})
 	if stateMachine.StateMachineArn == nil {
 		log.Println("[debug] try create state machine")
-		createOutput, err := svc.client.CreateStateMachine(ctx, &stateMachine.CreateStateMachineInput, optFns...)
+		cloned := stateMachine.CreateStateMachineInput
+		cloned.Publish = true
+		if cloned.VersionDescription == nil {
+			cloned.VersionDescription = aws.String(fmt.Sprintf("created by %s", appName))
+		}
+		createOutput, err := svc.client.CreateStateMachine(ctx, &cloned, optFns...)
 		if err != nil {
 			return nil, fmt.Errorf("create failed: %w", err)
 		}
 		log.Println("[debug] finish create state machine")
 		output = &DeployStateMachineOutput{
-			StateMachineArn: createOutput.StateMachineArn,
-			CreationDate:    createOutput.CreationDate,
-			UpdateDate:      createOutput.CreationDate,
+			StateMachineArn:        createOutput.StateMachineArn,
+			StateMachineVersionArn: createOutput.StateMachineVersionArn,
+			CreationDate:           createOutput.CreationDate,
+			UpdateDate:             createOutput.CreationDate,
 		}
 	} else {
 		var err error
@@ -180,16 +187,23 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 
 func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error) {
 	log.Println("[debug] try update state machine")
+	versionDesc := stateMachine.VersionDescription
+	if versionDesc == nil {
+		versionDesc = aws.String(fmt.Sprintf("updated by %s", appName))
+	}
 	output, err := svc.client.UpdateStateMachine(ctx, &sfn.UpdateStateMachineInput{
 		StateMachineArn:      stateMachine.StateMachineArn,
 		Definition:           stateMachine.Definition,
 		LoggingConfiguration: stateMachine.LoggingConfiguration,
 		RoleArn:              stateMachine.RoleArn,
 		TracingConfiguration: stateMachine.TracingConfiguration,
+		Publish:              true,
+		VersionDescription:   versionDesc,
 	}, optFns...)
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[debug] revision_id = `%s`", *output.RevisionId)
 	log.Println("[debug] finish update state machine")
 
 	log.Println("[debug] try update state machine tags")
@@ -202,9 +216,10 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 	}
 	log.Println("[debug] finish update state machine tags")
 	return &DeployStateMachineOutput{
-		StateMachineArn: stateMachine.StateMachineArn,
-		CreationDate:    stateMachine.CreationDate,
-		UpdateDate:      output.UpdateDate,
+		StateMachineArn:        stateMachine.StateMachineArn,
+		StateMachineVersionArn: output.StateMachineVersionArn,
+		CreationDate:           stateMachine.CreationDate,
+		UpdateDate:             output.UpdateDate,
 	}, nil
 }
 

@@ -330,11 +330,17 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 			"ManagedBy":   "stefunny",
 			"Environment": "test",
 		}, tags)
-		stateMachine.Tags = input.Tags
-		return assert.EqualValues(t, stateMachine.CreateStateMachineInput, *input) && result
+		stateMachine.CreateStateMachineInput.Tags = input.Tags
+		isPublish := assert.True(t, input.Publish)
+		stateMachine.CreateStateMachineInput.Publish = input.Publish
+		sameVersionDescription := assert.Equal(t, "created by stefunny", *input.VersionDescription)
+		stateMachine.CreateStateMachineInput.VersionDescription = input.VersionDescription
+		return assert.EqualValues(t, stateMachine.CreateStateMachineInput, *input) &&
+			result && isPublish && sameVersionDescription
 	})).Return(&sfn.CreateStateMachineOutput{
-		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		StateMachineArn:        aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
+		CreationDate:           aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}, nil).Once()
 
 	svc := stefunny.NewSFnService(m)
@@ -342,9 +348,10 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 	actual, err := svc.DeployStateMachine(ctx, stateMachine)
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.DeployStateMachineOutput{
-		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		UpdateDate:      aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		StateMachineArn:        aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
+		CreationDate:           aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}, actual)
 }
 
@@ -422,11 +429,15 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 			Definition:           stateMachine.Definition,
 			LoggingConfiguration: stateMachine.LoggingConfiguration,
 			RoleArn:              stateMachine.RoleArn,
+			Publish:              true,
+			VersionDescription:   aws.String("updated by stefunny"),
 			TracingConfiguration: stateMachine.TracingConfiguration,
 		}, input)
 
 	})).Return(&sfn.UpdateStateMachineOutput{
-		UpdateDate: aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
 	}, nil).Once()
 
 	m.On("TagResource", mock.Anything, mock.MatchedBy(func(input *sfn.TagResourceInput) bool {
@@ -440,9 +451,10 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 	actual, err := svc.DeployStateMachine(ctx, stateMachine)
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.DeployStateMachineOutput{
-		StateMachineArn: stateMachine.StateMachineArn,
-		CreationDate:    stateMachine.CreationDate,
-		UpdateDate:      aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+		StateMachineArn:        stateMachine.StateMachineArn,
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		CreationDate:           stateMachine.CreationDate,
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
 	}, actual)
 }
 
