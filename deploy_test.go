@@ -148,7 +148,7 @@ func TestDeploy(t *testing.T) {
 				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
-				).Times(2)
+				).Once()
 				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled").Return(
 					stefunny.ScheduleRules{},
 					nil,
@@ -202,7 +202,7 @@ func TestDeploy(t *testing.T) {
 				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
-				).Times(2)
+				).Once()
 				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled").Return(
 					stefunny.ScheduleRules{},
 					nil,
