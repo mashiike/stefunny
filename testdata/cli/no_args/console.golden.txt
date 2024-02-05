@@ -26,6 +26,9 @@ Commands:
   deploy
     Deploy state machine and schedule rules
 
+  rollback
+    Rollback state machine
+
   schedule --enabled --disabled
     Enable or disable schedule rules
 
@@ -37,4 +40,4 @@ Commands:
 
 Run "stefunny <command> --help" for more information on a command.
 
-stefunny: error: expected one of "version",  "init",  "delete",  "deploy",  "schedule",  ...
+stefunny: error: expected one of "version",  "init",  "delete",  "deploy",  "rollback",  ...

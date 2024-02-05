@@ -3,6 +3,7 @@
   "init": {},
   "delete": {},
   "deploy": {},
+  "rollback": {},
   "schedule": {},
   "render": {},
   "execute": {}

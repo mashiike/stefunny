@@ -8,6 +8,7 @@
   },
   "delete": {},
   "deploy": {},
+  "rollback": {},
   "schedule": {
     "dry_run": true,
     "enabled": true

@@ -10,6 +10,7 @@
   "deploy": {
     "dry_run": true
   },
+  "rollback": {},
   "schedule": {},
   "render": {},
   "execute": {
