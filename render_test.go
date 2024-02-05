@@ -74,7 +74,11 @@ func TestAppRender(t *testing.T) {
 			require.NoError(t, err)
 			mocks := NewMocks(t)
 			defer mocks.AssertExpectations(t)
-			app, err := stefunny.New(ctx, cfg)
+			app, err := stefunny.New(
+				ctx, cfg,
+				stefunny.WithEventBridgeClient(mocks.eventBridge),
+				stefunny.WithSFnClient(mocks.sfn),
+			)
 			require.NoError(t, err)
 			var buf bytes.Buffer
 			err = app.Render(ctx, stefunny.RenderOption{
