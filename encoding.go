@@ -160,6 +160,12 @@ func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 			}
 			continue
 		}
+		if b, ok := value.(bool); ok {
+			if !b {
+				delete(v, key)
+			}
+			continue
+		}
 		if m, ok := value.(map[string]interface{}); ok {
 			v[key] = deleteNilFromMap(m)
 			continue

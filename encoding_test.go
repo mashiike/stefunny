@@ -52,7 +52,6 @@ logging_configuration:
   destinations:
     - cloudwatch_logs_log_group:
         log_group_arn: "arn:aws:logs:ap-northeast-1:123456789012:log-group:test:*"
-publish: false
 `
 	var obj stefunny.KeysToSnakeCase[sfn.CreateStateMachineInput]
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)

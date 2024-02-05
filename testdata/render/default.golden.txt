@@ -6,13 +6,10 @@ state_machine:
         destinations:
             - cloudwatch_logs_log_group:
                 log_group_arn: arn:aws:logs:us-east-1:012345678901:log-group:/steps/hello
-        include_execution_data: false
         level: ALL
     name: Hello
-    publish: false
     role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
-    tracing_configuration:
-        enabled: false
+    tracing_configuration: {}
     type: STANDARD
 {
   "Comment": "A Hello World example of the Amazon States Language using Pass states",
