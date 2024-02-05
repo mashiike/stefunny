@@ -11,10 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -36,9 +38,10 @@ const (
 )
 
 type ConfigLoader struct {
-	loader  *gc.Loader
-	funcMap template.FuncMap
-	vm      *jsonnet.VM
+	loader       *gc.Loader
+	funcMap      template.FuncMap
+	vm           *jsonnet.VM
+	cwLogsClient CloudWatchLogsClient
 }
 
 func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
@@ -54,6 +57,10 @@ func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 		funcMap: make(template.FuncMap),
 		vm:      vm,
 	}
+}
+
+func (l *ConfigLoader) SetCloudWatchLogsClient(client CloudWatchLogsClient) {
+	l.cwLogsClient = client
 }
 
 func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState string) error {
@@ -162,6 +169,64 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	if err := l.load(path, true, true, cfg); err != nil {
 		return nil, fmt.Errorf("load config `%s`: %w", path, err)
 	}
+	// migration from old version: TODO delete v0.7.0
+
+	if cfg.StateMachine != nil && cfg.StateMachine.Logging != nil {
+		log.Println("[warn] state_machine.logging is deprecated. Use state_machine.logging_configuration instead. (since v0.6.0)")
+		cfg.StateMachine.Value.LoggingConfiguration = &sfntypes.LoggingConfiguration{
+			Level:                sfntypes.LogLevel(cfg.StateMachine.Logging.Level),
+			IncludeExecutionData: cfg.StateMachine.Logging.IncludeExecutionData,
+		}
+		if cfg.StateMachine.Logging.Destination != nil {
+			if _, err := arn.Parse(cfg.StateMachine.Logging.Destination.LogGroup); err != nil {
+				client := l.cwLogsClient
+				if client == nil {
+					awsCfg, err := cfg.LoadAWSConfig(ctx)
+					if err != nil {
+						return nil, fmt.Errorf("load aws config:%w", err)
+					}
+					client = cloudwatchlogs.NewFromConfig(awsCfg)
+				}
+				p := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, &cloudwatchlogs.DescribeLogGroupsInput{
+					Limit: aws.Int32(50),
+				})
+				fround := false
+				for p.HasMorePages() {
+					page, err := p.NextPage(ctx)
+					if err != nil {
+						return nil, fmt.Errorf("describe log groups:%w", err)
+					}
+					for _, g := range page.LogGroups {
+						if *g.LogGroupName == cfg.StateMachine.Logging.Destination.LogGroup {
+							cfg.StateMachine.Value.LoggingConfiguration.Destinations = append(cfg.StateMachine.Value.LoggingConfiguration.Destinations, sfntypes.LogDestination{
+								CloudWatchLogsLogGroup: &sfntypes.CloudWatchLogsLogGroup{
+									LogGroupArn: g.Arn,
+								},
+							})
+							fround = true
+							break
+						}
+					}
+				}
+				if !fround {
+					return nil, fmt.Errorf("log group `%s` not found", cfg.StateMachine.Logging.Destination.LogGroup)
+				}
+			} else {
+				cfg.StateMachine.Value.LoggingConfiguration.Destinations = append(cfg.StateMachine.Value.LoggingConfiguration.Destinations, sfntypes.LogDestination{
+					CloudWatchLogsLogGroup: &sfntypes.CloudWatchLogsLogGroup{
+						LogGroupArn: aws.String(cfg.StateMachine.Logging.Destination.LogGroup),
+					},
+				})
+			}
+		}
+	}
+	if cfg.StateMachine != nil && cfg.StateMachine.Tracing != nil {
+		log.Println("[warn] state_machine.tracing is deprecated. Use state_machine.tracing_configuration instead. (since v0.6.0)")
+		cfg.StateMachine.Value.TracingConfiguration = &sfntypes.TracingConfiguration{
+			Enabled: cfg.StateMachine.Tracing.Enabled,
+		}
+	}
+
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -199,7 +264,9 @@ type Config struct {
 
 	ConfigDir string `yaml:"-"`
 	//private field
+	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
+	awsCfg             *aws.Config    `yaml:"-"`
 }
 
 type TFStateConfig struct {
@@ -210,26 +277,60 @@ type TFStateConfig struct {
 
 type StateMachineConfig struct {
 	KeysToSnakeCase[sfn.CreateStateMachineInput] `yaml:",inline" json:",inline"`
-	DefinitionPath                               string `yaml:"definition,omitempty" json:"definition,omitempty"`
+	DefinitionPath                               string `yaml:"definition_path,omitempty" json:"definition_path,omitempty"`
+
+	Logging *StateMachineLogging           `yaml:"-,omitempty"`
+	Tracing *sfntypes.TracingConfiguration `yaml:"-,omitempty"`
+}
+
+type StateMachineLogging struct {
+	Level                string                          `yaml:"level,omitempty" json:"level,omitempty"`
+	IncludeExecutionData bool                            `yaml:"include_execution_data,omitempty" json:"include_execution_data,omitempty"`
+	Destination          *StateMachineLoggingDestination `yaml:"destination,omitempty" json:"destination,omitempty"`
+}
+
+type StateMachineLoggingDestination struct {
+	LogGroup string `yaml:"log_group,omitempty" json:"log_group,omitempty"`
 }
 
 func (cfg *StateMachineConfig) UnmarshalYAML(node *yaml.Node) error {
-	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
+	var data map[string]interface{}
+	if err := node.Decode(&data); err != nil {
 		return err
 	}
-	if cfg.Value.Definition != nil {
-		if json.Valid([]byte(*cfg.Value.Definition)) {
-			return nil
-		}
-		cfg.DefinitionPath = *cfg.Value.Definition
-		cfg.Value.Definition = nil
+	bs, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+	if err := json.Unmarshal(bs, cfg); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (cfg *StateMachineConfig) UnmarshalJSON(b []byte) error {
-	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
+	var data map[string]json.RawMessage
+	if err := json.Unmarshal(b, &data); err != nil {
 		return err
+	}
+	if logging, ok := data["logging"]; ok {
+		if err := json.Unmarshal(logging, &cfg.Logging); err != nil {
+			return fmt.Errorf("logging unmarshal failed:%w", err)
+		}
+		delete(data, "logging")
+	}
+	if tracing, ok := data["tracing"]; ok {
+		if err := json.Unmarshal(tracing, &cfg.Tracing); err != nil {
+			return fmt.Errorf("tracing unmarshal failed:%w", err)
+		}
+		delete(data, "tracing")
+	}
+	replaced, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("replaced unmarshal failed:%w", err)
+	}
+	if err := json.Unmarshal(replaced, &cfg.KeysToSnakeCase); err != nil {
+		return fmt.Errorf("replaced unmarshal failed:%w", err)
 	}
 	if cfg.Value.Definition != nil {
 		if json.Valid([]byte(*cfg.Value.Definition)) {
@@ -282,6 +383,26 @@ func (cfg *Config) Restrict() error {
 		log.Println("[warn] tags is deprecated. Use state_machine.tags instead. (since v0.6.0)")
 	}
 	return nil
+}
+
+func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
+	cfg.mu.Lock()
+	defer cfg.mu.Unlock()
+	if cfg.awsCfg != nil {
+		return *cfg.awsCfg, nil
+	}
+	opts := []func(*awsconfig.LoadOptions) error{
+		awsconfig.WithRegion(cfg.AWSRegion),
+	}
+	if endpointsResolver, ok := cfg.EndpointResolver(); ok {
+		opts = append(opts, awsconfig.WithEndpointResolverWithOptions(endpointsResolver))
+	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return aws.Config{}, err
+	}
+	cfg.awsCfg = &awsCfg
+	return awsCfg, nil
 }
 
 func (cfg *Config) StateMachineName() string {

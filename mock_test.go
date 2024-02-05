@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
@@ -637,4 +638,37 @@ func newMockApp(t *testing.T, path string, m *mocks) *stefunny.App {
 	)
 	require.NoError(t, err)
 	return app
+}
+
+type mockCloudWatchLogsClient struct {
+	mock.Mock
+	t *testing.T
+}
+
+func NewMockCloudWatchLogsClient(t *testing.T) *mockCloudWatchLogsClient {
+	t.Helper()
+	m := &mockCloudWatchLogsClient{
+		t: t,
+	}
+	m.Test(t)
+	return m
+}
+
+func (m *mockCloudWatchLogsClient) DescribeLogGroups(ctx context.Context, params *cloudwatchlogs.DescribeLogGroupsInput, optFns ...func(*cloudwatchlogs.Options)) (*cloudwatchlogs.DescribeLogGroupsOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*cloudwatchlogs.DescribeLogGroupsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *cloudwatchlogs.DescribeLogGroupsOutput")
+		return nil, errors.New("mock data is not *cloudwatchlogs.DescribeLogGroupsOutput")
+	}
+	return nil, err
 }

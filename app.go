@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
@@ -33,33 +32,13 @@ type newAppOptions struct {
 
 type NewAppOption func(*newAppOptions)
 
-func (o *newAppOptions) GetAWSConfig(ctx context.Context) (aws.Config, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if o.awsCfg != nil {
-		return *o.awsCfg, nil
-	}
-	opts := []func(*awsConfig.LoadOptions) error{
-		awsConfig.WithRegion(o.cfg.AWSRegion),
-	}
-	if endpointsResolver, ok := o.cfg.EndpointResolver(); ok {
-		opts = append(opts, awsConfig.WithEndpointResolverWithOptions(endpointsResolver))
-	}
-	awsCfg, err := awsConfig.LoadDefaultConfig(ctx, opts...)
-	if err != nil {
-		return aws.Config{}, err
-	}
-	o.awsCfg = &awsCfg
-	return awsCfg, nil
-}
-
 func (o *newAppOptions) GetSFnService(ctx context.Context) (SFnService, error) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if o.sfnSvc != nil {
 		return o.sfnSvc, nil
 	}
-	awsCfg, err := o.GetAWSConfig(ctx)
+	awsCfg, err := o.cfg.LoadAWSConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +53,7 @@ func (o *newAppOptions) GetEventBridgeService(ctx context.Context) (EventBridgeS
 	if o.eventbridgeSvc != nil {
 		return o.eventbridgeSvc, nil
 	}
-	awsCfg, err := o.GetAWSConfig(ctx)
+	awsCfg, err := o.cfg.LoadAWSConfig(ctx)
 	if err != nil {
 		return nil, err
 	}
