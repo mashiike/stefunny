@@ -422,9 +422,7 @@ func (svc *SFnServiceImpl) RollbackStateMachine(ctx context.Context, stateMachin
 	}
 	log.Printf("[info] delete version `%d`", currentVersion)
 	if !dryRun {
-		_, err = svc.client.DeleteStateMachineVersion(ctx, &sfn.DeleteStateMachineVersionInput{
-			StateMachineVersionArn: &currentVersionArn,
-		}, optFns...)
+		err = svc.deleteStateMachineVersion(ctx, currentVersionArn, optFns...)
 		if err != nil {
 			return fmt.Errorf("delete version failed: %w", err)
 		}
@@ -433,15 +431,71 @@ func (svc *SFnServiceImpl) RollbackStateMachine(ctx context.Context, stateMachin
 	return nil
 }
 
+func (svc *SFnServiceImpl) deleteStateMachineVersion(ctx context.Context, versionARN string, optFns ...func(*sfn.Options)) error {
+	retrier := svc.retryPolicy.Start(ctx)
+	for retrier.Continue() {
+		_, err := svc.client.DeleteStateMachineVersion(ctx, &sfn.DeleteStateMachineVersionInput{
+			StateMachineVersionArn: &versionARN,
+		}, optFns...)
+		if err == nil {
+			return nil
+		}
+		var apiErr smithy.APIError
+		if !errors.As(err, &apiErr) {
+			log.Printf("[debug] unexpected error: %s", err)
+			return err
+		}
+		if apiErr.ErrorCode() == "ConflictException" {
+			log.Printf("[debug] conflict error: %s", err)
+			errStr := err.Error()
+			if !strings.Contains(errStr, "Current list of aliases referencing this version: [") {
+				return err
+			}
+			i := strings.Index(errStr, "[")
+			j := strings.Index(errStr, "]")
+			if i == -1 || j == -1 {
+				return err
+			}
+			aliases := strings.Split(errStr[i+1:j], ",")
+			found := false
+			for _, alias := range aliases {
+				if strings.Contains(alias, currentAliasName) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return err
+			}
+			continue
+		}
+		return err
+	}
+	return errors.New("max retry count exceeded")
+}
+
 func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
 	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
 		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
 		return nil
 	}
-	_, err := svc.client.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
-		StateMachineArn: stateMachine.StateMachineArn,
-	}, optFns...)
-	return err
+	retirer := svc.retryPolicy.Start(ctx)
+	for retirer.Continue() {
+		_, err := svc.client.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
+			StateMachineArn: stateMachine.StateMachineArn,
+		}, optFns...)
+		var apiErr smithy.APIError
+		if !errors.As(err, &apiErr) {
+			log.Printf("[debug] unexpected error: %s", err)
+			return err
+		}
+		if apiErr.ErrorCode() != "ConflictException" {
+			log.Printf("[debug] conflict error: %s", err)
+			continue
+		}
+		return err
+	}
+	return errors.New("max retry count exceeded")
 }
 
 type StateMachine struct {
