@@ -330,25 +330,6 @@ func (m *mockSFnClient) UpdateStateMachineAlias(ctx context.Context, params *sfn
 	return nil, err
 }
 
-func (m *mockSFnClient) PublishStateMachineVersion(ctx context.Context, params *sfn.PublishStateMachineVersionInput, optFns ...func(*sfn.Options)) (*sfn.PublishStateMachineVersionOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, params, optFns)
-	} else {
-		args = m.Called(ctx, params)
-	}
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*sfn.PublishStateMachineVersionOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *sfn.PublishStateMachineVersionOutput")
-		return nil, errors.New("mock data is not *sfn.PublishStateMachineVersionOutput")
-	}
-	return nil, err
-}
-
 func (m *mockSFnClient) DeleteStateMachineVersion(ctx context.Context, params *sfn.DeleteStateMachineVersionInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineVersionOutput, error) {
 	var args mock.Arguments
 	if len(optFns) > 0 {
