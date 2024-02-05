@@ -36,7 +36,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	//Ignore no managed rule
 	noManageRules := make(ScheduleRules, 0, len(rules))
 	for _, rule := range rules {
-		if !rule.HasTagKeyValue(tagManagedBy, appName) {
+		if !rule.IsManagedBy() {
 			log.Printf("[warn] found a scheduled rule `%s` that %s does not manage. this rule is not delete.", *rule.Name, appName)
 			noManageRules = append(noManageRules, rule)
 		}

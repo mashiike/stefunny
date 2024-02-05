@@ -117,7 +117,7 @@ func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error 
 	noConfigRules := rules.Subtract(newRules)
 	noManageRules := make(ScheduleRules, 0, len(noConfigRules))
 	for _, rule := range noConfigRules {
-		if !rule.HasTagKeyValue(tagManagedBy, appName) {
+		if !rule.IsManagedBy() {
 			log.Printf("[warn] found a scheduled rule `%s` that %s does not manage.", *rule.Name, appName)
 			noManageRules = append(noManageRules, rule)
 		}

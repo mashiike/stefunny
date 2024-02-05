@@ -808,3 +808,54 @@ func TestSFnService_WaitExecution_StopExecutionAPIFaild(t *testing.T) {
 	_, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
 	require.ErrorIs(t, err, context.Canceled)
 }
+
+func TestSFnService__StartSyncExecution_Success(t *testing.T) {
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	m.On("StartSyncExecution", mock.Anything, mock.MatchedBy(
+		func(input *sfn.StartSyncExecutionInput) bool {
+			return assert.EqualValues(t, &sfn.StartSyncExecutionInput{
+				StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+				Name:            aws.String("test"),
+				Input:           aws.String(`{"key":"value"}`),
+				TraceHeader:     aws.String("Hello_test"),
+			}, input)
+		},
+	)).Return(&sfn.StartSyncExecutionOutput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+		Status:       sfntypes.SyncExecutionStatusSucceeded,
+		Output:       aws.String(`{"key":"value"}`),
+	}, nil).Once()
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name: aws.String("Hello"),
+		},
+	}
+	output, err := svc.StartSyncExecution(ctx, stateMachine, "test", `{"key":"value"}`)
+	require.NoError(t, err)
+	require.EqualValues(t, &sfn.StartSyncExecutionOutput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+		Status:       sfntypes.SyncExecutionStatusSucceeded,
+		Output:       aws.String(`{"key":"value"}`),
+	}, output)
+}
+
+func TestSFnService__StartSyncExecution_Failed(t *testing.T) {
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	expectedErr := errors.New("this is testing")
+	m.On("StartSyncExecution", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name: aws.String("Hello"),
+		},
+	}
+	_, err := svc.StartSyncExecution(ctx, stateMachine, "test", `{"key":"value"}`)
+	require.ErrorIs(t, err, expectedErr)
+}

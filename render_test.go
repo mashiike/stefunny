@@ -68,20 +68,12 @@ func TestAppRender(t *testing.T) {
 			loc := dataloc.L(c.casename)
 			t.Log("case location:", loc)
 			LoggerSetup(t, "debug")
-			l := stefunny.NewConfigLoader(nil, nil)
+			m := NewMocks(t)
+			defer m.AssertExpectations(t)
+			app := newMockApp(t, c.path, m)
 			ctx := context.Background()
-			cfg, err := l.Load(ctx, c.path)
-			require.NoError(t, err)
-			mocks := NewMocks(t)
-			defer mocks.AssertExpectations(t)
-			app, err := stefunny.New(
-				ctx, cfg,
-				stefunny.WithEventBridgeClient(mocks.eventBridge),
-				stefunny.WithSFnClient(mocks.sfn),
-			)
-			require.NoError(t, err)
 			var buf bytes.Buffer
-			err = app.Render(ctx, stefunny.RenderOption{
+			err := app.Render(ctx, stefunny.RenderOption{
 				Writer:  &buf,
 				Targets: c.target,
 				Format:  c.format,

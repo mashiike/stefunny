@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
@@ -28,27 +27,25 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("ListStateMachines", mock.Anything, mock.Anything).Return(newListStateMachinesOutput(), nil).Once()
-				m.sfn.On("DescribeStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.DescribeStateMachineInput) bool {
-						return assert.Contains(t, *input.StateMachineArn, "Hello")
+				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+					&stefunny.StateMachine{
+						CreateStateMachineInput: sfn.CreateStateMachineInput{
+							Name:       aws.String("Hello"),
+							RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+							Definition: aws.String(`{}`),
+						},
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
+						Status:          sfntypes.StateMachineStatusActive,
+						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
-				)).Return(
-					newDescribeStateMachineOutput("Hello", false),
 					nil,
 				).Once()
-				m.sfn.On("ListTagsForResource", mock.Anything, mock.Anything).Return(
-					&sfn.ListTagsForResourceOutput{Tags: []sfntypes.Tag{}},
+				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Once()
-				m.eventBridge.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.ListRuleNamesByTargetInput) bool {
-						return assert.NotNil(t, input.TargetArn) &&
-							assert.Contains(t, *input.TargetArn, "arn:aws:states:") &&
-							assert.Contains(t, *input.TargetArn, "Hello")
-					},
-				)).Return(
-					&eventbridge.ListRuleNamesByTargetOutput{RuleNames: []string{}},
+				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello").Return(
+					stefunny.ScheduleRules{},
 					nil,
 				).Once()
 			},
@@ -58,47 +55,37 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("ListStateMachines", mock.Anything, mock.Anything).Return(newListStateMachinesOutput(), nil).Once()
-				m.sfn.On("DescribeStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.DescribeStateMachineInput) bool {
-						return assert.Contains(t, *input.StateMachineArn, "Hello")
-					},
-				)).Return(
-					newDescribeStateMachineOutput("Hello", false),
-					nil,
-				).Once()
-				m.sfn.On("ListTagsForResource", mock.Anything, mock.Anything).Return(
-					&sfn.ListTagsForResourceOutput{Tags: []sfntypes.Tag{}},
-					nil,
-				).Once()
-				m.sfn.On("UpdateStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.UpdateStateMachineInput) bool {
-						return assert.Contains(t, *input.StateMachineArn, "Hello")
-					},
-				)).Return(
-					&sfn.UpdateStateMachineOutput{
-						StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:12345"),
-						RevisionId:             aws.String("123456"),
-						UpdateDate:             aws.Time(time.Now()),
+				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+					&stefunny.StateMachine{
+						CreateStateMachineInput: sfn.CreateStateMachineInput{
+							Name:       aws.String("Hello"),
+							RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+							Definition: aws.String(`{}`),
+						},
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
+						Status:          sfntypes.StateMachineStatusActive,
+						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
 				).Once()
-				m.sfn.On("TagResource", mock.Anything, mock.MatchedBy(
-					func(input *sfn.TagResourceInput) bool {
-						return assert.Contains(t, *input.ResourceArn, "Hello")
+				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+					func(input *stefunny.StateMachine) bool {
+						return assert.Contains(t, *input.Name, "Hello")
 					},
 				)).Return(
-					&sfn.TagResourceOutput{},
+					&stefunny.DeployStateMachineOutput{
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
+						UpdateDate:      aws.Time(time.Now()),
+						CreationDate:    aws.Time(time.Now()),
+					},
 					nil,
 				).Once()
-				m.eventBridge.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.ListRuleNamesByTargetInput) bool {
-						return assert.NotNil(t, input.TargetArn) &&
-							assert.Contains(t, *input.TargetArn, "arn:aws:states:") &&
-							assert.Contains(t, *input.TargetArn, "Hello")
-					},
-				)).Return(
-					&eventbridge.ListRuleNamesByTargetOutput{RuleNames: []string{}},
+				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
+					nil,
+				).Once()
+				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello").Return(
+					stefunny.ScheduleRules{},
 					nil,
 				).Once()
 			},
@@ -108,29 +95,29 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("ListStateMachines", mock.Anything, mock.Anything).Return(
-					&sfn.ListStateMachinesOutput{StateMachines: []sfntypes.StateMachineListItem{}},
+				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
 					nil,
+					stefunny.ErrStateMachineDoesNotExist,
 				).Once()
-				m.sfn.On("CreateStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.CreateStateMachineInput) bool {
-						return assert.Contains(t, *input.Name, "Hello")
+				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+					func(input *stefunny.StateMachine) bool {
+						return assert.Contains(t, *input.Name, "Hello") &&
+							assert.Nil(t, input.StateMachineArn)
 					},
 				)).Return(
-					&sfn.CreateStateMachineOutput{
-						StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+					&stefunny.DeployStateMachineOutput{
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
+						UpdateDate:      aws.Time(time.Now()),
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.ListRuleNamesByTargetInput) bool {
-						return assert.NotNil(t, input.TargetArn) &&
-							assert.Contains(t, *input.TargetArn, "arn:aws:states:") &&
-							assert.Contains(t, *input.TargetArn, "Hello")
-					},
-				)).Return(
-					&eventbridge.ListRuleNamesByTargetOutput{RuleNames: []string{}},
+				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
+					nil,
+				).Once()
+				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello").Return(
+					stefunny.ScheduleRules{},
 					nil,
 				).Once()
 			},
@@ -140,53 +127,43 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/schedule.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("ListStateMachines", mock.Anything, mock.Anything).Return(
-					&sfn.ListStateMachinesOutput{StateMachines: []sfntypes.StateMachineListItem{}},
+				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
 					nil,
+					stefunny.ErrStateMachineDoesNotExist,
 				).Once()
-				m.sfn.On("CreateStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.CreateStateMachineInput) bool {
-						return assert.Contains(t, *input.Name, "Scheduled")
+				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+					func(input *stefunny.StateMachine) bool {
+						return assert.Contains(t, *input.Name, "Scheduled") &&
+							assert.Nil(t, input.StateMachineArn) &&
+							assert.JSONEq(t, *input.Definition, LoadString(t, "testdata/hello_world.asl.json"))
 					},
 				)).Return(
-					&sfn.CreateStateMachineOutput{
-						StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Scheduled"),
+					&stefunny.DeployStateMachineOutput{
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
+						UpdateDate:      aws.Time(time.Now()),
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.ListRuleNamesByTargetInput) bool {
-						return assert.NotNil(t, input.TargetArn) &&
-							assert.Contains(t, *input.TargetArn, "arn:aws:states:") &&
-							assert.Contains(t, *input.TargetArn, "Scheduled")
-					},
-				)).Return(
-					&eventbridge.ListRuleNamesByTargetOutput{RuleNames: []string{}},
+				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
+					nil,
+				).Times(2)
+				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled").Return(
+					stefunny.ScheduleRules{},
 					nil,
 				).Once()
-				m.eventBridge.On("PutRule", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.PutRuleInput) bool {
-						return assert.Contains(t, *input.Name, "Scheduled")
+				m.eventBridge.On("DeployScheduleRules", mock.Anything, mock.MatchedBy(
+					func(input stefunny.ScheduleRules) bool {
+						return assert.Contains(t, *input[0].Name, "Scheduled")
 					},
 				)).Return(
-					&eventbridge.PutRuleOutput{RuleArn: aws.String("arn:aws:events:us-east-1:123456789012:rule/Scheduled")},
-					nil,
-				).Once()
-				m.eventBridge.On("PutTargets", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.PutTargetsInput) bool {
-						return assert.Contains(t, *input.Rule, "Scheduled")
+					stefunny.DeployScheduleRulesOutput{
+						{
+							RuleArn:          aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
+							FailedEntryCount: 0,
+						},
 					},
-				)).Return(
-					&eventbridge.PutTargetsOutput{},
-					nil,
-				).Once()
-				m.eventBridge.On("TagResource", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.TagResourceInput) bool {
-						return assert.Equal(t, *input.ResourceARN, "arn:aws:events:us-east-1:123456789012:rule/Scheduled")
-					},
-				)).Return(
-					&eventbridge.TagResourceOutput{},
 					nil,
 				).Once()
 			},
@@ -196,71 +173,51 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/schedule.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("ListStateMachines", mock.Anything, mock.Anything).Return(newListStateMachinesOutput(), nil).Once()
-				m.sfn.On("DescribeStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.DescribeStateMachineInput) bool {
-						return assert.Contains(t, *input.StateMachineArn, "Scheduled")
-					},
-				)).Return(
-					newDescribeStateMachineOutput("Scheduled", false),
-					nil,
-				).Once()
-				m.sfn.On("ListTagsForResource", mock.Anything, mock.Anything).Return(
-					&sfn.ListTagsForResourceOutput{Tags: []sfntypes.Tag{}},
-					nil,
-				).Once()
-				m.sfn.On("UpdateStateMachine", mock.Anything, mock.MatchedBy(
-					func(input *sfn.UpdateStateMachineInput) bool {
-						return assert.Contains(t, *input.StateMachineArn, "Scheduled")
-					},
-				)).Return(
-					&sfn.UpdateStateMachineOutput{
-						StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Scheduled:12345"),
-						RevisionId:             aws.String("123456"),
-						UpdateDate:             aws.Time(time.Now()),
+				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
+					&stefunny.StateMachine{
+						CreateStateMachineInput: sfn.CreateStateMachineInput{
+							Name:       aws.String("Scheduled"),
+							RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+							Definition: aws.String(LoadString(t, "testdata/hello_world.asl.json")),
+						},
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
+						Status:          sfntypes.StateMachineStatusActive,
+						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
 				).Once()
-				m.sfn.On("TagResource", mock.Anything, mock.MatchedBy(
-					func(input *sfn.TagResourceInput) bool {
-						return assert.Contains(t, *input.ResourceArn, "Scheduled")
+				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+					func(input *stefunny.StateMachine) bool {
+						return assert.Contains(t, *input.Name, "Scheduled") &&
+							assert.JSONEq(t, *input.Definition, LoadString(t, "testdata/hello_world.asl.json"))
 					},
 				)).Return(
-					&sfn.TagResourceOutput{},
+					&stefunny.DeployStateMachineOutput{
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
+						UpdateDate:      aws.Time(time.Now()),
+						CreationDate:    aws.Time(time.Now()),
+					},
 					nil,
 				).Once()
-				m.eventBridge.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.ListRuleNamesByTargetInput) bool {
-						return assert.NotNil(t, input.TargetArn) &&
-							assert.Contains(t, *input.TargetArn, "arn:aws:states:") &&
-							assert.Contains(t, *input.TargetArn, "Scheduled")
-					},
-				)).Return(
-					&eventbridge.ListRuleNamesByTargetOutput{RuleNames: []string{}},
+				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
+					nil,
+				).Times(2)
+				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled").Return(
+					stefunny.ScheduleRules{},
 					nil,
 				).Once()
-				m.eventBridge.On("PutRule", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.PutRuleInput) bool {
-						return assert.Contains(t, *input.Name, "Scheduled")
+				m.eventBridge.On("DeployScheduleRules", mock.Anything, mock.MatchedBy(
+					func(input stefunny.ScheduleRules) bool {
+						return assert.Contains(t, *input[0].Name, "Scheduled")
 					},
 				)).Return(
-					&eventbridge.PutRuleOutput{RuleArn: aws.String("arn:aws:events:us-east-1:123456789012:rule/Scheduled")},
-					nil,
-				).Once()
-				m.eventBridge.On("PutTargets", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.PutTargetsInput) bool {
-						return assert.Contains(t, *input.Rule, "Scheduled")
+					stefunny.DeployScheduleRulesOutput{
+						{
+							RuleArn:          aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
+							FailedEntryCount: 0,
+						},
 					},
-				)).Return(
-					&eventbridge.PutTargetsOutput{},
-					nil,
-				).Once()
-				m.eventBridge.On("TagResource", mock.Anything, mock.MatchedBy(
-					func(input *eventbridge.TagResourceInput) bool {
-						return assert.Equal(t, *input.ResourceARN, "arn:aws:events:us-east-1:123456789012:rule/Scheduled")
-					},
-				)).Return(
-					&eventbridge.TagResourceOutput{},
 					nil,
 				).Once()
 			},

@@ -203,7 +203,16 @@ func (m *mockSFnClient) StartSyncExecution(ctx context.Context, params *sfn.Star
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.StartSyncExecutionOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.StartSyncExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.StartSyncExecutionOutput")
+		return nil, errors.New("mock data is not *sfn.StartSyncExecutionOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) StopExecution(ctx context.Context, params *sfn.StopExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StopExecutionOutput, error) {
@@ -391,16 +400,220 @@ func NewMockEventBridgeClient(t *testing.T) *mockEventBridgeClient {
 	return m
 }
 
+type mockSFnService struct {
+	mock.Mock
+	t *testing.T
+}
+
+func NewMockSFnService(t *testing.T) *mockSFnService {
+	t.Helper()
+	m := &mockSFnService{
+		t: t,
+	}
+	m.Test(t)
+	return m
+}
+
+func (m *mockSFnService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, name, optFns)
+	} else {
+		args = m.Called(ctx, name)
+	}
+	return args.String(0), args.Error(1)
+}
+
+func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*stefunny.StateMachine, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, name, optFns)
+	} else {
+		args = m.Called(ctx, name)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.StateMachine); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *stefunny.StateMachine")
+		return nil, errors.New("mock data is not *stefunny.StateMachine")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.DeployStateMachineOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.DeployStateMachineOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *stefunny.DeployStateMachineOutput")
+		return nil, errors.New("mock data is not *stefunny.DeployStateMachineOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) error {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine)
+	}
+	return args.Error(0)
+}
+
+func (m *mockSFnService) WaitExecution(ctx context.Context, executionArn string) (*stefunny.WaitExecutionOutput, error) {
+	args := m.Called(ctx, executionArn)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.WaitExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *stefunny.WaitExecutionOutput")
+		return nil, errors.New("mock data is not *stefunny.WaitExecutionOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, executionName, input string) (*stefunny.StartExecutionOutput, error) {
+	args := m.Called(ctx, stateMachine, executionName, input)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.StartExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *stefunny.StartExecutionOutput")
+		return nil, errors.New("mock data is not *stefunny.StartExecutionOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) StartSyncExecution(ctx context.Context, stateMachine *stefunny.StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
+	args := m.Called(ctx, stateMachine, executionName, input)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.StartSyncExecutionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.StartSyncExecutionOutput")
+		return nil, errors.New("mock data is not *sfn.StartSyncExecutionOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) GetExecutionHistory(ctx context.Context, executionArn string) ([]stefunny.HistoryEvent, error) {
+	args := m.Called(ctx, executionArn)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.([]stefunny.HistoryEvent); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not []stefunny.HistoryEvent")
+		return nil, errors.New("mock data is not []stefunny.HistoryEvent")
+	}
+	return nil, err
+}
+
+type mockEventBridgeService struct {
+	mock.Mock
+	t *testing.T
+}
+
+func NewMockEventBridgeService(t *testing.T) *mockEventBridgeService {
+	t.Helper()
+	m := &mockEventBridgeService{
+		t: t,
+	}
+	m.Test(t)
+	return m
+}
+
+func (m *mockEventBridgeService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*stefunny.ScheduleRule, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, ruleName, optFns)
+	} else {
+		args = m.Called(ctx, ruleName)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.ScheduleRule); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *stefunny.ScheduleRule")
+		return nil, errors.New("mock data is not *stefunny.ScheduleRule")
+	}
+	return nil, err
+}
+
+func (m *mockEventBridgeService) SearchScheduleRule(ctx context.Context, stateMachineArn string) (stefunny.ScheduleRules, error) {
+	args := m.Called(ctx, stateMachineArn)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(stefunny.ScheduleRules); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not stefunny.ScheduleRules")
+		return nil, errors.New("mock data is not stefunny.ScheduleRules")
+	}
+	return nil, err
+}
+
+func (m *mockEventBridgeService) DeployScheduleRules(ctx context.Context, rules stefunny.ScheduleRules, optFns ...func(*eventbridge.Options)) (stefunny.DeployScheduleRulesOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, rules, optFns)
+	} else {
+		args = m.Called(ctx, rules)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(stefunny.DeployScheduleRulesOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *stefunny.DeployScheduleRulesOutput")
+		return nil, errors.New("mock data is not *stefunny.DeployScheduleRulesOutput")
+	}
+	return nil, err
+}
+
+func (m *mockEventBridgeService) DeleteScheduleRules(ctx context.Context, rules stefunny.ScheduleRules, optFns ...func(*eventbridge.Options)) error {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, rules, optFns)
+	} else {
+		args = m.Called(ctx, rules)
+	}
+	return args.Error(0)
+}
+
 type mocks struct {
-	sfn         *mockSFnClient
-	eventBridge *mockEventBridgeClient
+	sfn         *mockSFnService
+	eventBridge *mockEventBridgeService
 }
 
 func NewMocks(t *testing.T) *mocks {
 	t.Helper()
 	m := &mocks{
-		sfn:         NewMockSFnClient(t),
-		eventBridge: NewMockEventBridgeClient(t),
+		sfn:         NewMockSFnService(t),
+		eventBridge: NewMockEventBridgeService(t),
 	}
 	return m
 }
@@ -419,8 +632,8 @@ func newMockApp(t *testing.T, path string, m *mocks) *stefunny.App {
 	require.NoError(t, err)
 	app, err := stefunny.New(
 		ctx, cfg,
-		stefunny.WithSFnClient(m.sfn),
-		stefunny.WithEventBridgeClient(m.eventBridge),
+		stefunny.WithSFnService(m.sfn),
+		stefunny.WithEventBridgeService(m.eventBridge),
 	)
 	require.NoError(t, err)
 	return app

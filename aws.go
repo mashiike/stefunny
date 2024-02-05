@@ -235,6 +235,15 @@ func (s *StateMachine) AppendTags(tags map[string]string) {
 	s.Tags = append(s.Tags, notExists...)
 }
 
+func (s *StateMachine) IsManagedBy() bool {
+	for _, tag := range s.Tags {
+		if *tag.Key == tagManagedBy && *tag.Value == appName {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *StateMachine) String() string {
 	var builder strings.Builder
 	builder.WriteString(colorRestString("StateMachine Configure:\n"))
@@ -254,6 +263,10 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 }
 
 func (s *StateMachine) configureJSON() string {
+	tags := make(map[string]string, len(s.Tags))
+	for _, tag := range s.Tags {
+		tags[*tag.Key] = *tag.Value
+	}
 	params := map[string]interface{}{
 		"Name":                 s.Name,
 		"RoleArn":              s.RoleArn,
@@ -262,7 +275,7 @@ func (s *StateMachine) configureJSON() string {
 			Enabled: false,
 		},
 		"Type": s.Type,
-		"Tags": s.Tags,
+		"Tags": tags,
 	}
 	if s.TracingConfiguration != nil {
 		params["TracingConfiguration"] = s.TracingConfiguration
@@ -274,7 +287,6 @@ type ScheduleRule struct {
 	eventbridge.PutRuleInput
 	TargetRoleArn string
 	Targets       []eventbridgetypes.Target
-	Tags          map[string]string
 }
 
 type ScheduleRules []*ScheduleRule
@@ -337,11 +349,6 @@ func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, rul
 		},
 		Targets: listTargetsOutput.Targets,
 	}
-	tags := make(map[string]string, len(tagsOutput.Tags))
-	for _, tag := range tagsOutput.Tags {
-		tags[*tag.Key] = *tag.Value
-	}
-	rule.Tags = tags
 	return rule, nil
 }
 
@@ -411,7 +418,7 @@ func (svc *EventBridgeServiceImpl) SearchScheduleRule(ctx context.Context, state
 			if err == ErrRuleIsNotSchedule {
 				continue
 			}
-			if schedule.HasTagKeyValue(tagManagedBy, appName) {
+			if schedule.IsManagedBy() {
 				rules = append(rules, schedule)
 			} else {
 				name := ""
@@ -448,13 +455,9 @@ func (svc *EventBridgeServiceImpl) DeployScheduleRule(ctx context.Context, rule 
 	}
 
 	log.Println("[debug] deploy update tag")
-	rule.PutRuleInput.Tags = make([]eventbridgetypes.Tag, 0, len(rule.Tags))
-	for key, value := range rule.Tags {
-		rule.PutRuleInput.Tags = append(rule.PutRuleInput.Tags, eventbridgetypes.Tag{
-			Key:   aws.String(key),
-			Value: aws.String(value),
-		})
-	}
+	rule.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
 	_, err = svc.client.TagResource(ctx, &eventbridge.TagResourceInput{
 		ResourceARN: putRuleOutput.RuleArn,
 		Tags:        rule.PutRuleInput.Tags,
@@ -538,14 +541,48 @@ func (rule *ScheduleRule) SetStateMachineArn(stateMachineArn string) {
 	}
 }
 
+func (rule *ScheduleRule) IsManagedBy() bool {
+	for _, tag := range rule.Tags {
+		if *tag.Key == tagManagedBy && *tag.Value == appName {
+			return true
+		}
+	}
+	return false
+}
+
+func (rule *ScheduleRule) AppendTags(tags map[string]string) {
+	notExists := make([]eventbridgetypes.Tag, 0, len(tags))
+	aleradyExists := make(map[string]string, len(rule.Tags))
+	pos := make(map[string]int, len(rule.Tags))
+	for i, tag := range rule.Tags {
+		aleradyExists[*tag.Key] = *tag.Value
+		pos[*tag.Key] = i
+	}
+	for key, value := range tags {
+		if _, ok := aleradyExists[key]; !ok {
+			notExists = append(notExists, eventbridgetypes.Tag{
+				Key:   aws.String(key),
+				Value: aws.String(value),
+			})
+			continue
+		}
+		rule.Tags[pos[key]].Value = aws.String(value)
+	}
+	rule.Tags = append(rule.Tags, notExists...)
+}
+
 func (rule *ScheduleRule) configureJSON() string {
+	tags := make(map[string]string, len(rule.Tags))
+	for _, tag := range rule.Tags {
+		tags[*tag.Key] = *tag.Value
+	}
 	params := map[string]interface{}{
 		"Name":               rule.Name,
 		"Description":        rule.Description,
 		"ScheduleExpression": rule.ScheduleExpression,
 		"State":              rule.State,
 		"Targets":            rule.Targets,
-		"Tags":               rule.Tags,
+		"Tags":               tags,
 	}
 	return MarshalJSONString(params)
 }
@@ -568,15 +605,6 @@ func (rule *ScheduleRule) SetEnabled(enabled bool) {
 	} else {
 		rule.State = eventbridgetypes.RuleStateDisabled
 	}
-}
-
-func (rule *ScheduleRule) HasTagKeyValue(otherKey, otherValue string) bool {
-	for key, value := range rule.Tags {
-		if key == otherKey && value == otherValue {
-			return true
-		}
-	}
-	return false
 }
 
 func (rules ScheduleRules) SetStateMachineArn(stateMachineArn string) {

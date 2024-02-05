@@ -83,11 +83,18 @@ func (o *newAppOptions) GetEventBridgeService(ctx context.Context) (EventBridgeS
 	return o.eventbridgeSvc, nil
 }
 
-// WithSFNClient sets the SFN client for New(ctx, cfg, opts...)
+// WithSFNClient sets the SFn client for New(ctx, cfg, opts...)
 // this is for testing
 func WithSFnClient(sfnClient SFnClient) NewAppOption {
 	return func(o *newAppOptions) {
 		o.sfnSvc = NewSFnService(sfnClient)
+	}
+}
+
+// WithSFnService sets the SFn service for New(ctx, cfg, opts...)
+func WithSFnService(sfnService SFnService) NewAppOption {
+	return func(o *newAppOptions) {
+		o.sfnSvc = sfnService
 	}
 }
 
@@ -96,6 +103,13 @@ func WithSFnClient(sfnClient SFnClient) NewAppOption {
 func WithEventBridgeClient(eventBridgeClient EventBridgeClient) NewAppOption {
 	return func(o *newAppOptions) {
 		o.eventbridgeSvc = NewEventBridgeService(eventBridgeClient)
+	}
+}
+
+// WithEventBridgeService sets the EventBridge service for New(ctx, cfg, opts...)
+func WithEventBridgeService(eventBridgeService EventBridgeService) NewAppOption {
+	return func(o *newAppOptions) {
+		o.eventbridgeSvc = eventBridgeService
 	}
 }
 
@@ -147,12 +161,12 @@ func (app *App) LoadScheduleRules(_ context.Context, stateMachineArn string) (Sc
 				Name:               aws.String(cfg.RuleName),
 				ScheduleExpression: &cfg.Expression,
 				State:              eventbridgetypes.RuleStateEnabled,
+				Tags:               make([]eventbridgetypes.Tag, 0, len(app.cfg.Tags)),
 			},
 			Targets: []eventbridgetypes.Target{{
 				RoleArn: aws.String(cfg.RoleArn),
 			}},
 			TargetRoleArn: cfg.RoleArn,
-			Tags:          app.cfg.Tags,
 		}
 		if cfg.Description != "" {
 			rule.Description = aws.String(cfg.Description)
@@ -160,7 +174,12 @@ func (app *App) LoadScheduleRules(_ context.Context, stateMachineArn string) (Sc
 		if cfg.ID != "" {
 			rule.Targets[0].Id = aws.String(cfg.ID)
 		}
-		rule.Tags[tagManagedBy] = appName
+		for k, v := range app.cfg.Tags {
+			rule.Tags = append(rule.Tags, eventbridgetypes.Tag{
+				Key:   aws.String(k),
+				Value: aws.String(v),
+			})
+		}
 		rule.SetStateMachineArn(stateMachineArn)
 		rules = append(rules, rule)
 	}
