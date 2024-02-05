@@ -14,7 +14,9 @@ import (
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/aws/smithy-go"
 	"github.com/google/uuid"
+	"github.com/shogo82148/go-retry"
 )
 
 type SFnClient interface {
@@ -73,6 +75,7 @@ type SFnService interface {
 type SFnServiceImpl struct {
 	client                     SFnClient
 	cacheStateMachineArnByName map[string]string
+	retryPolicy                retry.Policy
 }
 
 var _ SFnService = (*SFnServiceImpl)(nil)
@@ -81,6 +84,11 @@ func NewSFnService(client SFnClient) *SFnServiceImpl {
 	return &SFnServiceImpl{
 		client:                     client,
 		cacheStateMachineArnByName: make(map[string]string),
+		retryPolicy: retry.Policy{
+			MinDelay: time.Second,
+			MaxDelay: 10 * time.Second,
+			MaxCount: 30,
+		},
 	}
 }
 
@@ -173,6 +181,9 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 			CreationDate:           createOutput.CreationDate,
 			UpdateDate:             createOutput.CreationDate,
 		}
+		stateMachine.StateMachineArn = createOutput.StateMachineArn
+		stateMachine.CreationDate = createOutput.CreationDate
+		stateMachine.Status = sfntypes.StateMachineStatusActive
 	} else {
 		var err error
 		output, err = svc.updateStateMachine(ctx, stateMachine, optFns...)
@@ -181,6 +192,9 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 		}
 	}
 	svc.cacheStateMachineArnByName[*stateMachine.Name] = *output.StateMachineArn
+	if err := svc.waitForLastUpdateStatusActive(ctx, stateMachine, optFns...); err != nil {
+		return nil, err
+	}
 	return output, nil
 }
 
@@ -220,6 +234,35 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 		CreationDate:           stateMachine.CreationDate,
 		UpdateDate:             output.UpdateDate,
 	}, nil
+}
+
+func (svc *SFnServiceImpl) waitForLastUpdateStatusActive(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
+	retrier := svc.retryPolicy.Start(ctx)
+	for retrier.Continue() {
+		output, err := svc.client.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
+			StateMachineArn: stateMachine.StateMachineArn,
+		}, optFns...)
+		if err != nil {
+			var apiErr smithy.APIError
+			if !errors.As(err, &apiErr) {
+				log.Printf("[debug] unexpected error: %s", err)
+			}
+			if apiErr.ErrorCode() == "AccessDeniedException" {
+				log.Println("[debug] access denied, skip wait")
+				return err
+			}
+			log.Println("[warn] describe state machine failed, retrying... :", err)
+			continue
+		}
+		if output.Status == sfntypes.StateMachineStatusActive {
+			return nil
+		}
+		log.Printf(
+			"[info] waiting for StateMachine `%s`: current status is `%s`",
+			sfntypes.StateMachineStatusActive, output.Status,
+		)
+	}
+	return errors.New("max retry count exceeded")
 }
 
 func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {

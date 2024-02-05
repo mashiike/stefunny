@@ -342,6 +342,18 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
 		CreationDate:           aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}, nil).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			Name:            stateMachine.CreateStateMachineInput.Name,
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+			Definition:      stateMachine.CreateStateMachineInput.Definition,
+			Status:          sfntypes.StateMachineStatusActive,
+			CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		},
+		nil,
+	).Once()
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
@@ -446,6 +458,19 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 			Tags:        stateMachine.CreateStateMachineInput.Tags,
 		}, input)
 	})).Return(&sfn.TagResourceOutput{}, nil).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			Name:            stateMachine.Name,
+			StateMachineArn: stateMachine.StateMachineArn,
+			Definition:      stateMachine.Definition,
+			CreationDate:    stateMachine.CreationDate,
+			Status:          sfntypes.StateMachineStatusActive,
+		},
+		nil,
+	).Once()
+
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	actual, err := svc.DeployStateMachine(ctx, stateMachine)
@@ -531,7 +556,9 @@ func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
 	}
 	expectedErr := errors.New("this is testing")
 	m.On("UpdateStateMachine", mock.Anything, mock.Anything).Return(&sfn.UpdateStateMachineOutput{
-		UpdateDate: aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
 	}, nil).Once()
 
 	m.On("TagResource", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
