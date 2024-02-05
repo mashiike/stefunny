@@ -16,6 +16,7 @@ import (
 )
 
 func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -29,6 +30,7 @@ func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
 }
 
 func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -115,6 +117,7 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 }
 
 func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -221,6 +224,7 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 }
 
 func TestSFnService_DescribeStateMachine_FailedOnListStateMachine(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	expectedErr := errors.New("this is testing")
@@ -232,6 +236,7 @@ func TestSFnService_DescribeStateMachine_FailedOnListStateMachine(t *testing.T) 
 }
 
 func TestSFnService_DescribeStateMachine_FailedOnDescribeStateMachine(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -256,6 +261,7 @@ func TestSFnService_DescribeStateMachine_FailedOnDescribeStateMachine(t *testing
 }
 
 func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -298,6 +304,7 @@ func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.
 }
 
 func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	stateMachine := &stefunny.StateMachine{
@@ -388,6 +395,7 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 }
 
 func TestSFnService_DeployStateMachine_CreateStateMachineFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	stateMachine := &stefunny.StateMachine{
@@ -425,6 +433,7 @@ func TestSFnService_DeployStateMachine_CreateStateMachineFailed(t *testing.T) {
 }
 
 func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	stateMachine := &stefunny.StateMachine{
@@ -523,6 +532,7 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 }
 
 func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	stateMachine := &stefunny.StateMachine{
@@ -563,6 +573,7 @@ func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
 }
 
 func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	stateMachine := &stefunny.StateMachine{
@@ -608,6 +619,7 @@ func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
 }
 
 func TestSFnService_DeleteStateMachine_Success(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	stateMachineArn := "arn:aws:states:us-east-1:123456789012:stateMachine:Hello"
@@ -624,6 +636,7 @@ func TestSFnService_DeleteStateMachine_Success(t *testing.T) {
 }
 
 func TestSFnService_DeleteStateMachine_Deleting(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	svc := stefunny.NewSFnService(m)
@@ -637,6 +650,7 @@ func TestSFnService_DeleteStateMachine_Deleting(t *testing.T) {
 }
 
 func TestSFnService_DeleteStateMachine_Failed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	expectedErr := errors.New("this is testing")
@@ -651,6 +665,7 @@ func TestSFnService_DeleteStateMachine_Failed(t *testing.T) {
 }
 
 func TestSFnService_StartExecution_Success(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	m.On("StartExecution", mock.Anything, mock.MatchedBy(
@@ -683,6 +698,7 @@ func TestSFnService_StartExecution_Success(t *testing.T) {
 }
 
 func TestSFnService_StartExecution_Failed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	expectedErr := errors.New("this is testing")
@@ -700,6 +716,7 @@ func TestSFnService_StartExecution_Failed(t *testing.T) {
 }
 
 func TestSFnService_WaitExecution_Success(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
@@ -750,6 +767,7 @@ func TestSFnService_WaitExecution_Success(t *testing.T) {
 }
 
 func TestSFnService_WaitExecution_ExecutionIsFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
@@ -809,6 +827,7 @@ func TestSFnService_WaitExecution_ExecutionIsFailed(t *testing.T) {
 }
 
 func TestSFnService_WaitExecution_DescribeExecutionAPIFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	expectedErr := errors.New("this is testing")
@@ -821,6 +840,7 @@ func TestSFnService_WaitExecution_DescribeExecutionAPIFailed(t *testing.T) {
 }
 
 func TestSFnService__WaitExectuion_GetHistoryAPIFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	m.On("DescribeExecution", mock.Anything, mock.Anything).Return(&sfn.DescribeExecutionOutput{
@@ -841,6 +861,7 @@ func TestSFnService__WaitExectuion_GetHistoryAPIFailed(t *testing.T) {
 }
 
 func TestSFnService_WaitExecution_ContextCancelStopExection(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -868,6 +889,7 @@ func TestSFnService_WaitExecution_ContextCancelStopExection(t *testing.T) {
 }
 
 func TestSFnService_WaitExecution_StopExecutionAPIFaild(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 
@@ -888,6 +910,7 @@ func TestSFnService_WaitExecution_StopExecutionAPIFaild(t *testing.T) {
 }
 
 func TestSFnService__StartSyncExecution_Success(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	m.On("StartSyncExecution", mock.Anything, mock.MatchedBy(
@@ -922,6 +945,7 @@ func TestSFnService__StartSyncExecution_Success(t *testing.T) {
 }
 
 func TestSFnService__StartSyncExecution_Failed(t *testing.T) {
+	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	expectedErr := errors.New("this is testing")
