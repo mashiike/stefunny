@@ -2,6 +2,7 @@ package stefunny_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 )
 
 type mockSFnClient struct {
+	t *testing.T
 	mock.Mock
 }
 
@@ -40,7 +42,16 @@ func (m *mockSFnClient) DescribeStateMachine(ctx context.Context, params *sfn.De
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.DescribeStateMachineOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.DescribeStateMachineOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.DescribeStateMachineOutput")
+		return nil, errors.New("mock data is not *sfn.DescribeStateMachineOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error) {
@@ -60,7 +71,16 @@ func (m *mockSFnClient) ListStateMachines(ctx context.Context, params *sfn.ListS
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.ListStateMachinesOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.ListStateMachinesOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.ListStateMachinesOutput")
+		return nil, errors.New("mock data is not *sfn.ListStateMachinesOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error) {
@@ -80,7 +100,16 @@ func (m *mockSFnClient) ListTagsForResource(ctx context.Context, params *sfn.Lis
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*sfn.ListTagsForResourceOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.ListTagsForResourceOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.ListTagsForResourceOutput")
+		return nil, errors.New("mock data is not *sfn.ListTagsForResourceOutput")
+	}
+	return nil, err
 }
 
 func (m *mockSFnClient) TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
@@ -274,18 +303,33 @@ func newDescribeRuleOutput(name string) *eventbridge.DescribeRuleOutput {
 	return &eventbridge.DescribeRuleOutput{}
 }
 
+func NewMockSFnClient(t *testing.T) *mockSFnClient {
+	t.Helper()
+	m := &mockSFnClient{
+		t: t,
+	}
+	m.Test(t)
+	return m
+}
+
+func NewMockEventBridgeClient(t *testing.T) *mockEventBridgeClient {
+	t.Helper()
+	m := new(mockEventBridgeClient)
+	m.Test(t)
+	return m
+}
+
 type mocks struct {
 	sfn         *mockSFnClient
 	eventBridge *mockEventBridgeClient
 }
 
 func NewMocks(t *testing.T) *mocks {
+	t.Helper()
 	m := &mocks{
-		sfn:         new(mockSFnClient),
-		eventBridge: new(mockEventBridgeClient),
+		sfn:         NewMockSFnClient(t),
+		eventBridge: NewMockEventBridgeClient(t),
 	}
-	m.sfn.Test(t)
-	m.eventBridge.Test(t)
 	return m
 }
 
