@@ -1,0 +1,35 @@
+{
+  "required_version": "\u003ev0.0.0",
+  "aws_region": "us-east-1",
+  "state_machine": {
+    "definition": "{\n   \"Comment\": \"A Hello World example of the Amazon States Language using Pass states\",\n   \"StartAt\": \"Hello\",\n   \"States\": {\n      \"Hello\": {\n         \"Next\": \"New\",\n         \"Type\": \"Pass\"\n      },\n      \"New\": {\n         \"Next\": \"World\",\n         \"Seconds\": 120,\n         \"Type\": \"Wait\"\n      },\n      \"World\": {\n         \"Comment\": \"great!!!\",\n         \"End\": true,\n         \"Parameters\": {\n            \"Bucket\": \"test-hoge\"\n         },\n         \"Resource\": \"arn:aws:states:::aws-sdk:s3:listObjects\",\n         \"Type\": \"Task\"\n      }\n   }\n}",
+    "logging_configuration": {
+      "destinations": [
+        {
+          "cloudwatch_logs_log_group": {
+            "log_group_arn": "arn:aws:logs:ap-northeast-1:000000000000:log-group:test"
+          }
+        }
+      ],
+      "include_execution_data": false,
+      "level": "FATAL"
+    },
+    "name": "Hello",
+    "publish": false,
+    "role_arn": "arn:aws:iam::000000000000:role/test",
+    "tracing_configuration": {
+      "enabled": false
+    },
+    "type": "STANDARD"
+  },
+  "tfstate": [
+    {
+      "path": "./terraform.tfstate"
+    },
+    {
+      "func_prefix": "second_",
+      "url": "./terraform.tfstate"
+    }
+  ],
+  "ConfigDir": "testdata"
+}
