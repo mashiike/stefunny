@@ -26,6 +26,7 @@ type CLI struct {
 	Init     InitOption            `cmd:"" help:"Initialize stefunny configuration" json:"init,omitempty"`
 	Delete   DeleteOption          `cmd:"" help:"Delete state machine and schedule rules" json:"delete,omitempty"`
 	Deploy   DeployCommandOption   `cmd:"" help:"Deploy state machine and schedule rules" json:"deploy,omitempty"`
+	Rollback RollbackOption        `cmd:"" help:"Rollback state machine" json:"rollback,omitempty"`
 	Schedule ScheduleCommandOption `cmd:"" help:"Enable or disable schedule rules" json:"schedule,omitempty"`
 	Render   RenderOption          `cmd:"" help:"Render state machine definition" json:"render,omitempty"`
 	Execute  ExecuteOption         `cmd:"" help:"Execute state machine" json:"execute,omitempty"`
@@ -205,6 +206,8 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		return app.Deploy(ctx, cli.Deploy.DeployOption())
 	case "schedule":
 		return app.Deploy(ctx, cli.Schedule.DeployOption())
+	case "rollback":
+		return app.Rollback(ctx, cli.Rollback)
 	case "delete":
 		return app.Delete(ctx, cli.Delete)
 	case "render":

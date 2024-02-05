@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
@@ -70,6 +72,7 @@ type SFnService interface {
 	GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error)
 	DeployStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*DeployStateMachineOutput, error)
 	DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error
+	RollbackStateMachine(ctx context.Context, stateMachine *StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error
 	WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error)
 	StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error)
 	StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error)
@@ -77,17 +80,19 @@ type SFnService interface {
 }
 
 type SFnServiceImpl struct {
-	client                     SFnClient
-	cacheStateMachineArnByName map[string]string
-	retryPolicy                retry.Policy
+	client                      SFnClient
+	cacheStateMachineArnByName  map[string]string
+	cacheStateMAchineAliasByArn map[string]*sfn.DescribeStateMachineAliasOutput
+	retryPolicy                 retry.Policy
 }
 
 var _ SFnService = (*SFnServiceImpl)(nil)
 
 func NewSFnService(client SFnClient) *SFnServiceImpl {
 	return &SFnServiceImpl{
-		client:                     client,
-		cacheStateMachineArnByName: make(map[string]string),
+		client:                      client,
+		cacheStateMachineArnByName:  make(map[string]string),
+		cacheStateMAchineAliasByArn: make(map[string]*sfn.DescribeStateMachineAliasOutput),
 		retryPolicy: retry.Policy{
 			MinDelay: time.Second,
 			MaxDelay: 10 * time.Second,
@@ -238,10 +243,23 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 	}, nil
 }
 
-func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine *StateMachine, versionARN string, optFns ...func(*sfn.Options)) error {
+func (svc *SFnServiceImpl) describeStateMachineAlias(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineAliasOutput, error) {
+	aliasArn := fmt.Sprintf("%s:%s", *stateMachine.StateMachineArn, currentAliasName)
+	if alias, ok := svc.cacheStateMAchineAliasByArn[aliasArn]; ok {
+		return alias, nil
+	}
 	alias, err := svc.client.DescribeStateMachineAlias(ctx, &sfn.DescribeStateMachineAliasInput{
-		StateMachineAliasArn: aws.String(fmt.Sprintf("%s:%s", *stateMachine.StateMachineArn, currentAliasName)),
+		StateMachineAliasArn: aws.String(aliasArn),
 	}, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	svc.cacheStateMAchineAliasByArn[*stateMachine.StateMachineArn] = alias
+	return alias, nil
+}
+
+func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine *StateMachine, versionARN string, optFns ...func(*sfn.Options)) error {
+	alias, err := svc.describeStateMachineAlias(ctx, stateMachine, optFns...)
 	if err != nil {
 		var notExists *sfntypes.ResourceNotFound
 		if errors.As(err, &notExists) {
@@ -306,6 +324,113 @@ func (svc *SFnServiceImpl) waitForLastUpdateStatusActive(ctx context.Context, st
 		)
 	}
 	return errors.New("max retry count exceeded")
+}
+
+func extructVersion(versionARN string) (int, error) {
+	arnObj, err := arn.Parse(versionARN)
+	if err != nil {
+		return 0, fmt.Errorf("parse arn failed: %w", err)
+	}
+	parts := strings.Split(arnObj.Resource, ":")
+	if parts[0] != "stateMachine" {
+		return 0, fmt.Errorf("`%s` is not state machine version arn", versionARN)
+	}
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid arn format: %s", versionARN)
+	}
+	version, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return 0, fmt.Errorf("parse version number failed: %w", err)
+	}
+	return version, nil
+}
+
+func (svc *SFnServiceImpl) RollbackStateMachine(ctx context.Context, stateMachine *StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error {
+	if stateMachine.StateMachineArn == nil {
+		return ErrStateMachineDoesNotExist
+	}
+	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
+		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
+		return nil
+	}
+	alias, err := svc.describeStateMachineAlias(ctx, stateMachine, optFns...)
+	if err != nil {
+		var notExists *sfntypes.ResourceNotFound
+		if errors.As(err, &notExists) {
+			log.Println("[notice] current alias does not exist, can not rollback")
+			return nil
+		}
+		return err
+	}
+	if len(alias.RoutingConfiguration) > 1 {
+		log.Println("[notice] current alias has multiple versions, can not rollback, please manual rollback")
+		return nil
+	}
+	currentVersionArn := *alias.RoutingConfiguration[0].StateMachineVersionArn
+	currentVersion, err := extructVersion(currentVersionArn)
+	if err != nil {
+		return fmt.Errorf("extruct version failed: %w", err)
+	}
+	log.Printf("[info] current alias version is `%d`", currentVersion)
+	if currentVersion <= 1 {
+		log.Println("[notice] current alias has no previous version, can not rollback")
+		return nil
+	}
+	p := newListStateMachineVersionsPaginator(svc.client, &sfn.ListStateMachineVersionsInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	})
+	targetVersion := 0
+	targetVersionArn := currentVersionArn
+	for p.HasMorePages() {
+		output, err := p.NextPage(ctx, optFns...)
+		if err != nil {
+			return fmt.Errorf("list state machine versions failed: %w", err)
+		}
+		for _, v := range output.StateMachineVersions {
+			log.Println("[debug] found version: ", *v.StateMachineVersionArn)
+			version, err := extructVersion(*v.StateMachineVersionArn)
+			if err != nil {
+				return fmt.Errorf("list state machine: extruct version failed: %w", err)
+			}
+			log.Printf("[debug] check rollback target selectable: %d > %d = %t", version, currentVersion, version > currentVersion)
+			if version >= currentVersion {
+				log.Println("[debug] skip version: ", version)
+				continue
+			}
+			log.Printf("[debug] check latest rollback target: %d < %d = %t", targetVersion, version, targetVersion < version)
+			if targetVersion < version {
+				targetVersion = version
+				targetVersionArn = *v.StateMachineVersionArn
+			}
+		}
+	}
+	log.Println("[debug] target version: ", targetVersion)
+	if targetVersionArn == currentVersionArn {
+		log.Println("[notice] no previous version found, can not rollback")
+		return nil
+	}
+	log.Printf("[info] rollback to version `%d`", targetVersion)
+	if !dryRun {
+		if err := svc.updateCurrentArias(ctx, stateMachine, targetVersionArn, optFns...); err != nil {
+			return fmt.Errorf("update current alias failed: %w", err)
+		}
+		log.Println("[info] rollback success")
+	}
+	if keepVersion {
+		return nil
+	}
+	log.Printf("[info] delete version `%d`", currentVersion)
+	if !dryRun {
+		_, err = svc.client.DeleteStateMachineVersion(ctx, &sfn.DeleteStateMachineVersionInput{
+			StateMachineVersionArn: &currentVersionArn,
+		}, optFns...)
+		if err != nil {
+			return fmt.Errorf("delete version failed: %w", err)
+		}
+		log.Printf("[info] `%s` deleted", currentVersionArn)
+	}
+	return nil
 }
 
 func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
@@ -462,6 +587,52 @@ func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, rul
 		Targets: listTargetsOutput.Targets,
 	}
 	return rule, nil
+}
+
+type ListStateMachineVersionsPaginator struct {
+	client    SFnClient
+	params    *sfn.ListStateMachineVersionsInput
+	nextToken *string
+	firstPage bool
+}
+
+func newListStateMachineVersionsPaginator(client SFnClient, params *sfn.ListStateMachineVersionsInput) *ListStateMachineVersionsPaginator {
+	if params == nil {
+		params = &sfn.ListStateMachineVersionsInput{}
+	}
+
+	return &ListStateMachineVersionsPaginator{
+		client:    client,
+		params:    params,
+		firstPage: true,
+	}
+}
+
+func (p *ListStateMachineVersionsPaginator) HasMorePages() bool {
+	return p.firstPage || p.nextToken != nil
+}
+
+func (p *ListStateMachineVersionsPaginator) NextPage(ctx context.Context, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineVersionsOutput, error) {
+	if !p.HasMorePages() {
+		return nil, fmt.Errorf("no more pages available")
+	}
+
+	params := *p.params
+	params.NextToken = p.nextToken
+
+	result, err := p.client.ListStateMachineVersions(ctx, &params, optFns...)
+	if err != nil {
+		return nil, err
+	}
+	p.firstPage = false
+
+	prevToken := p.nextToken
+	p.nextToken = result.NextToken
+
+	if prevToken != nil && p.nextToken != nil && *prevToken == *p.nextToken {
+		p.nextToken = nil
+	}
+	return result, nil
 }
 
 type listRuleNamesByTargetPaginator struct {

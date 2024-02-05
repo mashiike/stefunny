@@ -568,6 +568,16 @@ func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *s
 	return args.Error(0)
 }
 
+func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, keepVersion, dryRun, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine, keepVersion, dryRun)
+	}
+	return args.Error(0)
+}
+
 func (m *mockSFnService) WaitExecution(ctx context.Context, executionArn string) (*stefunny.WaitExecutionOutput, error) {
 	args := m.Called(ctx, executionArn)
 	output := args.Get(0)
