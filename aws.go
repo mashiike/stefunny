@@ -19,6 +19,10 @@ import (
 	"github.com/shogo82148/go-retry"
 )
 
+const (
+	currentAliasName = "current"
+)
+
 type SFnClient interface {
 	sfn.ListStateMachinesAPIClient
 	CreateStateMachine(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error)
@@ -174,6 +178,7 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 		if err != nil {
 			return nil, fmt.Errorf("create failed: %w", err)
 		}
+		log.Printf("[info] create state machine `%s`", *createOutput.StateMachineVersionArn)
 		log.Println("[debug] finish create state machine")
 		output = &DeployStateMachineOutput{
 			StateMachineArn:        createOutput.StateMachineArn,
@@ -190,10 +195,14 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 		if err != nil {
 			return nil, err
 		}
+		log.Printf("[info] update state machine `%s`", *output.StateMachineVersionArn)
 	}
 	svc.cacheStateMachineArnByName[*stateMachine.Name] = *output.StateMachineArn
 	if err := svc.waitForLastUpdateStatusActive(ctx, stateMachine, optFns...); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("wait for last update status active failed: %w", err)
+	}
+	if err := svc.updateCurrentArias(ctx, stateMachine, *output.StateMachineVersionArn, optFns...); err != nil {
+		return nil, fmt.Errorf("update current alias failed: %w", err)
 	}
 	return output, nil
 }
@@ -234,6 +243,47 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 		CreationDate:           stateMachine.CreationDate,
 		UpdateDate:             output.UpdateDate,
 	}, nil
+}
+
+func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine *StateMachine, versionARN string, optFns ...func(*sfn.Options)) error {
+	alias, err := svc.client.DescribeStateMachineAlias(ctx, &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String(fmt.Sprintf("%s:%s", *stateMachine.StateMachineArn, currentAliasName)),
+	}, optFns...)
+	if err != nil {
+		var notExists *sfntypes.ResourceNotFound
+		if errors.As(err, &notExists) {
+			log.Println("[info] current alias does not exist, create it...")
+			output, err := svc.client.CreateStateMachineAlias(ctx, &sfn.CreateStateMachineAliasInput{
+				Name: aws.String(currentAliasName),
+				RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+					{
+						StateMachineVersionArn: aws.String(versionARN),
+						Weight:                 100,
+					},
+				},
+			}, optFns...)
+			if err != nil {
+				return err
+			}
+			log.Printf("[info] create current alias `%s`", *output.StateMachineAliasArn)
+			return nil
+		}
+		return err
+	}
+	log.Printf("[info] update current alias `%s`", *alias.StateMachineAliasArn)
+	_, err = svc.client.UpdateStateMachineAlias(ctx, &sfn.UpdateStateMachineAliasInput{
+		StateMachineAliasArn: alias.StateMachineAliasArn,
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String(versionARN),
+				Weight:                 100,
+			},
+		},
+	}, optFns...)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (svc *SFnServiceImpl) waitForLastUpdateStatusActive(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {

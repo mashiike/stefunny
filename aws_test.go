@@ -354,6 +354,26 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 		},
 		nil,
 	).Once()
+	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}).Return(
+		nil,
+		&sfntypes.ResourceNotFound{
+			Message: aws.String("not found"),
+		},
+	).Once()
+	m.On("CreateStateMachineAlias", mock.Anything, &sfn.CreateStateMachineAliasInput{
+		Name: aws.String("current"),
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
+				Weight:                 100,
+			},
+		},
+	}).Return(
+		&sfn.CreateStateMachineAliasOutput{},
+		nil,
+	).Once()
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
@@ -468,6 +488,26 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 			CreationDate:    stateMachine.CreationDate,
 			Status:          sfntypes.StateMachineStatusActive,
 		},
+		nil,
+	).Once()
+	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}).Return(
+		&sfn.DescribeStateMachineAliasOutput{
+			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		},
+		nil,
+	).Once()
+	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+				Weight:                 100,
+			},
+		},
+	}).Return(
+		&sfn.UpdateStateMachineAliasOutput{},
 		nil,
 	).Once()
 
