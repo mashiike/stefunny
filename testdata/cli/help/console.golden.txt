@@ -38,4 +38,7 @@ Commands:
   execute
     Execute state machine
 
+  versions
+    Manage state machine versions
+
 Run "stefunny <command> --help" for more information on a command.

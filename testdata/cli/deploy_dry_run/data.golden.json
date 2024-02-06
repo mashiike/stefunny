@@ -15,5 +15,9 @@
   "render": {},
   "execute": {
     "input": "-"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
   }
 }

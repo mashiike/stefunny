@@ -13,5 +13,9 @@
   "render": {},
   "execute": {
     "input": "testdata/input.json"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
   }
 }

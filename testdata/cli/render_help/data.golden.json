@@ -6,5 +6,6 @@
   "rollback": {},
   "schedule": {},
   "render": {},
-  "execute": {}
+  "execute": {},
+  "versions": {}
 }

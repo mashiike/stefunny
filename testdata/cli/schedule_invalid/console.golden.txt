@@ -16,5 +16,6 @@ Flags:
       --dry-run                 Dry run
       --enabled                 Enable schedule
       --disabled                Disable schedule
+      --alias=STRING            alias name for publish
 
 stefunny: error: --enabled and --disabled can't be used together

@@ -18,3 +18,7 @@ Flags:
                                 Skip deploy state machine
       --version-description=STRING
                                 Version description
+      --keep-versions=0         Number of latest versions to keep. Older
+                                versions will be deleted. (Optional value:
+                                default 0)
+      --alias=STRING            alias name for publish
