@@ -665,32 +665,156 @@ func TestSFnService_DeleteStateMachine_Failed(t *testing.T) {
 	require.ErrorIs(t, err, expectedErr)
 }
 
-func TestSFnService_StartExecution_Success(t *testing.T) {
+func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name: aws.String("Hello"),
+			Type: sfntypes.StateMachineTypeStandard,
+		},
+	}
+	params := &stefunny.StartExecutionInput{
+		ExecutionName: "000000-0000-0000-0000-000000000000",
+		Input:         "{}",
+		Async:         false,
+		Qualifier:     aws.String("current"),
+	}
 	m.On("StartExecution", mock.Anything, mock.MatchedBy(
 		func(input *sfn.StartExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartExecutionInput{
-				StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-				Name:            aws.String("test"),
-				Input:           aws.String(`{"key":"value"}`),
-				TraceHeader:     aws.String("Hello_test"),
+				StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+				Name:            aws.String(params.ExecutionName),
+				Input:           aws.String(params.Input),
+				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
 			}, input)
 		},
 	)).Return(&sfn.StartExecutionOutput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
 		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 	}, nil).Once()
+	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+	}).Return(&sfn.DescribeExecutionOutput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+		Name:         aws.String("test"),
+		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:       sfntypes.ExecutionStatusRunning,
+		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
+		Output:       aws.String(`{"key":"value"}`),
+	}, nil).Once()
+	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+	}).Return(&sfn.DescribeExecutionOutput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+		Name:         aws.String("test"),
+		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:       sfntypes.ExecutionStatusSucceeded,
+		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
+		Output:       aws.String(`{"key":"value"}`),
+	}, nil).Once()
+	m.On("GetExecutionHistory", mock.Anything, mock.MatchedBy(
+		func(input *sfn.GetExecutionHistoryInput) bool {
+			return assert.EqualValues(t, &sfn.GetExecutionHistoryInput{
+				ExecutionArn:         aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+				MaxResults:           5,
+				ReverseOrder:         true,
+				IncludeExecutionData: aws.Bool(true),
+			}, input)
+		},
+	)).Return(&sfn.GetExecutionHistoryOutput{
+		Events: []sfntypes.HistoryEvent{
+			{
+				Id:                           1,
+				Timestamp:                    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+				Type:                         sfntypes.HistoryEventTypeExecutionStarted,
+				ExecutionStartedEventDetails: &sfntypes.ExecutionStartedEventDetails{},
+			},
+		},
+	}, nil).Once()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
+	output, err := svc.StartExecution(ctx, stateMachine, params)
+	require.NoError(t, err)
+	require.EqualValues(t, &stefunny.StartExecutionOutput{
+		ExecutionArn: "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012",
+		StartDate:    time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+		Success:      aws.Bool(true),
+		Failed:       aws.Bool(false),
+		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
+		Output:       aws.String(`{"key":"value"}`),
+	}, output)
+}
+
+func TestSFnService_StartExecution_StartExecutionFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	expectedErr := errors.New("this is testing")
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name: aws.String("Hello"),
+			Type: sfntypes.StateMachineTypeStandard,
 		},
 	}
-	output, err := svc.StartExecution(ctx, stateMachine, "test", `{"key":"value"}`)
+	params := &stefunny.StartExecutionInput{
+		ExecutionName: "000000-0000-0000-0000-000000000000",
+		Input:         "{}",
+		Async:         false,
+	}
+	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+		func(input *sfn.StartExecutionInput) bool {
+			return assert.EqualValues(t, &sfn.StartExecutionInput{
+				StateMachineArn: stateMachine.StateMachineArn,
+				Name:            aws.String(params.ExecutionName),
+				Input:           aws.String(params.Input),
+				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
+			}, input)
+		},
+	)).Return(nil, expectedErr).Once()
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.StartExecution(ctx, stateMachine, params)
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestSFnService_StartExecution_StandardAsyncSuccess(t *testing.T) {
+	LoggerSetup(t, "debug")
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
+	stateMachine := &stefunny.StateMachine{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name: aws.String("Hello"),
+			Type: sfntypes.StateMachineTypeStandard,
+		},
+	}
+	params := &stefunny.StartExecutionInput{
+		ExecutionName: "000000-0000-0000-0000-000000000000",
+		Input:         "{}",
+		Async:         true,
+	}
+	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+		func(input *sfn.StartExecutionInput) bool {
+			return assert.EqualValues(t, &sfn.StartExecutionInput{
+				StateMachineArn: stateMachine.StateMachineArn,
+				Name:            aws.String(params.ExecutionName),
+				Input:           aws.String(params.Input),
+				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
+			}, input)
+		},
+	)).Return(&sfn.StartExecutionOutput{
+		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+	}, nil).Once()
+
+	svc := stefunny.NewSFnService(m)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	output, err := svc.StartExecution(ctx, stateMachine, params)
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.StartExecutionOutput{
 		ExecutionArn: "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012",
@@ -698,268 +822,130 @@ func TestSFnService_StartExecution_Success(t *testing.T) {
 	}, output)
 }
 
-func TestSFnService_StartExecution_Failed(t *testing.T) {
+func TestSFnService_StartExecution_ExpressSyncSuccess(t *testing.T) {
 	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
-	expectedErr := errors.New("this is testing")
-	m.On("StartExecution", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
-	svc := stefunny.NewSFnService(m)
-	ctx := context.Background()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name: aws.String("Hello"),
+			Type: sfntypes.StateMachineTypeExpress,
 		},
 	}
-	_, err := svc.StartExecution(ctx, stateMachine, "test", `{"key":"value"}`)
-	require.ErrorIs(t, err, expectedErr)
-}
-
-func TestSFnService_WaitExecution_Success(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
-	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-	}).Return(&sfn.DescribeExecutionOutput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-		Name:         aws.String("test"),
-		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		Status:       sfntypes.ExecutionStatusSucceeded,
-		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
-		Output:       aws.String(`{"key":"value"}`),
-	}, nil).Once()
-	m.On("GetExecutionHistory", mock.Anything, mock.MatchedBy(
-		func(input *sfn.GetExecutionHistoryInput) bool {
-			return assert.EqualValues(t, &sfn.GetExecutionHistoryInput{
-				ExecutionArn:         aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-				MaxResults:           5,
-				ReverseOrder:         true,
-				IncludeExecutionData: aws.Bool(true),
-			}, input)
-		},
-	)).Return(&sfn.GetExecutionHistoryOutput{
-		Events: []sfntypes.HistoryEvent{
-			{
-				Id:        1,
-				Timestamp: aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-				Type:      sfntypes.HistoryEventTypeExecutionStarted,
-			},
-			{
-				Id:        2,
-				Timestamp: aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
-				Type:      sfntypes.HistoryEventTypeExecutionSucceeded,
-			},
-		},
-	}, nil).Once()
-
-	svc := stefunny.NewSFnService(m)
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	output, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
-	require.NoError(t, err)
-	require.EqualValues(t, &stefunny.WaitExecutionOutput{
-		Success:   true,
-		StartDate: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
-		StopDate:  time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC),
-		Output:    `{"key":"value"}`,
-	}, output)
-}
-
-func TestSFnService_WaitExecution_ExecutionIsFailed(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
-	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-	}).Return(&sfn.DescribeExecutionOutput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-		Name:         aws.String("test"),
-		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		Status:       sfntypes.ExecutionStatusFailed,
-		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
-		Output:       aws.String(`{"key":"value"}`),
-	}, nil).Once()
-	m.On("GetExecutionHistory", mock.Anything, mock.MatchedBy(
-		func(input *sfn.GetExecutionHistoryInput) bool {
-			return assert.EqualValues(t, &sfn.GetExecutionHistoryInput{
-				ExecutionArn:         aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-				MaxResults:           5,
-				ReverseOrder:         true,
-				IncludeExecutionData: aws.Bool(true),
-			}, input)
-		},
-	)).Return(&sfn.GetExecutionHistoryOutput{
-		Events: []sfntypes.HistoryEvent{
-			{
-				Id:        1,
-				Timestamp: aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-				Type:      sfntypes.HistoryEventTypeExecutionStarted,
-			},
-			{
-				Id:        2,
-				Timestamp: aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
-				Type:      sfntypes.HistoryEventTypeExecutionFailed,
-				ExecutionFailedEventDetails: &sfntypes.ExecutionFailedEventDetails{
-					Error: aws.String("TestError"),
-					Cause: aws.String("TestCause"),
-				},
-			},
-		},
-	}, nil).Once()
-
-	svc := stefunny.NewSFnService(m)
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	output, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
-	require.NoError(t, err)
-	require.EqualValues(t, &stefunny.WaitExecutionOutput{
-		Success:   false,
-		Failed:    true,
-		StartDate: time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
-		StopDate:  time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC),
-		Output:    `{"key":"value"}`,
-		Datail: &sfntypes.ExecutionFailedEventDetails{
-			Error: aws.String("TestError"),
-			Cause: aws.String("TestCause"),
-		},
-	}, output)
-}
-
-func TestSFnService_WaitExecution_DescribeExecutionAPIFailed(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
-	expectedErr := errors.New("this is testing")
-	m.On("DescribeExecution", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
-	svc := stefunny.NewSFnService(m)
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	_, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
-	require.ErrorIs(t, err, expectedErr)
-}
-
-func TestSFnService__WaitExectuion_GetHistoryAPIFailed(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
-	m.On("DescribeExecution", mock.Anything, mock.Anything).Return(&sfn.DescribeExecutionOutput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-		Name:         aws.String("test"),
-		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		Status:       sfntypes.ExecutionStatusSucceeded,
-		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
-		Output:       aws.String(`{"key":"value"}`),
-	}, nil).Once()
-	expectedErr := errors.New("this is testing")
-	m.On("GetExecutionHistory", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
-	svc := stefunny.NewSFnService(m)
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
-	_, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
-	require.ErrorIs(t, err, expectedErr)
-}
-
-func TestSFnService_WaitExecution_ContextCancelStopExection(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
-
-	m.On("DescribeExecution", mock.Anything, mock.Anything).Return(&sfn.DescribeExecutionOutput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-		Name:         aws.String("test"),
-		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		Status:       sfntypes.ExecutionStatusRunning,
-	}, nil).Times(2)
-	m.On("StopExecution", mock.Anything, mock.MatchedBy(
-		func(input *sfn.StopExecutionInput) bool {
-			return assert.EqualValues(t, &sfn.StopExecutionInput{
-				ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-				Error:        aws.String("stefunny.ContextCanceled"),
-				Cause:        aws.String("context canceled"),
-			}, input)
-		},
-	)).Return(&sfn.StopExecutionOutput{}, nil).Once()
-
-	svc := stefunny.NewSFnService(m)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
-	require.ErrorIs(t, err, context.Canceled)
-}
-
-func TestSFnService_WaitExecution_StopExecutionAPIFaild(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
-
-	m.On("DescribeExecution", mock.Anything, mock.Anything).Return(&sfn.DescribeExecutionOutput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-		Name:         aws.String("test"),
-		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		Status:       sfntypes.ExecutionStatusRunning,
-	}, nil).Times(2)
-	expectedErr := errors.New("this is testing")
-	m.On("StopExecution", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
-
-	svc := stefunny.NewSFnService(m)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	_, err := svc.WaitExecution(ctx, "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012")
-	require.ErrorIs(t, err, context.Canceled)
-}
-
-func TestSFnService__StartSyncExecution_Success(t *testing.T) {
-	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	params := &stefunny.StartExecutionInput{
+		ExecutionName: "000000-0000-0000-0000-000000000000",
+		Input:         "{}",
+		Async:         false,
+	}
 	m.On("StartSyncExecution", mock.Anything, mock.MatchedBy(
 		func(input *sfn.StartSyncExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartSyncExecutionInput{
-				StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-				Name:            aws.String("test"),
-				Input:           aws.String(`{"key":"value"}`),
-				TraceHeader:     aws.String("Hello_test"),
+				StateMachineArn: stateMachine.StateMachineArn,
+				Name:            aws.String(params.ExecutionName),
+				Input:           aws.String(params.Input),
+				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
 			}, input)
 		},
 	)).Return(&sfn.StartSyncExecutionOutput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 		Status:       sfntypes.SyncExecutionStatusSucceeded,
+		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
 		Output:       aws.String(`{"key":"value"}`),
 	}, nil).Once()
+
 	svc := stefunny.NewSFnService(m)
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	output, err := svc.StartExecution(ctx, stateMachine, params)
+	require.NoError(t, err)
+	require.EqualValues(t, &stefunny.StartExecutionOutput{
+		ExecutionArn:      "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012",
+		Success:           aws.Bool(true),
+		Failed:            aws.Bool(false),
+		StartDate:         time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+		StopDate:          aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
+		Output:            aws.String(`{"key":"value"}`),
+		CanNotDumpHistory: true,
+	}, output)
+}
+
+func TestSFnService_StartExecution_ExpressAsyncSuccess(t *testing.T) {
+	LoggerSetup(t, "debug")
+	m := NewMockSFnClient(t)
+	defer m.AssertExpectations(t)
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name: aws.String("Hello"),
+			Type: sfntypes.StateMachineTypeExpress,
 		},
 	}
-	output, err := svc.StartSyncExecution(ctx, stateMachine, "test", `{"key":"value"}`)
+	params := &stefunny.StartExecutionInput{
+		ExecutionName: "000000-0000-0000-0000-000000000000",
+		Input:         "{}",
+		Async:         true,
+	}
+	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+		func(input *sfn.StartExecutionInput) bool {
+			return assert.EqualValues(t, &sfn.StartExecutionInput{
+				StateMachineArn: stateMachine.StateMachineArn,
+				Name:            aws.String(params.ExecutionName),
+				Input:           aws.String(params.Input),
+				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
+			}, input)
+		},
+	)).Return(
+		&sfn.StartExecutionOutput{
+			ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
+			StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		},
+		nil,
+	).Once()
+	svc := stefunny.NewSFnService(m)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	output, err := svc.StartExecution(ctx, stateMachine, params)
 	require.NoError(t, err)
-	require.EqualValues(t, &sfn.StartSyncExecutionOutput{
-		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
-		Status:       sfntypes.SyncExecutionStatusSucceeded,
-		Output:       aws.String(`{"key":"value"}`),
+	require.EqualValues(t, &stefunny.StartExecutionOutput{
+		ExecutionArn:      "arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012",
+		StartDate:         time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC),
+		CanNotDumpHistory: true,
 	}, output)
 }
 
-func TestSFnService__StartSyncExecution_Failed(t *testing.T) {
+func TestSFnService_StartExecution_ExpressStartExedcutionFailed(t *testing.T) {
 	LoggerSetup(t, "debug")
 	m := NewMockSFnClient(t)
 	defer m.AssertExpectations(t)
 	expectedErr := errors.New("this is testing")
-	m.On("StartSyncExecution", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
-	svc := stefunny.NewSFnService(m)
-	ctx := context.Background()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name: aws.String("Hello"),
+			Type: sfntypes.StateMachineTypeExpress,
 		},
 	}
-	_, err := svc.StartSyncExecution(ctx, stateMachine, "test", `{"key":"value"}`)
+	params := &stefunny.StartExecutionInput{
+		ExecutionName: "000000-0000-0000-0000-000000000000",
+		Input:         "{}",
+		Async:         false,
+	}
+	m.On("StartSyncExecution", mock.Anything, mock.MatchedBy(
+		func(input *sfn.StartSyncExecutionInput) bool {
+			return assert.EqualValues(t, &sfn.StartSyncExecutionInput{
+				StateMachineArn: stateMachine.StateMachineArn,
+				Name:            aws.String(params.ExecutionName),
+				Input:           aws.String(params.Input),
+				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
+			}, input)
+		},
+	)).Return(nil, expectedErr).Once()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	svc := stefunny.NewSFnService(m)
+	_, err := svc.StartExecution(ctx, stateMachine, params)
 	require.ErrorIs(t, err, expectedErr)
 }
 

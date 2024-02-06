@@ -17,3 +17,4 @@ Flags:
       --name=""                 execution name
       --async                   start execution and return immediately
       --dump-history            dump execution history
+      --qualifier=QUALIFIER     state machine version qualifier

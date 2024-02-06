@@ -630,22 +630,13 @@ func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine 
 	return args.Error(0)
 }
 
-func (m *mockSFnService) WaitExecution(ctx context.Context, executionArn string) (*stefunny.WaitExecutionOutput, error) {
-	args := m.Called(ctx, executionArn)
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*stefunny.WaitExecutionOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *stefunny.WaitExecutionOutput")
-		return nil, errors.New("mock data is not *stefunny.WaitExecutionOutput")
+func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput, optFns ...func(*sfn.Options)) (*stefunny.StartExecutionOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, params, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine, params)
 	}
-	return nil, err
-}
-
-func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, executionName, input string) (*stefunny.StartExecutionOutput, error) {
-	args := m.Called(ctx, stateMachine, executionName, input)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -654,20 +645,6 @@ func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefu
 		}
 		require.FailNow(m.t, "mock data is not *stefunny.StartExecutionOutput")
 		return nil, errors.New("mock data is not *stefunny.StartExecutionOutput")
-	}
-	return nil, err
-}
-
-func (m *mockSFnService) StartSyncExecution(ctx context.Context, stateMachine *stefunny.StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
-	args := m.Called(ctx, stateMachine, executionName, input)
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*sfn.StartSyncExecutionOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *sfn.StartSyncExecutionOutput")
-		return nil, errors.New("mock data is not *sfn.StartSyncExecutionOutput")
 	}
 	return nil, err
 }

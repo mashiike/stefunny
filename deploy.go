@@ -111,7 +111,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	}
 	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachineName(), *output.UpdateDate)
 	if opt.KeepVersions > 0 {
-		if err := app.sfnSvc.PurgeStateMachineVersions(ctx, stateMachine, opt.KeepVersions); err != nil {
+		if err := app.sfnSvc.PurgeStateMachineVersions(ctx, newStateMachine, opt.KeepVersions); err != nil {
 			return fmt.Errorf("failed to delete older versions: %w", err)
 		}
 	}

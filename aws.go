@@ -78,9 +78,7 @@ type SFnService interface {
 	RollbackStateMachine(ctx context.Context, stateMachine *StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error
 	ListStateMachineVersions(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*ListStateMachineVersionsOutput, error)
 	PurgeStateMachineVersions(ctx context.Context, stateMachine *StateMachine, keepVersions int, optFns ...func(*sfn.Options)) error
-	WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error)
-	StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error)
-	StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error)
+	StartExecution(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, optFns ...func(*sfn.Options)) (*StartExecutionOutput, error)
 	GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error)
 	SetAliasName(aliasName string)
 }
@@ -652,11 +650,11 @@ func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine 
 		}, optFns...)
 		var apiErr smithy.APIError
 		if !errors.As(err, &apiErr) {
-			log.Printf("[debug] unexpected error: %s", err)
+			log.Printf("[debug] unexpected error: %s", err.Error())
 			return err
 		}
 		if apiErr.ErrorCode() != "ConflictException" {
-			log.Printf("[debug] conflict error: %s", err)
+			log.Printf("[debug] conflict error: %s", err.Error())
 			continue
 		}
 		return err
@@ -1278,24 +1276,128 @@ func (rules ScheduleRules) DiffString(newRules ScheduleRules) string {
 	return builder.String()
 }
 
-type StartExecutionOutput struct {
-	ExecutionArn string
-	StartDate    time.Time
+type StartExecutionInput struct {
+	ExecutionName string
+	Input         string
+	Qualifier     *string
+	Target        string
+	Async         bool
 }
 
-func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*StartExecutionOutput, error) {
-	if executionName == "" {
+type StartExecutionOutput struct {
+	CanNotDumpHistory bool
+	ExecutionArn      string
+	StartDate         time.Time
+	Success           *bool
+	Failed            *bool
+	StopDate          *time.Time
+	Output            *string
+	Datail            interface{}
+}
+
+func (o *StartExecutionOutput) Elapsed() time.Duration {
+	if o.StopDate == nil {
+		return -1
+	}
+	return o.StopDate.Sub(o.StartDate)
+}
+
+func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, optFns ...func(*sfn.Options)) (*StartExecutionOutput, error) {
+	if params.ExecutionName == "" {
 		uuidObj, err := uuid.NewRandom()
 		if err != nil {
 			return nil, err
 		}
-		executionName = uuidObj.String()
+		params.ExecutionName = uuidObj.String()
 	}
+	if params.Qualifier == nil {
+		params.Target = *stateMachine.StateMachineArn
+	} else {
+		params.Target = stateMachine.AliasARN(*params.Qualifier)
+	}
+	switch stateMachine.Type {
+	case sfntypes.StateMachineTypeStandard:
+		return svc.startExecutionForStandard(ctx, stateMachine, params, optFns...)
+	case sfntypes.StateMachineTypeExpress:
+		output, err := svc.startExecutionForExpress(ctx, stateMachine, params, optFns...)
+		if err != nil {
+			return nil, err
+		}
+		output.CanNotDumpHistory = true
+		return output, nil
+	default:
+		return nil, fmt.Errorf("unknown state machine type: %s", stateMachine.Type)
+	}
+}
+
+func (svc *SFnServiceImpl) startExecutionForStandard(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, optFns ...func(*sfn.Options)) (*StartExecutionOutput, error) {
+	output, err := svc.startExecution(ctx, stateMachine, params)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("[notice] execution arn=%s", output.ExecutionArn)
+	log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
+	if params.Async {
+		return output, nil
+	}
+	waitOutput, err := svc.waitExecution(ctx, output.ExecutionArn)
+	if err != nil {
+		return output, err
+	}
+	output.Success = &waitOutput.Success
+	output.Failed = &waitOutput.Failed
+	output.StopDate = &waitOutput.StopDate
+	output.Output = &waitOutput.Output
+	output.Datail = waitOutput.Datail
+	return output, nil
+}
+
+func (svc *SFnServiceImpl) startExecutionForExpress(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, optFns ...func(*sfn.Options)) (*StartExecutionOutput, error) {
+	if params.Async {
+		output, err := svc.startExecution(ctx, stateMachine, params)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("[notice] execution arn=%s", output.ExecutionArn)
+		log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
+		return output, nil
+	}
+	syncOutput, err := svc.client.StartSyncExecution(ctx, &sfn.StartSyncExecutionInput{
+		StateMachineArn: &params.Target,
+		Input:           aws.String(params.Input),
+		Name:            aws.String(params.ExecutionName),
+		TraceHeader:     aws.String(*stateMachine.Name + "_" + params.ExecutionName),
+	})
+	if err != nil {
+		return nil, err
+	}
+	succeded := syncOutput.Status == sfntypes.SyncExecutionStatusSucceeded
+	failed := syncOutput.Status == sfntypes.SyncExecutionStatusFailed
+	output := &StartExecutionOutput{
+		ExecutionArn: *syncOutput.ExecutionArn,
+		StartDate:    *syncOutput.StartDate,
+		Success:      &succeded,
+		Failed:       &failed,
+		StopDate:     syncOutput.StopDate,
+	}
+	if syncOutput.Output != nil {
+		output.Output = syncOutput.Output
+	}
+	if syncOutput.Status == sfntypes.SyncExecutionStatusFailed {
+		output.Datail = sfntypes.ExecutionFailedEventDetails{
+			Cause: syncOutput.Cause,
+			Error: syncOutput.Error,
+		}
+	}
+	return output, nil
+}
+
+func (svc *SFnServiceImpl) startExecution(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput) (*StartExecutionOutput, error) {
 	output, err := svc.client.StartExecution(ctx, &sfn.StartExecutionInput{
-		StateMachineArn: stateMachine.StateMachineArn,
-		Input:           aws.String(input),
-		Name:            aws.String(executionName),
-		TraceHeader:     aws.String(*stateMachine.Name + "_" + executionName),
+		StateMachineArn: &params.Target,
+		Input:           aws.String(params.Input),
+		Name:            aws.String(params.ExecutionName),
+		TraceHeader:     aws.String(*stateMachine.Name + "_" + params.ExecutionName),
 	})
 	if err != nil {
 		return nil, err
@@ -1306,7 +1408,7 @@ func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *Sta
 	}, nil
 }
 
-type WaitExecutionOutput struct {
+type waitExecutionOutput struct {
 	Success   bool
 	Failed    bool
 	StartDate time.Time
@@ -1315,11 +1417,7 @@ type WaitExecutionOutput struct {
 	Datail    interface{}
 }
 
-func (o *WaitExecutionOutput) Elapsed() time.Duration {
-	return o.StopDate.Sub(o.StartDate)
-}
-
-func (svc *SFnServiceImpl) WaitExecution(ctx context.Context, executionArn string) (*WaitExecutionOutput, error) {
+func (svc *SFnServiceImpl) waitExecution(ctx context.Context, executionArn string) (*waitExecutionOutput, error) {
 	input := &sfn.DescribeExecutionInput{
 		ExecutionArn: aws.String(executionArn),
 	}
@@ -1336,7 +1434,7 @@ func (svc *SFnServiceImpl) WaitExecution(ctx context.Context, executionArn strin
 			stopCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 			log.Printf("[warn] try stop execution: %s", executionArn)
-			result := &WaitExecutionOutput{
+			result := &waitExecutionOutput{
 				Success: false,
 				Failed:  false,
 			}
@@ -1366,7 +1464,7 @@ func (svc *SFnServiceImpl) WaitExecution(ctx context.Context, executionArn strin
 		}
 	}
 	log.Printf("[info] execution status: %s", output.Status)
-	result := &WaitExecutionOutput{
+	result := &waitExecutionOutput{
 		Success:   output.Status == sfntypes.ExecutionStatusSucceeded,
 		Failed:    output.Status == sfntypes.ExecutionStatusFailed,
 		StartDate: *output.StartDate,
@@ -1443,25 +1541,4 @@ func (svc *SFnServiceImpl) GetExecutionHistory(ctx context.Context, executionArn
 
 func (event HistoryEvent) Elapsed() time.Duration {
 	return event.HistoryEvent.Timestamp.Sub(event.StartDate)
-}
-
-func (svc *SFnServiceImpl) StartSyncExecution(ctx context.Context, stateMachine *StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
-
-	if executionName == "" {
-		uuidObj, err := uuid.NewRandom()
-		if err != nil {
-			return nil, err
-		}
-		executionName = uuidObj.String()
-	}
-	output, err := svc.client.StartSyncExecution(ctx, &sfn.StartSyncExecutionInput{
-		StateMachineArn: stateMachine.StateMachineArn,
-		Input:           aws.String(input),
-		Name:            aws.String(executionName),
-		TraceHeader:     aws.String(*stateMachine.Name + "_" + executionName),
-	})
-	if err != nil {
-		return nil, err
-	}
-	return output, nil
 }
