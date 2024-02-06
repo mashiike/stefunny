@@ -28,9 +28,16 @@ func (f OutputFormatter) JSON() string {
 	if f.Data == nil {
 		return "[]"
 	}
-	b, _ := json.Marshal(f.Data.Versions)
+	b, err := json.Marshal(f.Data.Versions)
+	if err != nil {
+		log.Printf("[warn] failed to marshal JSON: %v", err)
+		return "[]"
+	}
 	var out bytes.Buffer
-	json.Indent(&out, b, "", "  ")
+	if err := json.Indent(&out, b, "", "  "); err != nil {
+		log.Printf("[warn] failed to indent JSON: %v", err)
+		return string(b)
+	}
 	return out.String()
 }
 

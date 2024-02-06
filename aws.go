@@ -648,6 +648,9 @@ func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine 
 		_, err := svc.client.DeleteStateMachine(ctx, &sfn.DeleteStateMachineInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 		}, optFns...)
+		if err == nil {
+			return nil
+		}
 		var apiErr smithy.APIError
 		if !errors.As(err, &apiErr) {
 			log.Printf("[debug] unexpected error: %s", err.Error())
@@ -1371,12 +1374,12 @@ func (svc *SFnServiceImpl) startExecutionForExpress(ctx context.Context, stateMa
 	if err != nil {
 		return nil, err
 	}
-	succeded := syncOutput.Status == sfntypes.SyncExecutionStatusSucceeded
+	succeeded := syncOutput.Status == sfntypes.SyncExecutionStatusSucceeded
 	failed := syncOutput.Status == sfntypes.SyncExecutionStatusFailed
 	output := &StartExecutionOutput{
 		ExecutionArn: *syncOutput.ExecutionArn,
 		StartDate:    *syncOutput.StartDate,
-		Success:      &succeded,
+		Success:      &succeeded,
 		Failed:       &failed,
 		StopDate:     syncOutput.StopDate,
 	}

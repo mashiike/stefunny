@@ -21,4 +21,4 @@ Flags:
       --keep-versions=0         Number of latest versions to keep. Older
                                 versions will be deleted. (Optional value:
                                 default 0)
-      --alias=STRING            alias name for publish
+      --alias="current"         alias name for publish

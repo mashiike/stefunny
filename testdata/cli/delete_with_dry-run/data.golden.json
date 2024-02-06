@@ -9,9 +9,15 @@
   "delete": {
     "dry_run": true
   },
-  "deploy": {},
-  "rollback": {},
-  "schedule": {},
+  "deploy": {
+    "alias": "current"
+  },
+  "rollback": {
+    "alias": "current"
+  },
+  "schedule": {
+    "alias": "current"
+  },
   "render": {},
   "execute": {
     "input": "-"

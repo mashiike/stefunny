@@ -16,6 +16,6 @@ Flags:
       --dry-run                 Dry run
       --enabled                 Enable schedule
       --disabled                Disable schedule
-      --alias=STRING            alias name for publish
+      --alias="current"         alias name for publish
 
 stefunny: error: missing flags: --enabled or --disabled

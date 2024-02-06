@@ -7,11 +7,16 @@
     "definition_file_path": "definition.asl.json"
   },
   "delete": {},
-  "deploy": {},
-  "rollback": {},
+  "deploy": {
+    "alias": "current"
+  },
+  "rollback": {
+    "alias": "current"
+  },
   "schedule": {
     "dry_run": true,
-    "enabled": true
+    "enabled": true,
+    "alias": "current"
   },
   "render": {},
   "execute": {

@@ -10,7 +10,7 @@ import (
 type RollbackOption struct {
 	DryRun      bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
 	KeepVersion bool   `name:"keep-version" help:"Keep current version, no delete" json:"keep_version,omitempty"`
-	AliasName   string `name:"alias" help:"alias name for rollback target" defualt:"current" json:"alias,omitempty"`
+	AliasName   string `name:"alias" help:"alias name for rollback target" default:"current" json:"alias,omitempty"`
 }
 
 func (opt RollbackOption) DryRunString() string {
