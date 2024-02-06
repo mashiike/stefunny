@@ -13,6 +13,8 @@ type DeployCommandOption struct {
 	DryRun                 bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
 	SkipDeployStateMachine bool   `name:"skip-deploy-state-machine" help:"Skip deploy state machine" json:"skip_deploy_state_machine,omitempty"`
 	VersionDescription     string `name:"version-description" help:"Version description" json:"version_description,omitempty"`
+	KeepVersions           int    `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
+	AliasName              string `name:"alias" help:"alias name for publish" defualt:"current" json:"alias,omitempty"`
 }
 
 func (cmd *DeployCommandOption) DeployOption() DeployOption {
@@ -20,13 +22,16 @@ func (cmd *DeployCommandOption) DeployOption() DeployOption {
 		DryRun:                 cmd.DryRun,
 		SkipDeployStateMachine: cmd.SkipDeployStateMachine,
 		VersionDescription:     cmd.VersionDescription,
+		KeepVersions:           cmd.KeepVersions,
+		AliasName:              cmd.AliasName,
 	}
 }
 
 type ScheduleCommandOption struct {
-	DryRun   bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	Enabled  bool `name:"enabled" help:"Enable schedule" xor:"schedule" required:"" json:"enabled,omitempty"`
-	Disabled bool `name:"disabled" help:"Disable schedule" xor:"schedule" required:"" json:"disabled,omitempty"`
+	DryRun    bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	Enabled   bool   `name:"enabled" help:"Enable schedule" xor:"schedule" required:"" json:"enabled,omitempty"`
+	Disabled  bool   `name:"disabled" help:"Disable schedule" xor:"schedule" required:"" json:"disabled,omitempty"`
+	AliasName string `name:"alias" help:"alias name for publish" defualt:"current" json:"alias,omitempty"`
 }
 
 func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
@@ -41,6 +46,7 @@ func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
 		DryRun:                 cmd.DryRun,
 		ScheduleEnabled:        enabled,
 		SkipDeployStateMachine: true,
+		AliasName:              cmd.AliasName,
 	}
 }
 
@@ -49,6 +55,8 @@ type DeployOption struct {
 	ScheduleEnabled        *bool
 	SkipDeployStateMachine bool
 	VersionDescription     string
+	KeepVersions           int
+	AliasName              string
 }
 
 func (opt DeployOption) DryRunString() string {
@@ -60,6 +68,9 @@ func (opt DeployOption) DryRunString() string {
 
 func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	log.Println("[info] Starting deploy", opt.DryRunString())
+	if opt.AliasName != "" {
+		app.sfnSvc.SetAliasName(opt.AliasName)
+	}
 	if !opt.SkipDeployStateMachine {
 		if err := app.deployStateMachine(ctx, opt); err != nil {
 			return err
@@ -68,6 +79,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	if err := app.deployScheduleRule(ctx, opt); err != nil {
 		return err
 	}
+
 	log.Println("[info] finish deploy", opt.DryRunString())
 	return nil
 }
@@ -98,6 +110,11 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		return err
 	}
 	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachineName(), *output.UpdateDate)
+	if opt.KeepVersions > 0 {
+		if err := app.sfnSvc.PurgeStateMachineVersions(ctx, stateMachine, opt.KeepVersions); err != nil {
+			return fmt.Errorf("failed to delete older versions: %w", err)
+		}
+	}
 	return nil
 }
 

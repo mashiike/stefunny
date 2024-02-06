@@ -8,8 +8,9 @@ import (
 )
 
 type RollbackOption struct {
-	DryRun      bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	KeepVersion bool `name:"keep-version" help:"Keep current version, no delete" json:"keep_version,omitempty"`
+	DryRun      bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	KeepVersion bool   `name:"keep-version" help:"Keep current version, no delete" json:"keep_version,omitempty"`
+	AliasName   string `name:"alias" help:"alias name for rollback target" defualt:"current" json:"alias,omitempty"`
 }
 
 func (opt RollbackOption) DryRunString() string {
@@ -20,6 +21,9 @@ func (opt RollbackOption) DryRunString() string {
 }
 
 func (app *App) Rollback(ctx context.Context, opt RollbackOption) error {
+	if opt.AliasName != "" {
+		app.sfnSvc.SetAliasName(opt.AliasName)
+	}
 	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		if errors.Is(err, ErrStateMachineDoesNotExist) {

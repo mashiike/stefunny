@@ -30,6 +30,7 @@ type CLI struct {
 	Schedule ScheduleCommandOption `cmd:"" help:"Enable or disable schedule rules" json:"schedule,omitempty"`
 	Render   RenderOption          `cmd:"" help:"Render state machine definition" json:"render,omitempty"`
 	Execute  ExecuteOption         `cmd:"" help:"Execute state machine" json:"execute,omitempty"`
+	Versions VersionsOption        `cmd:"" help:"Manage state machine versions" json:"versions,omitempty"`
 
 	kctx           *kong.Context
 	exitFunc       func(int)
@@ -210,6 +211,8 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		return app.Rollback(ctx, cli.Rollback)
 	case "delete":
 		return app.Delete(ctx, cli.Delete)
+	case "versions":
+		return app.Versions(ctx, cli.Versions)
 	case "render":
 		cli.Render.Writer = cli.stdout
 		return app.Render(ctx, cli.Render)

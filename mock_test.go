@@ -529,6 +529,10 @@ func NewMockSFnService(t *testing.T) *mockSFnService {
 	return m
 }
 
+func (m *mockSFnService) SetAliasName(name string) {
+	m.Called(name)
+}
+
 func (m *mockSFnService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
 	var args mock.Arguments
 	if len(optFns) > 0 {

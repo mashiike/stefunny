@@ -12,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.24.7
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7
+	github.com/aws/smithy-go v1.19.0
 	github.com/fatih/color v1.16.0
 	github.com/fujiwara/logutils v1.1.2
 	github.com/fujiwara/tfstate-lookup v1.1.6
@@ -64,7 +65,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.48.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.18.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
-	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
