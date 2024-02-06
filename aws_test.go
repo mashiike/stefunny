@@ -3,6 +3,7 @@ package stefunny_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -975,6 +976,7 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
@@ -984,6 +986,20 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 		},
 		nil,
 	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+				},
+			},
+		},
+		nil,
+	).Once()
+
 	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
@@ -1014,6 +1030,19 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
 	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
@@ -1052,10 +1081,24 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 					Weight:                 100,
+				},
+			},
+		},
+		nil,
+	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 				},
 			},
 		},
@@ -1091,6 +1134,19 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1113,10 +1169,24 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 					Weight:                 100,
+				},
+			},
+		},
+		nil,
+	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 				},
 			},
 		},
@@ -1152,6 +1222,19 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
 	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
@@ -1186,10 +1269,24 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 					Weight:                 100,
+				},
+			},
+		},
+		nil,
+	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 				},
 			},
 		},
@@ -1225,6 +1322,19 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1247,6 +1357,7 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
@@ -1256,6 +1367,20 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 		},
 		nil,
 	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+				},
+			},
+		},
+		nil,
+	).Once()
+
 	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
@@ -1267,6 +1392,17 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 					CreationDate:           aws.Time(time.Date(2021, 1, 5, 0, 0, 0, 0, time.UTC)),
 				},
 			},
+		},
+		nil,
+	).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+			CreationDate:    aws.Time(time.Date(2021, 1, 5, 0, 0, 0, 0, time.UTC)),
+			RevisionId:      aws.String("1"),
+			Description:     aws.String("test"),
 		},
 		nil,
 	).Once()
@@ -1292,10 +1428,24 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
 					Weight:                 100,
+				},
+			},
+		},
+		nil,
+	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 				},
 			},
 		},
@@ -1331,6 +1481,19 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
 	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
@@ -1371,6 +1534,38 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
 			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+			Name:                 aws.String("current"),
+			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+				{
+					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+					Weight:                 100,
+				},
+			},
+		},
+		nil,
+	).Once()
+	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+		MaxResults:      32,
+	}).Return(
+		&sfn.ListStateMachineAliasesOutput{
+			StateMachineAliases: []sfntypes.StateMachineAliasListItem{
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+				},
+				{
+					StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:other"),
+				},
+			},
+		},
+		nil,
+	).Once()
+	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:other"),
+	}).Return(
+		&sfn.DescribeStateMachineAliasOutput{
+			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:other"),
+			Name:                 aws.String("other"),
 			RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 				{
 					StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
@@ -1410,6 +1605,20 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
+
 	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
@@ -1523,6 +1732,19 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 		},
 		nil,
 	).Once()
+	for i := 5; i >= 1; i-- {
+		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+		}).Return(
+			&sfn.DescribeStateMachineOutput{
+				StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
+				CreationDate:    aws.Time(time.Date(2021, 1, i, 0, 0, 0, 0, time.UTC)),
+				RevisionId:      aws.String("1"),
+				Description:     aws.String("test"),
+			},
+			nil,
+		).Once()
+	}
 
 	m.On("DeleteStateMachineVersion", mock.Anything, &sfn.DeleteStateMachineVersionInput{
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:3"),
@@ -1619,6 +1841,39 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 		},
 		nil,
 	).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+			CreationDate:    aws.Time(time.Date(2021, 1, 5, 0, 0, 0, 0, time.UTC)),
+			RevisionId:      aws.String("1"),
+			Description:     aws.String("test"),
+		},
+		nil,
+	).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
+			CreationDate:    aws.Time(time.Date(2021, 1, 4, 0, 0, 0, 0, time.UTC)),
+			RevisionId:      aws.String("2"),
+			Description:     aws.String("test2"),
+		},
+		nil,
+	).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+			CreationDate:    aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+			RevisionId:      aws.String("3"),
+			Description:     aws.String("test3"),
+		},
+		nil,
+	).Once()
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1680,6 +1935,28 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 		},
 		nil,
 	).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
+			CreationDate:    aws.Time(time.Date(2021, 1, 5, 0, 0, 0, 0, time.UTC)),
+			RevisionId:      aws.String("1"),
+			Description:     aws.String("test"),
+		},
+		nil,
+	).Once()
+	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
+	}).Return(
+		&sfn.DescribeStateMachineOutput{
+			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
+			CreationDate:    aws.Time(time.Date(2021, 1, 4, 0, 0, 0, 0, time.UTC)),
+			RevisionId:      aws.String("2"),
+			Description:     aws.String("test2"),
+		},
+		nil,
+	).Once()
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1693,11 +1970,15 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 				Version:                5,
 				CreationDate:           time.Date(2021, 1, 5, 0, 0, 0, 0, time.UTC),
 				Aliases:                []string{"current"},
+				RevisionID:             "1",
+				Description:            "test",
 			},
 			{
 				StateMachineVersionARN: "arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4",
 				Version:                4,
 				CreationDate:           time.Date(2021, 1, 4, 0, 0, 0, 0, time.UTC),
+				RevisionID:             "2",
+				Description:            "test2",
 			},
 		},
 	}, versions)
