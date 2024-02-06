@@ -1333,7 +1333,7 @@ func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *Sta
 	}
 }
 
-func (svc *SFnServiceImpl) startExecutionForStandard(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, optFns ...func(*sfn.Options)) (*StartExecutionOutput, error) {
+func (svc *SFnServiceImpl) startExecutionForStandard(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, _ ...func(*sfn.Options)) (*StartExecutionOutput, error) {
 	output, err := svc.startExecution(ctx, stateMachine, params)
 	if err != nil {
 		return nil, err
@@ -1355,7 +1355,7 @@ func (svc *SFnServiceImpl) startExecutionForStandard(ctx context.Context, stateM
 	return output, nil
 }
 
-func (svc *SFnServiceImpl) startExecutionForExpress(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, optFns ...func(*sfn.Options)) (*StartExecutionOutput, error) {
+func (svc *SFnServiceImpl) startExecutionForExpress(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput, _ ...func(*sfn.Options)) (*StartExecutionOutput, error) {
 	if params.Async {
 		output, err := svc.startExecution(ctx, stateMachine, params)
 		if err != nil {
