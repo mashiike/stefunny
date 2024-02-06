@@ -292,6 +292,25 @@ func (m *mockSFnClient) DescribeStateMachineAlias(ctx context.Context, params *s
 	return nil, err
 }
 
+func (m *mockSFnClient) ListStateMachineAliases(ctx context.Context, params *sfn.ListStateMachineAliasesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineAliasesOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.ListStateMachineAliasesOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.ListStateMachineAliasesOutput")
+		return nil, errors.New("mock data is not *sfn.ListStateMachineAliasesOutput")
+	}
+	return nil, err
+}
+
 func (m *mockSFnClient) ListStateMachineVersions(ctx context.Context, params *sfn.ListStateMachineVersionsInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineVersionsOutput, error) {
 	var args mock.Arguments
 	if len(optFns) > 0 {
@@ -535,6 +554,35 @@ func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, 
 		}
 		require.FailNow(m.t, "mock data is not *stefunny.StateMachine")
 		return nil, errors.New("mock data is not *stefunny.StateMachine")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) PurgeStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersions int, optFns ...func(*sfn.Options)) error {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, keepVersions, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine, keepVersions)
+	}
+	return args.Error(0)
+}
+
+func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.ListStateMachineVersionsOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.ListStateMachineVersionsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not []stefunny.StateMachineVersion")
+		return nil, errors.New("mock data is not []stefunny.StateMachineVersion")
 	}
 	return nil, err
 }
