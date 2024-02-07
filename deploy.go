@@ -91,10 +91,7 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
-	newStateMachine, err := app.LoadStateMachine()
-	if err != nil {
-		return err
-	}
+	newStateMachine := app.cfg.NewStateMachine()
 	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
@@ -129,7 +126,7 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	newRules := app.LoadEventBridgeRules()
+	newRules := app.cfg.NewEventBridgeRules()
 	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
 	newRules.SetStateMachineQualifiedARN(targetARN)
 	keepState := true

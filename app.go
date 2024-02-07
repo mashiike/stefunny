@@ -3,7 +3,6 @@ package stefunny
 import (
 	"context"
 	"fmt"
-	"sort"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -122,27 +121,4 @@ func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 		eventbridgeSvc: eventbridgeSvc,
 	}
 	return app, nil
-}
-
-func (app *App) LoadStateMachine() (*StateMachine, error) {
-	stateMachine := &StateMachine{
-		CreateStateMachineInput: app.cfg.NewCreateStateMachineInput(),
-	}
-	stateMachine.AppendTags(app.cfg.Tags)
-	return stateMachine, nil
-}
-
-func (app *App) LoadEventBridgeRules() EventBridgeRules {
-	rules := app.cfg.NewEventBridgeRules()
-	stateMachineTags := app.cfg.NewCreateStateMachineInput().Tags
-	tags := make(map[string]string, len(stateMachineTags))
-	for _, tag := range stateMachineTags {
-		tags[coalesce(tag.Key)] = coalesce(tag.Value)
-	}
-	for _, rule := range rules {
-		rule.AppendTags(tags)
-		rule.AppendTags(app.cfg.Tags)
-	}
-	sort.Sort(rules)
-	return rules
 }

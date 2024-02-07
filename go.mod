@@ -10,6 +10,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.31.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1
+	github.com/aws/aws-sdk-go-v2/service/scheduler v1.6.6
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.24.7
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7
 	github.com/aws/smithy-go v1.19.0

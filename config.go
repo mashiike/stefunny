@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -19,6 +20,8 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -236,7 +239,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 		}
 		for _, s := range cfg.Schedule {
 			event := TriggerEventConfig{
-				KeysToSnakeCase: NewKeysToSnakeCase(EventBridgeRule{
+				KeysToSnakeCase: NewKeysToSnakeCase(TriggerEventConfigInner{
 					PutRuleInput: eventbridge.PutRuleInput{
 						Name:               &s.RuleName,
 						ScheduleExpression: &s.Expression,
@@ -386,10 +389,16 @@ type TriggerConfig struct {
 }
 
 type TriggerScheduleConfig struct {
+	KeysToSnakeCase[scheduler.CreateScheduleInput] `yaml:",inline" json:",inline"`
 }
 
 type TriggerEventConfig struct {
-	KeysToSnakeCase[EventBridgeRule] `yaml:",inline" json:",inline"`
+	KeysToSnakeCase[TriggerEventConfigInner] `yaml:",inline" json:",inline"`
+}
+
+type TriggerEventConfigInner struct {
+	eventbridge.PutRuleInput `yaml:",inline"`
+	Target                   eventbridgetypes.Target `yaml:"Target,omitempty" json:"Target,omitempty"`
 }
 
 // Restrict restricts a configuration.
@@ -426,6 +435,10 @@ func (cfg *Config) Restrict() error {
 	return nil
 }
 
+func (cfg *TriggerConfig) Restrict() error {
+	return nil
+}
+
 func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	cfg.mu.Lock()
 	defer cfg.mu.Unlock()
@@ -454,39 +467,39 @@ func (cfg *Config) StateMachineDefinition() string {
 	return *cfg.StateMachine.Value.Definition
 }
 
-func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
-	input := cfg.StateMachine.Value
-	found := false
-	for _, tag := range input.Tags {
-		if tag.Key == nil {
-			continue
-		}
-		if *tag.Key == tagManagedBy {
-			tag.Value = aws.String(appName)
-			found = true
-		}
+func (cfg *Config) NewStateMachine() *StateMachine {
+	stateMachine := &StateMachine{
+		CreateStateMachineInput: cfg.StateMachine.Value,
 	}
-	if !found {
-		input.Tags = append(input.Tags, sfntypes.Tag{
-			Key:   aws.String(tagManagedBy),
-			Value: aws.String(appName),
-		})
-	}
-	return input
-}
-
-func (cfg *TriggerConfig) Restrict() error {
-	return nil
+	stateMachine.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
+	stateMachine.AppendTags(cfg.Tags)
+	return stateMachine
 }
 
 func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
 	if cfg.Trigger == nil {
 		return EventBridgeRules{}
 	}
+	tags := make(map[string]string)
+	for _, tag := range cfg.StateMachine.Value.Tags {
+		tags[coalesce(tag.Key)] = coalesce(tag.Value)
+	}
+	for k, v := range cfg.Tags {
+		tags[k] = v
+	}
+	tags[tagManagedBy] = appName
 	rules := make(EventBridgeRules, 0, len(cfg.Trigger.Event))
 	for _, e := range cfg.Trigger.Event {
-		rules = append(rules, ptr(e.Value))
+		rule := &EventBridgeRule{
+			PutRuleInput: e.Value.PutRuleInput,
+			Target:       e.Value.Target,
+		}
+		rule.AppendTags(tags)
+		rules = append(rules, rule)
 	}
+	sort.Sort(rules)
 	return rules
 }
 

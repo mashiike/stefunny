@@ -39,10 +39,16 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		for _, rule := range rules {
 			rule.DeleteTag(tagManagedBy)
 			eventsRule := TriggerEventConfig{
-				KeysToSnakeCase: KeysToSnakeCase[EventBridgeRule]{
-					Value:  *rule,
+				KeysToSnakeCase: KeysToSnakeCase[TriggerEventConfigInner]{
+					Value: TriggerEventConfigInner{
+						PutRuleInput: rule.PutRuleInput,
+						Target:       rule.Target,
+					},
 					Strict: true,
 				},
+			}
+			if len(rule.AdditionalTargets) > 0 {
+				log.Printf("[debug] StateMachine/%s has additional targets, skip non related target", coalesce(stateMachine.Name))
 			}
 			cfg.Trigger.Event = append(cfg.Trigger.Event, eventsRule)
 		}
