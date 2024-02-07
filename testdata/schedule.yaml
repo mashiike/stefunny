@@ -10,7 +10,9 @@ state_machine:
       - cloudwatch_logs_log_group:
           log_group_arn: arn:aws:logs:us-east-1:012345678901:log-group:/steps/hello
 
-schedule:
-  - rule_name: Scheduled-hourly
-    expression: rate(1 hour)
-    role_arn: arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role
+
+trigger:
+  event:
+    - rule_name: Scheduled-hourly
+      schedule_expression: rate(1 hour)
+      role_arn: arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role

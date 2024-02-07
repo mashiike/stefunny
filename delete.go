@@ -9,8 +9,9 @@ import (
 )
 
 type DeleteOption struct {
-	DryRun bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	Force  bool `name:"force" help:"delete without confirmation" json:"force,omitempty"`
+	DryRun    bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	Force     bool   `name:"force" help:"delete without confirmation" json:"force,omitempty"`
+	AliasName string `name:"alias" help:"alias name" default:"current" json:"alias,omitempty"`
 }
 
 func (opt DeleteOption) DryRunString() string {
@@ -28,22 +29,12 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	}
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
-
-	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, coalesce(stateMachine.StateMachineArn))
+	currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, stateMachine.QualifiedARN(opt.AliasName))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to search related rules: %w", err)
 	}
-	//Ignore no managed rule
-	noManageRules := make(ScheduleRules, 0, len(rules))
-	for _, rule := range rules {
-		if !rule.IsManagedBy() {
-			log.Printf("[warn] found a scheduled rule `%s` that %s does not manage. this rule is not delete.", *rule.Name, appName)
-			noManageRules = append(noManageRules, rule)
-		}
-	}
-	rules = rules.Exclude(noManageRules)
-	for _, rule := range rules {
-		log.Printf("[notice] delete schedule rule is %s\n%s", opt.DryRunString(), rule)
+	if len(currentRules) > 0 {
+		log.Printf("[notice] delete related rules is %s\n%s", opt.DryRunString(), currentRules)
 	}
 	if opt.DryRun {
 		log.Println("[info] dry run ok")
@@ -63,8 +54,8 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete state machine status: %w", err)
 	}
-	if len(rules) > 0 {
-		err := app.eventbridgeSvc.DeleteScheduleRules(ctx, rules)
+	if len(currentRules) > 0 {
+		err := app.eventbridgeSvc.DeployRules(ctx, stateMachine.QualifiedARN(opt.AliasName), EventBridgeRules{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to delete rules: %w", err)
 		}

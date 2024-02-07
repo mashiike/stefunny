@@ -101,8 +101,8 @@ func JSONDiffString(j1, j2 string) string {
 	return builder.String()
 }
 
-func marshalJSON(s interface{}) (*bytes.Buffer, error) {
-	bs, err := buildJSON(s)
+func marshalJSON(s interface{}, overrides ...any) (*bytes.Buffer, error) {
+	bs, err := buildJSON(s, overrides...)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +116,8 @@ func marshalJSON(s interface{}) (*bytes.Buffer, error) {
 	return &buf, nil
 }
 
-func MarshalJSONString(s interface{}) string {
-	b, err := marshalJSON(s)
+func MarshalJSONString(s interface{}, overrides ...any) string {
+	b, err := marshalJSON(s, overrides...)
 	if err != nil {
 		log.Println("[warn] failed to marshal json", err)
 		return ""
@@ -125,7 +125,7 @@ func MarshalJSONString(s interface{}) string {
 	return b.String()
 }
 
-func buildJSON(s interface{}) ([]byte, error) {
+func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 	bs, err := json.Marshal(s)
 	if err != nil {
 		return nil, err
@@ -135,9 +135,25 @@ func buildJSON(s interface{}) ([]byte, error) {
 		return nil, err
 	}
 	if v, ok := v.(map[string]interface{}); ok {
+		if len(overrides) > 0 {
+			for _, override := range overrides {
+				if override, ok := override.(map[string]interface{}); ok {
+					for key, value := range override {
+						v[key] = value
+					}
+				}
+			}
+		}
 		return json.Marshal(deleteNilFromMap(v))
 	}
 	if vs, ok := v.([]interface{}); ok {
+		if len(overrides) > 0 {
+			for _, override := range overrides {
+				if override, ok := override.([]interface{}); ok {
+					vs = append(vs, override...)
+				}
+			}
+		}
 		for i := 0; i < len(vs); i++ {
 			if v, ok := vs[i].(map[string]interface{}); ok {
 				vs[i] = deleteNilFromMap(v)

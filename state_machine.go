@@ -1,7 +1,6 @@
 package stefunny
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -18,10 +17,7 @@ type StateMachine struct {
 }
 
 func (s *StateMachine) QualifiedARN(name string) string {
-	if name == "" {
-		return coalesce(s.StateMachineArn)
-	}
-	return fmt.Sprintf("%s:%s", coalesce(s.StateMachineArn), name)
+	return qualifiedARN(coalesce(s.StateMachineArn), name)
 }
 
 func (s *StateMachine) AppendTags(tags map[string]string) {
@@ -44,6 +40,15 @@ func (s *StateMachine) AppendTags(tags map[string]string) {
 		s.Tags[pos[key]].Value = aws.String(value)
 	}
 	s.Tags = append(s.Tags, notExists...)
+}
+
+func (s *StateMachine) DeleteTag(key string) {
+	for i, tag := range s.Tags {
+		if coalesce(tag.Key) == key {
+			s.Tags = append(s.Tags[:i], s.Tags[i+1:]...)
+			return
+		}
+	}
 }
 
 func (s *StateMachine) IsManagedBy() bool {

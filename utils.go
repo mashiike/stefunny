@@ -67,3 +67,93 @@ func extructVersion(versionARN string) (int, error) {
 	}
 	return version, nil
 }
+
+func qualifiedARN(arnStr string, name string) string {
+	if name == "" {
+		return arnStr
+	}
+	return fmt.Sprintf("%s:%s", arnStr, name)
+}
+
+func unqualifyARN(arnStr string) string {
+	arnObj, err := arn.Parse(arnStr)
+	if err != nil {
+		return arnStr
+	}
+	parts := strings.Split(arnObj.Resource, ":")
+	if parts[0] != "stateMachine" {
+		return arnStr
+	}
+	if len(parts) <= 2 {
+		// case state machine arn
+		return arnStr
+	}
+	// case qualified state machine arn, delete version or alias.
+	// e.g. arn:aws:states:us-west-2:123456789012:stateMachine:HelloWorld-StateMachine:1
+	arnObj.Resource = strings.Join(parts[:2], ":")
+	return arnObj.String()
+}
+
+// getDifference return exists this but not exists in other
+func setDifference[T any](slice1, slice2 []T, fetchKey func(T) string) []T {
+	result := make([]T, 0)
+	otherMap := make(map[string]struct{})
+	for _, item := range slice2 {
+		otherMap[fetchKey(item)] = struct{}{}
+	}
+	for _, item := range slice1 {
+		if _, ok := otherMap[fetchKey(item)]; !ok {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+func unique[T comparable](slice []T) []T {
+	result := make([]T, 0)
+	seen := make(map[T]struct{})
+	for _, item := range slice {
+		if _, ok := seen[item]; !ok {
+			seen[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
+type change[T any] struct {
+	Before T
+	After  T
+}
+
+type diffResult[T any] struct {
+	Add    []T
+	Delete []T
+	Change []change[T]
+}
+
+// diff for this -> other
+func diff[T any](this, other []T, fetchKey func(T) string) diffResult[T] {
+	result := diffResult[T]{}
+	thisMap := make(map[string]T)
+	for _, item := range this {
+		thisMap[fetchKey(item)] = item
+	}
+	otherMap := make(map[string]T)
+	for _, item := range other {
+		otherMap[fetchKey(item)] = item
+	}
+	for key, item := range thisMap {
+		if _, ok := otherMap[key]; !ok {
+			result.Delete = append(result.Delete, item)
+			continue
+		}
+		result.Change = append(result.Change, change[T]{Before: item, After: otherMap[key]})
+	}
+	for key, item := range otherMap {
+		if _, ok := thisMap[key]; !ok {
+			result.Add = append(result.Add, item)
+		}
+	}
+	return result
+}

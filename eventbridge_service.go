@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -26,56 +27,113 @@ type EventBridgeClient interface {
 }
 
 var (
-	ErrScheduleRuleDoesNotExist = errors.New("schedule rule does not exist")
-	ErrRuleIsNotSchedule        = errors.New("this rule is not schedule")
+	ErrEventBridgeRuleDoesNotExist = errors.New("schedule rule does not exist")
 )
 
 type EventBridgeService interface {
-	DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error)
-	SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error)
-	DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error)
-	DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error
+	SearchRelatedRules(ctx context.Context, stateMachineArn string) (EventBridgeRules, error)
+	DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error
 }
 
 var _ EventBridgeService = (*EventBridgeServiceImpl)(nil)
 
 type EventBridgeServiceImpl struct {
-	client EventBridgeClient
+	client             EventBridgeClient
+	cacheRuleByName    map[string]*eventbridge.DescribeRuleOutput
+	cacheTargetsByName map[string]*eventbridge.ListTargetsByRuleOutput
+	cacheTagsByName    map[string]*eventbridge.ListTagsForResourceOutput
 }
 
 func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
 	return &EventBridgeServiceImpl{
-		client: client,
+		client:             client,
+		cacheRuleByName:    make(map[string]*eventbridge.DescribeRuleOutput),
+		cacheTargetsByName: make(map[string]*eventbridge.ListTargetsByRuleOutput),
+		cacheTagsByName:    make(map[string]*eventbridge.ListTagsForResourceOutput),
 	}
 }
 
-func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*ScheduleRule, error) {
-	describeOutput, err := svc.client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName}, optFns...)
+func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, stateMachineArn string) (EventBridgeRules, error) {
+	log.Printf("[debug] call SearchRelatedRules(ctx,%s)", stateMachineArn)
+	ruleNames, err := svc.searchRelatedRuleNames(ctx, stateMachineArn)
 	if err != nil {
-		if strings.Contains(err.Error(), "ResourceNotFoundException") {
-			return nil, ErrScheduleRuleDoesNotExist
-		}
 		return nil, err
+	}
+	unqualifed := unqualifyARN(stateMachineArn)
+	if unqualifed != stateMachineArn {
+		unqualifedRelatedRuleNames, err := svc.searchRelatedRuleNames(ctx, unqualifed)
+		if err != nil {
+			return nil, err
+		}
+		ruleNames = append(ruleNames, unqualifedRelatedRuleNames...)
+		ruleNames = unique(ruleNames)
+	}
+	rules := make(EventBridgeRules, 0, len(ruleNames))
+	for _, name := range ruleNames {
+		rule, err := svc.describeRule(ctx, name, stateMachineArn)
+		if err != nil {
+			return nil, err
+		}
+		rules = append(rules, rule)
+	}
+	sort.Sort(rules)
+	log.Printf("[debug] end SearchRelatedRules() %d rules found", len(rules))
+	return rules, nil
+}
+
+func (svc *EventBridgeServiceImpl) searchRelatedRuleNames(ctx context.Context, stateMachineArn string) ([]string, error) {
+	p := eventbridgex.NewListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
+		TargetArn: aws.String(stateMachineArn),
+	})
+	ruleNames := make([]string, 0)
+	for p.HasMorePages() {
+		output, err := p.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		ruleNames = append(ruleNames, output.RuleNames...)
+	}
+	return ruleNames, nil
+}
+
+func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName string, stateMachineARN string) (*EventBridgeRule, error) {
+	var describeOutput *eventbridge.DescribeRuleOutput
+	var ok bool
+	var err error
+	if describeOutput, ok = svc.cacheRuleByName[ruleName]; !ok {
+		describeOutput, err = svc.client.DescribeRule(ctx, &eventbridge.DescribeRuleInput{Name: &ruleName})
+		if err != nil {
+			if strings.Contains(err.Error(), "ResourceNotFoundException") {
+				return nil, ErrEventBridgeRuleDoesNotExist
+			}
+			return nil, err
+		}
+		svc.cacheRuleByName[ruleName] = describeOutput
 	}
 	log.Println("[debug] describe rule:", MarshalJSONString(describeOutput))
-	if describeOutput.ScheduleExpression == nil {
-		return nil, ErrRuleIsNotSchedule
-	}
-	listTargetsOutput, err := svc.client.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
-		Rule:  &ruleName,
-		Limit: aws.Int32(5),
-	}, optFns...)
-	if err != nil {
-		return nil, err
+	var listTargetsOutput *eventbridge.ListTargetsByRuleOutput
+	if listTargetsOutput, ok = svc.cacheTargetsByName[ruleName]; !ok {
+		listTargetsOutput, err = svc.client.ListTargetsByRule(ctx, &eventbridge.ListTargetsByRuleInput{
+			Rule:  &ruleName,
+			Limit: aws.Int32(5),
+		})
+		if err != nil {
+			return nil, err
+		}
+		svc.cacheTargetsByName[ruleName] = listTargetsOutput
 	}
 	log.Println("[debug] list targets by rule:", MarshalJSONString(listTargetsOutput))
-	tagsOutput, err := svc.client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
-		ResourceARN: describeOutput.Arn,
-	}, optFns...)
-	if err != nil {
-		return nil, err
+	var tagsOutput *eventbridge.ListTagsForResourceOutput
+	if tagsOutput, ok = svc.cacheTagsByName[*describeOutput.Arn]; !ok {
+		tagsOutput, err = svc.client.ListTagsForResource(ctx, &eventbridge.ListTagsForResourceInput{
+			ResourceARN: describeOutput.Arn,
+		})
+		if err != nil {
+			return nil, err
+		}
+		svc.cacheTagsByName[*describeOutput.Arn] = tagsOutput
 	}
-	rule := &ScheduleRule{
+	rule := &EventBridgeRule{
 		PutRuleInput: eventbridge.PutRuleInput{
 			Name:               describeOutput.Name,
 			Description:        describeOutput.Description,
@@ -86,133 +144,134 @@ func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, rul
 			State:              describeOutput.State,
 			Tags:               tagsOutput.Tags,
 		},
-		Targets: listTargetsOutput.Targets,
+		RuleArn: describeOutput.Arn,
 	}
+	additional := make([]eventbridgetypes.Target, 0, len(listTargetsOutput.Targets))
+	var target *eventbridgetypes.Target
+	unqualifed := unqualifyARN(stateMachineARN)
+	for i, t := range listTargetsOutput.Targets {
+		if coalesce(t.Arn) == stateMachineARN {
+			if target != nil {
+				additional = append(additional, t)
+			}
+			target = &t
+			additional = append(additional, listTargetsOutput.Targets[:i]...)
+			break
+		}
+		if coalesce(t.Arn) == unqualifed {
+			if target != nil {
+				additional = append(additional, t)
+				continue
+			}
+			target = &t
+			continue
+		}
+		additional = append(additional, t)
+	}
+	rule.Target = *target
+	rule.AdditionalTargets = additional
 	return rule, nil
 }
 
-func (svc *EventBridgeServiceImpl) SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
-	log.Printf("[debug] call SearchScheduleRule(ctx,%s)", stateMachineArn)
-	p := eventbridgex.NewListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
-		TargetArn: aws.String(stateMachineArn),
-	})
-	rules := make([]*ScheduleRule, 0)
-	for p.HasMorePages() {
-		output, err := p.NextPage(ctx)
-		if err != nil {
-			return nil, err
-		}
-		for _, name := range output.RuleNames {
-			log.Println("[debug] detect rule: ", name)
-			schedule, err := svc.DescribeScheduleRule(ctx, name)
-			if err != nil && err != ErrRuleIsNotSchedule {
-				return nil, err
-			}
-			if err == ErrRuleIsNotSchedule {
-				continue
-			}
-			if schedule.IsManagedBy() {
-				rules = append(rules, schedule)
-			} else {
-				name := ""
-				if schedule.Name != nil {
-					name = *schedule.Name
-				}
-				log.Printf("[debug] found a scheduled rule `%s` that %s does not manage.", name, appName)
-			}
-		}
-	}
-	log.Printf("[debug] end SearchScheduleRule() %d rules found", len(rules))
-	return rules, nil
-}
-
-type DeployScheduleRuleOutput struct {
-	RuleArn          *string
-	FailedEntries    []eventbridgetypes.PutTargetsResultEntry
-	FailedEntryCount int32
-}
-
-func (svc *EventBridgeServiceImpl) DeployScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) (*DeployScheduleRuleOutput, error) {
-	log.Println("[debug] deploy put rule")
-	putRuleOutput, err := svc.client.PutRule(ctx, &rule.PutRuleInput, optFns...)
+func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error {
+	currentRules, err := svc.SearchRelatedRules(ctx, stateMachineArn)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	log.Println("[debug] deploy put targets")
+	if keepState {
+		rules.SyncState(currentRules)
+	}
+	plan := diff(currentRules, rules, func(rule *EventBridgeRule) string {
+		return coalesce(rule.Name)
+	})
+	for _, rule := range plan.Delete {
+		log.Println("[info] deleting rule:", coalesce(rule.RuleArn))
+		if err := svc.deleteRule(ctx, rule); err != nil {
+			return fmt.Errorf("delete rule %s: %w", coalesce(rule.Name), err)
+		}
+	}
+	for _, c := range plan.Change {
+		log.Println("[info] changing rule:", coalesce(c.Before.RuleArn))
+		if err := svc.putRule(ctx, c.After); err != nil {
+			return fmt.Errorf("update rule %s: %w", coalesce(c.After.Name), err)
+		}
+	}
+	for _, rule := range plan.Add {
+		log.Println("[info] creating rule:", coalesce(rule.Name))
+		if err := svc.putRule(ctx, rule); err != nil {
+			return fmt.Errorf("create rule %s: %w", coalesce(rule.Name), err)
+		}
+	}
+	return nil
+}
+
+func (svc *EventBridgeServiceImpl) putRule(ctx context.Context, rule *EventBridgeRule) error {
+	log.Println("[debug] deploy put rule")
+	rule.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
+	putRuleOutput, err := svc.client.PutRule(ctx, &rule.PutRuleInput)
+	if err != nil {
+		return fmt.Errorf("put rule: %w", err)
+	}
+	rule.RuleArn = putRuleOutput.RuleArn
+	targets := make([]eventbridgetypes.Target, 1, len(rule.AdditionalTargets)+1)
+	targets[0] = rule.Target
+	targets = append(targets, rule.AdditionalTargets...)
+	log.Printf("[debug] deploy put %d targets", len(targets))
 	putTargetsOutput, err := svc.client.PutTargets(ctx, &eventbridge.PutTargetsInput{
 		Rule:    rule.Name,
-		Targets: rule.Targets,
-	}, optFns...)
+		Targets: targets,
+	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-
+	if putTargetsOutput.FailedEntryCount != 0 {
+		for _, failed := range putTargetsOutput.FailedEntries {
+			log.Printf("[warn] failed to put target: %s", MarshalJSONString(failed))
+		}
+		return fmt.Errorf("failed to put %d targets", putTargetsOutput.FailedEntryCount)
+	}
 	log.Println("[debug] deploy update tag")
 	rule.AppendTags(map[string]string{
 		tagManagedBy: appName,
 	})
 	_, err = svc.client.TagResource(ctx, &eventbridge.TagResourceInput{
 		ResourceARN: putRuleOutput.RuleArn,
-		Tags:        rule.PutRuleInput.Tags,
+		Tags:        rule.Tags,
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	output := &DeployScheduleRuleOutput{
-		RuleArn:          putRuleOutput.RuleArn,
-		FailedEntries:    putTargetsOutput.FailedEntries,
-		FailedEntryCount: putTargetsOutput.FailedEntryCount,
-	}
-	return output, nil
+	return nil
 }
 
-type DeployScheduleRulesOutput []*DeployScheduleRuleOutput
-
-func (o DeployScheduleRulesOutput) FailedEntryCount() int32 {
-	total := int32(0)
-	for _, output := range o {
-		total += output.FailedEntryCount
+func (svc *EventBridgeServiceImpl) deleteRule(ctx context.Context, rule *EventBridgeRule) error {
+	if !rule.IsManagedBy() {
+		log.Printf("[warn] event bridge rule `%s` that %s does not manage. skip delete this rule", coalesce(rule.Name), appName)
+		return nil
 	}
-	return total
-}
-
-func (svc *EventBridgeServiceImpl) DeployScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) (DeployScheduleRulesOutput, error) {
-	ret := make([]*DeployScheduleRuleOutput, 0, len(rules))
-	for _, rule := range rules {
-		output, err := svc.DeployScheduleRule(ctx, rule, optFns...)
-		if err != nil {
-			return nil, err
-		}
-		ret = append(ret, output)
+	targetIDs := make([]string, 0, len(rule.AdditionalTargets)+1)
+	targetIDs = append(targetIDs, coalesce(rule.Target.Id))
+	for _, target := range rule.AdditionalTargets {
+		targetIDs = append(targetIDs, coalesce(target.Id))
 	}
-	return ret, nil
-}
-
-func (svc *EventBridgeServiceImpl) DeleteScheduleRule(ctx context.Context, rule *ScheduleRule, optFns ...func(*eventbridge.Options)) error {
-	targetIDs := make([]string, 0, len(rule.Targets))
-	for _, target := range rule.Targets {
-		targetIDs = append(targetIDs, *target.Id)
-	}
+	log.Println("[debug] deploy remove targets for rule:", coalesce(rule.Name))
 	_, err := svc.client.RemoveTargets(ctx, &eventbridge.RemoveTargetsInput{
 		Ids:          targetIDs,
 		Rule:         rule.Name,
 		EventBusName: rule.EventBusName,
-	}, optFns...)
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("remove targets: %w", err)
 	}
+	log.Println("[debug] deploy delete rule:", coalesce(rule.Name))
 	_, err = svc.client.DeleteRule(ctx, &eventbridge.DeleteRuleInput{
 		Name:         rule.Name,
 		EventBusName: rule.EventBusName,
-	}, optFns...)
-	return err
-}
-
-func (svc *EventBridgeServiceImpl) DeleteScheduleRules(ctx context.Context, rules ScheduleRules, optFns ...func(*eventbridge.Options)) error {
-	for _, rule := range rules {
-		if err := svc.DeleteScheduleRule(ctx, rule, optFns...); err != nil {
-			return fmt.Errorf("%s :%w", *rule.Name, err)
-		}
+	})
+	if err != nil {
+		return fmt.Errorf("delete rule: %w", err)
 	}
 	return nil
 }

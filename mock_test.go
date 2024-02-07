@@ -677,65 +677,22 @@ func NewMockEventBridgeService(t *testing.T) *mockEventBridgeService {
 	return m
 }
 
-func (m *mockEventBridgeService) DescribeScheduleRule(ctx context.Context, ruleName string, optFns ...func(*eventbridge.Options)) (*stefunny.ScheduleRule, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, ruleName, optFns)
-	} else {
-		args = m.Called(ctx, ruleName)
-	}
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*stefunny.ScheduleRule); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *stefunny.ScheduleRule")
-		return nil, errors.New("mock data is not *stefunny.ScheduleRule")
-	}
-	return nil, err
-}
-
-func (m *mockEventBridgeService) SearchScheduleRule(ctx context.Context, stateMachineArn string) (stefunny.ScheduleRules, error) {
+func (m *mockEventBridgeService) SearchRelatedRules(ctx context.Context, stateMachineArn string) (stefunny.EventBridgeRules, error) {
 	args := m.Called(ctx, stateMachineArn)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
-		if o, ok := output.(stefunny.ScheduleRules); ok {
+		if o, ok := output.(stefunny.EventBridgeRules); ok {
 			return o, nil
 		}
-		require.FailNow(m.t, "mock data is not stefunny.ScheduleRules")
-		return nil, errors.New("mock data is not stefunny.ScheduleRules")
+		require.FailNow(m.t, "mock data is not stefunny.EventBridgeRules")
+		return nil, errors.New("mock data is not stefunny.EventBridgeRules")
 	}
 	return nil, err
 }
 
-func (m *mockEventBridgeService) DeployScheduleRules(ctx context.Context, rules stefunny.ScheduleRules, optFns ...func(*eventbridge.Options)) (stefunny.DeployScheduleRulesOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, rules, optFns)
-	} else {
-		args = m.Called(ctx, rules)
-	}
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(stefunny.DeployScheduleRulesOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *stefunny.DeployScheduleRulesOutput")
-		return nil, errors.New("mock data is not *stefunny.DeployScheduleRulesOutput")
-	}
-	return nil, err
-}
-
-func (m *mockEventBridgeService) DeleteScheduleRules(ctx context.Context, rules stefunny.ScheduleRules, optFns ...func(*eventbridge.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, rules, optFns)
-	} else {
-		args = m.Called(ctx, rules)
-	}
+func (m *mockEventBridgeService) DeployRules(ctx context.Context, stateMachineARN string, rules stefunny.EventBridgeRules, keepState bool) error {
+	args := m.Called(ctx, stateMachineARN, rules, keepState)
 	return args.Error(0)
 }
 

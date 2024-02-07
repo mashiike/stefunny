@@ -3,11 +3,11 @@ package stefunny
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
-	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 )
 
@@ -132,35 +132,17 @@ func (app *App) LoadStateMachine() (*StateMachine, error) {
 	return stateMachine, nil
 }
 
-func (app *App) LoadScheduleRules(_ context.Context, stateMachineArn string) (ScheduleRules, error) {
-	rules := make([]*ScheduleRule, 0, len(app.cfg.Schedule))
-	for _, cfg := range app.cfg.Schedule {
-		rule := &ScheduleRule{
-			PutRuleInput: eventbridge.PutRuleInput{
-				Name:               aws.String(cfg.RuleName),
-				ScheduleExpression: &cfg.Expression,
-				State:              eventbridgetypes.RuleStateEnabled,
-				Tags:               make([]eventbridgetypes.Tag, 0, len(app.cfg.Tags)),
-			},
-			Targets: []eventbridgetypes.Target{{
-				RoleArn: aws.String(cfg.RoleArn),
-			}},
-			TargetRoleArn: cfg.RoleArn,
-		}
-		if cfg.Description != "" {
-			rule.Description = aws.String(cfg.Description)
-		}
-		if cfg.ID != "" {
-			rule.Targets[0].Id = aws.String(cfg.ID)
-		}
-		for k, v := range app.cfg.Tags {
-			rule.Tags = append(rule.Tags, eventbridgetypes.Tag{
-				Key:   aws.String(k),
-				Value: aws.String(v),
-			})
-		}
-		rule.SetStateMachineArn(stateMachineArn)
-		rules = append(rules, rule)
+func (app *App) LoadEventBridgeRules() EventBridgeRules {
+	rules := app.cfg.NewEventBridgeRules()
+	stateMachineTags := app.cfg.NewCreateStateMachineInput().Tags
+	tags := make(map[string]string, len(stateMachineTags))
+	for _, tag := range stateMachineTags {
+		tags[coalesce(tag.Key)] = coalesce(tag.Value)
 	}
-	return rules, nil
+	for _, rule := range rules {
+		rule.AppendTags(tags)
+		rule.AppendTags(app.cfg.Tags)
+	}
+	sort.Sort(rules)
+	return rules
 }

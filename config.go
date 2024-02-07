@@ -229,7 +229,26 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 			Enabled: cfg.StateMachine.Tracing.Enabled,
 		}
 	}
-
+	if cfg.Schedule != nil {
+		log.Println("[warn] schedule is deprecated. Use trigger.schedule or trigger.event instead. (since v0.6.0)")
+		if cfg.Trigger == nil {
+			cfg.Trigger = &TriggerConfig{}
+		}
+		for _, s := range cfg.Schedule {
+			event := TriggerEventConfig{
+				KeysToSnakeCase: NewKeysToSnakeCase(EventBridgeRule{
+					PutRuleInput: eventbridge.PutRuleInput{
+						Name:               &s.RuleName,
+						ScheduleExpression: &s.Expression,
+						Description:        &s.Description,
+						RoleArn:            &s.RoleArn,
+					},
+				}),
+			}
+			cfg.Trigger.Event = append(cfg.Trigger.Event, event)
+		}
+		cfg.Schedule = nil
+	}
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -258,6 +277,7 @@ type Config struct {
 	AWSRegion       string `yaml:"aws_region,omitempty" json:"aws_region,omitempty" toml:"aws_region,omitempty" env:"AWS_REGION" validate:"omitempty,region"`
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty" json:"state_machine,omitempty"`
+	Trigger      *TriggerConfig      `yaml:"trigger,omitempty" json:"trigger,omitempty"`
 	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty" json:"schedule,omitempty"`
 	Tags         map[string]string   `yaml:"tags,omitempty" json:"tags,omitempty"`
 
@@ -360,6 +380,18 @@ type ScheduleConfig struct {
 	RoleArn     string `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
+type TriggerConfig struct {
+	Schedule []TriggerScheduleConfig `yaml:"schedule,omitempty" json:"schedule,omitempty"`
+	Event    []TriggerEventConfig    `yaml:"event,omitempty" json:"event,omitempty"`
+}
+
+type TriggerScheduleConfig struct {
+}
+
+type TriggerEventConfig struct {
+	KeysToSnakeCase[EventBridgeRule] `yaml:",inline" json:",inline"`
+}
+
 // Restrict restricts a configuration.
 func (cfg *Config) Restrict() error {
 	if cfg.RequiredVersion != "" {
@@ -375,6 +407,12 @@ func (cfg *Config) Restrict() error {
 	if err := cfg.StateMachine.Restrict(); err != nil {
 		return fmt.Errorf("state_machine.%w", err)
 	}
+	if cfg.Trigger != nil {
+		if err := cfg.Trigger.Restrict(); err != nil {
+			return fmt.Errorf("trigger.%w", err)
+		}
+	}
+
 	if len(cfg.Schedule) != 0 {
 		for i, s := range cfg.Schedule {
 			if err := s.Restrict(i, *cfg.StateMachine.Value.Name); err != nil {
@@ -435,6 +473,21 @@ func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
 		})
 	}
 	return input
+}
+
+func (cfg *TriggerConfig) Restrict() error {
+	return nil
+}
+
+func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
+	if cfg.Trigger == nil {
+		return EventBridgeRules{}
+	}
+	rules := make(EventBridgeRules, 0, len(cfg.Trigger.Event))
+	for _, e := range cfg.Trigger.Event {
+		rules = append(rules, ptr(e.Value))
+	}
+	return rules
 }
 
 func (cfg *StateMachineConfig) SetDetinitionPath(path string) {

@@ -5,9 +5,12 @@
   "version": {},
   "init": {
     "state_machine_name": "test",
-    "definition_file_path": "definition.asl.json"
+    "definition_file_path": "definition.asl.json",
+    "alias": "current"
   },
-  "delete": {},
+  "delete": {
+    "alias": "current"
+  },
   "deploy": {
     "alias": "current"
   },
