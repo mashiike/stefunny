@@ -35,14 +35,14 @@ func prompt(ctx context.Context, msg string, defaultInput string) (string, error
 	}
 }
 
-func coalesceString(str *string, d string) string {
-	if str == nil {
-		return d
+func coalesce[T any](ptrs ...*T) T {
+	for _, ptr := range ptrs {
+		if ptr != nil {
+			return *ptr
+		}
 	}
-	if *str == "" {
-		return d
-	}
-	return *str
+	var zero T
+	return zero
 }
 
 func ptr[T any](v T) *T {

@@ -18,10 +18,10 @@ type StateMachine struct {
 }
 
 func (s *StateMachine) QualifiedARN(name string) string {
-	if s.StateMachineArn == nil {
-		return ""
+	if name == "" {
+		return coalesce(s.StateMachineArn)
 	}
-	return fmt.Sprintf("%s:%s", *s.StateMachineArn, name)
+	return fmt.Sprintf("%s:%s", coalesce(s.StateMachineArn), name)
 }
 
 func (s *StateMachine) AppendTags(tags map[string]string) {
@@ -29,8 +29,9 @@ func (s *StateMachine) AppendTags(tags map[string]string) {
 	aleradyExists := make(map[string]string, len(s.Tags))
 	pos := make(map[string]int, len(s.Tags))
 	for i, tag := range s.Tags {
-		aleradyExists[*tag.Key] = *tag.Value
-		pos[*tag.Key] = i
+		key := coalesce(tag.Key)
+		aleradyExists[key] = coalesce(tag.Value)
+		pos[key] = i
 	}
 	for key, value := range tags {
 		if _, ok := aleradyExists[key]; !ok {
@@ -47,7 +48,7 @@ func (s *StateMachine) AppendTags(tags map[string]string) {
 
 func (s *StateMachine) IsManagedBy() bool {
 	for _, tag := range s.Tags {
-		if *tag.Key == tagManagedBy && *tag.Value == appName {
+		if coalesce(tag.Key) == tagManagedBy && coalesce(tag.Value) == appName {
 			return true
 		}
 	}

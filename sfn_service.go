@@ -193,7 +193,7 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 		}
 		log.Printf("[info] update state machine `%s`", *output.StateMachineVersionArn)
 	}
-	svc.cacheStateMachineArnByName[*stateMachine.Name] = *output.StateMachineArn
+	svc.cacheStateMachineArnByName[coalesce(stateMachine.Name)] = *output.StateMachineArn
 	if err := svc.waitForLastUpdateStatusActive(ctx, stateMachine, optFns...); err != nil {
 		return nil, fmt.Errorf("wait for last update status active failed: %w", err)
 	}
@@ -355,7 +355,7 @@ func (svc *SFnServiceImpl) ListStateMachineVersions(ctx context.Context, stateMa
 func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) (*ListStateMachineVersionsOutput, error) {
 	var ok bool
 	var aliasListItemes []sfntypes.StateMachineAliasListItem
-	if aliasListItemes, ok = svc.cacheStateMachineAliasesByARN[*stateMachine.StateMachineArn]; !ok {
+	if aliasListItemes, ok = svc.cacheStateMachineAliasesByARN[coalesce(stateMachine.StateMachineArn)]; !ok {
 		p := sfnx.NewListStateMachineAliasesPaginator(svc.client, &sfn.ListStateMachineAliasesInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 			MaxResults:      32,
@@ -368,7 +368,7 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 			}
 			aliasListItemes = append(aliasListItemes, output.StateMachineAliases...)
 		}
-		svc.cacheStateMachineAliasesByARN[*stateMachine.StateMachineArn] = aliasListItemes
+		svc.cacheStateMachineAliasesByARN[coalesce(stateMachine.StateMachineArn)] = aliasListItemes
 	}
 	aliasesByVersionARN := make(map[string][]string, len(aliasListItemes))
 	for _, item := range aliasListItemes {
@@ -382,7 +382,7 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 	}
 
 	var versionListItems []sfntypes.StateMachineVersionListItem
-	if versionListItems, ok = svc.cacheStateMachineVersionsByARN[*stateMachine.StateMachineArn]; !ok {
+	if versionListItems, ok = svc.cacheStateMachineVersionsByARN[coalesce(stateMachine.StateMachineArn)]; !ok {
 		p := sfnx.NewListStateMachineVersionsPaginator(svc.client, &sfn.ListStateMachineVersionsInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 			MaxResults:      32,
@@ -395,10 +395,10 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 			}
 			versionListItems = append(versionListItems, output.StateMachineVersions...)
 		}
-		svc.cacheStateMachineVersionsByARN[*stateMachine.StateMachineArn] = versionListItems
+		svc.cacheStateMachineVersionsByARN[coalesce(stateMachine.StateMachineArn)] = versionListItems
 	}
 	output := &ListStateMachineVersionsOutput{
-		StateMachineArn: *stateMachine.StateMachineArn,
+		StateMachineArn: coalesce(stateMachine.StateMachineArn),
 		Versions:        make([]StateMachineVersionListItem, 0, len(versionListItems)),
 	}
 	for _, item := range versionListItems {
@@ -417,12 +417,8 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 			Version:                versionNumber,
 			CreationDate:           *item.CreationDate,
 			Aliases:                aliasesByVersionARN[*item.StateMachineVersionArn],
-		}
-		if versionDetail.RevisionId != nil {
-			version.RevisionID = *versionDetail.RevisionId
-		}
-		if versionDetail.Description != nil {
-			version.Description = *versionDetail.Description
+			RevisionID:             coalesce(versionDetail.RevisionId),
+			Description:            coalesce(versionDetail.Description),
 		}
 		output.Versions = append(output.Versions, *version)
 	}
@@ -476,7 +472,7 @@ func (svc *SFnServiceImpl) RollbackStateMachine(ctx context.Context, stateMachin
 		return ErrStateMachineDoesNotExist
 	}
 	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
-		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
+		log.Printf("[info] %s already deleting...\n", coalesce(stateMachine.StateMachineArn))
 		return nil
 	}
 	aliasARN := stateMachine.QualifiedARN(svc.aliasName)
@@ -599,7 +595,7 @@ func (svc *SFnServiceImpl) deleteStateMachineVersion(ctx context.Context, versio
 
 func (svc *SFnServiceImpl) DeleteStateMachine(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
 	if stateMachine.Status == sfntypes.StateMachineStatusDeleting {
-		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
+		log.Printf("[info] %s already deleting...\n", coalesce(stateMachine.StateMachineArn))
 		return nil
 	}
 	retirer := svc.retryPolicy.Start(ctx)
@@ -658,11 +654,7 @@ func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *Sta
 		}
 		params.ExecutionName = uuidObj.String()
 	}
-	if params.Qualifier == nil {
-		params.Target = *stateMachine.StateMachineArn
-	} else {
-		params.Target = stateMachine.QualifiedARN(*params.Qualifier)
-	}
+	params.Target = stateMachine.QualifiedARN(coalesce(params.Qualifier))
 	switch stateMachine.Type {
 	case sfntypes.StateMachineTypeStandard:
 		return svc.startExecutionForStandard(ctx, stateMachine, params, optFns...)
@@ -714,7 +706,7 @@ func (svc *SFnServiceImpl) startExecutionForExpress(ctx context.Context, stateMa
 		StateMachineArn: &params.Target,
 		Input:           aws.String(params.Input),
 		Name:            aws.String(params.ExecutionName),
-		TraceHeader:     aws.String(*stateMachine.Name + "_" + params.ExecutionName),
+		TraceHeader:     aws.String(coalesce(stateMachine.Name) + "_" + params.ExecutionName),
 	})
 	if err != nil {
 		return nil, err
@@ -745,7 +737,7 @@ func (svc *SFnServiceImpl) startExecution(ctx context.Context, stateMachine *Sta
 		StateMachineArn: &params.Target,
 		Input:           aws.String(params.Input),
 		Name:            aws.String(params.ExecutionName),
-		TraceHeader:     aws.String(*stateMachine.Name + "_" + params.ExecutionName),
+		TraceHeader:     aws.String(coalesce(stateMachine.Name) + "_" + params.ExecutionName),
 	})
 	if err != nil {
 		return nil, err
@@ -815,11 +807,9 @@ func (svc *SFnServiceImpl) waitExecution(ctx context.Context, executionArn strin
 	result := &waitExecutionOutput{
 		Success:   output.Status == sfntypes.ExecutionStatusSucceeded,
 		Failed:    output.Status == sfntypes.ExecutionStatusFailed,
-		StartDate: *output.StartDate,
-		StopDate:  *output.StopDate,
-	}
-	if output.Output != nil {
-		result.Output = *output.Output
+		StartDate: coalesce(output.StartDate),
+		StopDate:  coalesce(output.StopDate),
+		Output:    coalesce(output.Output),
 	}
 	historyOutput, err := svc.client.GetExecutionHistory(ctx, &sfn.GetExecutionHistoryInput{
 		ExecutionArn:         aws.String(executionArn),
