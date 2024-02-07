@@ -37,6 +37,9 @@ const (
 	yamlExt    = ".yaml"
 )
 
+type CloudWatchLogsClient interface {
+	cloudwatchlogs.DescribeLogGroupsAPIClient
+}
 type ConfigLoader struct {
 	loader       *gc.Loader
 	funcMap      template.FuncMap
