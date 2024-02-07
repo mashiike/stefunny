@@ -29,7 +29,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
 
-	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
+	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, coalesce(stateMachine.StateMachineArn))
 	if err != nil {
 		return err
 	}

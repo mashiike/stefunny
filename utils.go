@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/Songmu/prompter"
+	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/fatih/color"
 )
 
@@ -32,16 +35,35 @@ func prompt(ctx context.Context, msg string, defaultInput string) (string, error
 	}
 }
 
-func coalesceString(str *string, d string) string {
-	if str == nil {
-		return d
+func coalesce[T any](ptrs ...*T) T {
+	for _, ptr := range ptrs {
+		if ptr != nil {
+			return *ptr
+		}
 	}
-	if *str == "" {
-		return d
-	}
-	return *str
+	var zero T
+	return zero
 }
 
 func ptr[T any](v T) *T {
 	return &v
+}
+
+func extructVersion(versionARN string) (int, error) {
+	arnObj, err := arn.Parse(versionARN)
+	if err != nil {
+		return 0, fmt.Errorf("parse arn failed: %w", err)
+	}
+	parts := strings.Split(arnObj.Resource, ":")
+	if parts[0] != "stateMachine" {
+		return 0, fmt.Errorf("`%s` is not state machine version arn", versionARN)
+	}
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid arn format: %s", versionARN)
+	}
+	version, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return 0, fmt.Errorf("parse version number failed: %w", err)
+	}
+	return version, nil
 }

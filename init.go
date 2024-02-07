@@ -27,7 +27,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	}
 	cfg.StateMachine = setStateMachineConfig(cfg.StateMachine, stateMachine)
 
-	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, *stateMachine.StateMachineArn)
+	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, coalesce(stateMachine.StateMachineArn))
 	if err != nil {
 		return err
 	}
@@ -49,15 +49,15 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		return fmt.Errorf("failed definition path rel: %w", err)
 	}
 	cfg.StateMachine.SetDetinitionPath(defPath)
-	cfg.StateMachine.SetDefinition(*stateMachine.Definition)
+	cfg.StateMachine.SetDefinition(coalesce(stateMachine.Definition))
 	renderer := NewRenderer(cfg)
-	log.Printf("[notice] StateMachine/%s save config to %s", *stateMachine.Name, opt.ConfigPath)
+	log.Printf("[notice] StateMachine/%s save config to %s", coalesce(stateMachine.Name), opt.ConfigPath)
 	if err := renderer.RenderConfigFile(opt.ConfigPath); err != nil {
 		return fmt.Errorf("failed render config file: %w", err)
 	}
 
 	defFullPath := filepath.Join(configDir, defPath)
-	log.Printf("[notice] StateMachine/%s save state machine definition to %s", *stateMachine.Name, defFullPath)
+	log.Printf("[notice] StateMachine/%s save state machine definition to %s", coalesce(stateMachine.Name), defFullPath)
 	if err := renderer.RenderDefinitionFile(defFullPath); err != nil {
 		return fmt.Errorf("failed render state machine definition file: %w", err)
 	}
@@ -79,13 +79,13 @@ func setStateMachineConfig(cfg *StateMachineConfig, s *StateMachine) *StateMachi
 
 func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
 	cfg := &ScheduleConfig{}
-	cfg.RuleName = coalesceString(s.Name, "")
-	cfg.Description = coalesceString(s.Description, "")
-	cfg.Expression = *s.ScheduleExpression
+	cfg.RuleName = coalesce(s.Name)
+	cfg.Description = coalesce(s.Description)
+	cfg.Expression = coalesce(s.ScheduleExpression)
 	if len(s.Targets) != 1 {
 		return nil, fmt.Errorf("rule target must be 1, now %d", len(s.Targets))
 	}
-	cfg.RoleArn = coalesceString(s.Targets[0].RoleArn, "")
-	cfg.ID = coalesceString(s.Targets[0].Id, "")
+	cfg.RoleArn = coalesce(s.Targets[0].RoleArn)
+	cfg.ID = coalesce(s.Targets[0].Id)
 	return cfg, nil
 }
