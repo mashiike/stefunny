@@ -355,7 +355,7 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 	var ok bool
 	var aliasListItemes []sfntypes.StateMachineAliasListItem
 	if aliasListItemes, ok = svc.cacheStateMachineAliasesByARN[*stateMachine.StateMachineArn]; !ok {
-		p := newListStateMachineAliasesPaginator(svc.client, &sfn.ListStateMachineAliasesInput{
+		p := NewListStateMachineAliasesPaginator(svc.client, &sfn.ListStateMachineAliasesInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 			MaxResults:      32,
 		})
@@ -382,7 +382,7 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 
 	var versionListItems []sfntypes.StateMachineVersionListItem
 	if versionListItems, ok = svc.cacheStateMachineVersionsByARN[*stateMachine.StateMachineArn]; !ok {
-		p := newListStateMachineVersionsPaginator(svc.client, &sfn.ListStateMachineVersionsInput{
+		p := NewListStateMachineVersionsPaginator(svc.client, &sfn.ListStateMachineVersionsInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 			MaxResults:      32,
 		})

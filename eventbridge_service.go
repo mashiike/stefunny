@@ -92,7 +92,7 @@ func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, rul
 
 func (svc *EventBridgeServiceImpl) SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
 	log.Printf("[debug] call SearchScheduleRule(ctx,%s)", stateMachineArn)
-	p := newListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
+	p := NewListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
 		TargetArn: aws.String(stateMachineArn),
 	})
 	rules := make([]*ScheduleRule, 0)

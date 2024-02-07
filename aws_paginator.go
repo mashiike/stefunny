@@ -15,7 +15,7 @@ type ListStateMachineAliasesPaginator struct {
 	firstPage bool
 }
 
-func newListStateMachineAliasesPaginator(client SFnClient, params *sfn.ListStateMachineAliasesInput) *ListStateMachineAliasesPaginator {
+func NewListStateMachineAliasesPaginator(client SFnClient, params *sfn.ListStateMachineAliasesInput) *ListStateMachineAliasesPaginator {
 	if params == nil {
 		params = &sfn.ListStateMachineAliasesInput{}
 	}
@@ -61,7 +61,7 @@ type ListStateMachineVersionsPaginator struct {
 	firstPage bool
 }
 
-func newListStateMachineVersionsPaginator(client SFnClient, params *sfn.ListStateMachineVersionsInput) *ListStateMachineVersionsPaginator {
+func NewListStateMachineVersionsPaginator(client SFnClient, params *sfn.ListStateMachineVersionsInput) *ListStateMachineVersionsPaginator {
 	if params == nil {
 		params = &sfn.ListStateMachineVersionsInput{}
 	}
@@ -100,30 +100,30 @@ func (p *ListStateMachineVersionsPaginator) NextPage(ctx context.Context, optFns
 	return result, nil
 }
 
-type listRuleNamesByTargetPaginator struct {
+type ListRuleNamesByTargetPaginator struct {
 	client    EventBridgeClient
 	params    *eventbridge.ListRuleNamesByTargetInput
 	nextToken *string
 	firstPage bool
 }
 
-func newListRuleNamesByTargetPaginator(client EventBridgeClient, params *eventbridge.ListRuleNamesByTargetInput) *listRuleNamesByTargetPaginator {
+func NewListRuleNamesByTargetPaginator(client EventBridgeClient, params *eventbridge.ListRuleNamesByTargetInput) *ListRuleNamesByTargetPaginator {
 	if params == nil {
 		params = &eventbridge.ListRuleNamesByTargetInput{}
 	}
 
-	return &listRuleNamesByTargetPaginator{
+	return &ListRuleNamesByTargetPaginator{
 		client:    client,
 		params:    params,
 		firstPage: true,
 	}
 }
 
-func (p *listRuleNamesByTargetPaginator) HasMorePages() bool {
+func (p *ListRuleNamesByTargetPaginator) HasMorePages() bool {
 	return p.firstPage || p.nextToken != nil
 }
 
-func (p *listRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
+func (p *ListRuleNamesByTargetPaginator) NextPage(ctx context.Context, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error) {
 	if !p.HasMorePages() {
 		return nil, fmt.Errorf("no more pages available")
 	}
