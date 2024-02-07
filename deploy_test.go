@@ -137,7 +137,7 @@ func TestDeploy(t *testing.T) {
 		},
 		{
 			casename: "not_found_and_create_with_schedule",
-			path:     "testdata/schedule.yaml",
+			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
@@ -171,6 +171,7 @@ func TestDeploy(t *testing.T) {
 							return assert.EqualValues(t, stefunny.EventBridgeRules{
 								{
 									PutRuleInput: eventbridge.PutRuleInput{
+										Name:               aws.String("Scheduled-hourly"),
 										ScheduleExpression: aws.String("rate(1 hour)"),
 										RoleArn:            aws.String("arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role"),
 										Tags: []eventbridgetypes.Tag{
@@ -194,7 +195,7 @@ func TestDeploy(t *testing.T) {
 		},
 		{
 			casename: "deploy with schedule",
-			path:     "testdata/schedule.yaml",
+			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
@@ -236,6 +237,7 @@ func TestDeploy(t *testing.T) {
 							return assert.EqualValues(t, stefunny.EventBridgeRules{
 								{
 									PutRuleInput: eventbridge.PutRuleInput{
+										Name:               aws.String("Scheduled-hourly"),
 										ScheduleExpression: aws.String("rate(1 hour)"),
 										RoleArn:            aws.String("arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role"),
 										Tags: []eventbridgetypes.Tag{

@@ -29,7 +29,6 @@ import (
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
-	"github.com/serenize/snaker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -417,16 +416,8 @@ func (cfg *Config) Restrict() error {
 		return fmt.Errorf("state_machine.%w", err)
 	}
 	if cfg.Trigger != nil {
-		if err := cfg.Trigger.Restrict(); err != nil {
+		if err := cfg.Trigger.Restrict(cfg.StateMachineName()); err != nil {
 			return fmt.Errorf("trigger.%w", err)
-		}
-	}
-
-	if len(cfg.Schedule) != 0 {
-		for i, s := range cfg.Schedule {
-			if err := s.Restrict(i, *cfg.StateMachine.Value.Name); err != nil {
-				return fmt.Errorf("schedule[%d].%w", i, err)
-			}
 		}
 	}
 	if len(cfg.Tags) > 0 {
@@ -435,7 +426,85 @@ func (cfg *Config) Restrict() error {
 	return nil
 }
 
-func (cfg *TriggerConfig) Restrict() error {
+func (cfg *TriggerConfig) Restrict(stateMachineName string) error {
+	for i, s := range cfg.Schedule {
+		if err := s.Restrict(i, stateMachineName); err != nil {
+			return fmt.Errorf("schedule[%d].%w", i, err)
+		}
+	}
+	for i, e := range cfg.Event {
+		if err := e.Restrict(i, stateMachineName); err != nil {
+			return fmt.Errorf("event[%d].%w", i, err)
+		}
+	}
+	return nil
+}
+
+func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
+	cfg.Value.PutRuleInput.RoleArn = ptr(coalesce(cfg.Value.PutRuleInput.RoleArn, cfg.Value.Target.RoleArn))
+	cfg.Value.Target.RoleArn = nil
+	if coalesce(cfg.Value.PutRuleInput.RoleArn) == "" {
+		return errors.New("role_arn is required")
+	}
+	if coalesce(cfg.Value.PutRuleInput.Name) == "" {
+		log.Printf("[warn] trigger.event[%d].rule_name is empty. Use state_machine.name as rule_name.", i)
+		cfg.Value.PutRuleInput.Name = aws.String(stateMachineName)
+	}
+	if coalesce(cfg.Value.PutRuleInput.ScheduleExpression) == "" && coalesce(cfg.Value.PutRuleInput.EventPattern) == "" {
+		return errors.New("schedule_expression or event_pattern is required")
+	}
+	if cfg.Value.Target.Arn != nil {
+		return errors.New("target.arn is not allowed")
+	}
+	return nil
+}
+
+func (cfg *TriggerEventConfig) UnmarshalYAML(node *yaml.Node) error {
+	cfg.Strict = true
+	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TriggerEventConfig) UnmarshalJSON(b []byte) error {
+	cfg.Strict = true
+	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TriggerScheduleConfig) Restrict(i int, stateMachineName string) error {
+	if coalesce(cfg.Value.Name) == "" {
+		log.Printf("[warn] trigger.schedule[%d].schedule_name is empty. Use state_machine.name as rule_name.", i)
+		cfg.Value.Name = aws.String(stateMachineName)
+	}
+	if coalesce(cfg.Value.ScheduleExpression) == "" {
+		return errors.New("schedule_expression is required")
+	}
+	if cfg.Value.Target == nil {
+		return nil
+	}
+	if coalesce(cfg.Value.Target.Arn) != "" {
+		return errors.New("target.arn is not allowed")
+	}
+	return nil
+}
+
+func (cfg *TriggerScheduleConfig) UnmarshalYAML(node *yaml.Node) error {
+	cfg.Strict = true
+	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TriggerScheduleConfig) UnmarshalJSON(b []byte) error {
+	cfg.Strict = true
+	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -568,24 +637,6 @@ func (cfg *StateMachineConfig) Restrict() error {
 	}
 	if cfg.Value.VersionDescription != nil {
 		cfg.Value.VersionDescription = nil
-	}
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *ScheduleConfig) Restrict(index int, stateMachineName string) error {
-	if cfg.RuleName == "" {
-		middle := snaker.CamelToSnake(stateMachineName)
-		cfg.RuleName = fmt.Sprintf("%s-%s-schedule", appName, middle)
-		if index != 0 {
-			cfg.RuleName += fmt.Sprintf("%d", index)
-		}
-	}
-	if cfg.Expression == "" {
-		return errors.New("expression is required")
-	}
-	if cfg.RoleArn == "" {
-		return errors.New("role_arn is required")
 	}
 	return nil
 }

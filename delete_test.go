@@ -80,7 +80,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			casename: "scheduled dry run",
-			path:     "testdata/schedule.yaml",
+			path:     "testdata/event.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
@@ -121,7 +121,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			casename: "scheduled",
-			path:     "testdata/schedule.yaml",
+			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(

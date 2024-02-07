@@ -19,14 +19,12 @@
     "type": "STANDARD"
   },
   "trigger": {
-    "schedule": [
+    "event": [
       {
         "name": "Scheduled-hourly",
+        "role_arn": "arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role",
         "schedule_expression": "rate(1 hour)",
-        "schedule_expression_timezone": "Asia/Tokyo",
-        "target": {
-          "role_arn": "arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role"
-        }
+        "target": {}
       }
     ]
   },
