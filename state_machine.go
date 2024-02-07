@@ -76,7 +76,7 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 func (s *StateMachine) configureJSON() string {
 	tags := make(map[string]string, len(s.Tags))
 	for _, tag := range s.Tags {
-		tags[*tag.Key] = *tag.Value
+		tags[coalesce(tag.Key)] = coalesce(tag.Value)
 	}
 	params := map[string]interface{}{
 		"Name":                 s.Name,

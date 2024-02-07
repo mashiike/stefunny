@@ -32,10 +32,10 @@ func (app *App) Rollback(ctx context.Context, opt RollbackOption) error {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}
 
-	log.Println("[info] Starting rollback", *stateMachine.StateMachineArn, opt.DryRunString())
+	log.Println("[info] Starting rollback", coalesce(stateMachine.StateMachineArn), opt.DryRunString())
 	if err := app.sfnSvc.RollbackStateMachine(ctx, stateMachine, opt.KeepVersion, opt.DryRun); err != nil {
 		return err
 	}
-	log.Println("[info] finish rollback", *stateMachine.StateMachineArn, opt.DryRunString())
+	log.Println("[info] finish rollback", coalesce(stateMachine.StateMachineArn), opt.DryRunString())
 	return nil
 }
