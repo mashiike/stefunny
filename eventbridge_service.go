@@ -10,11 +10,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/mashiike/stefunny/internal/eventbridgex"
 )
 
 type EventBridgeClient interface {
+	eventbridgex.ListRuleNamesByTargetAPIClient
 	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)
-	ListRuleNamesByTarget(ctx context.Context, params *eventbridge.ListRuleNamesByTargetInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListRuleNamesByTargetOutput, error)
 	DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error)
 	ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error)
 	PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error)
@@ -92,7 +93,7 @@ func (svc *EventBridgeServiceImpl) DescribeScheduleRule(ctx context.Context, rul
 
 func (svc *EventBridgeServiceImpl) SearchScheduleRule(ctx context.Context, stateMachineArn string) (ScheduleRules, error) {
 	log.Printf("[debug] call SearchScheduleRule(ctx,%s)", stateMachineArn)
-	p := NewListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
+	p := eventbridgex.NewListRuleNamesByTargetPaginator(svc.client, &eventbridge.ListRuleNamesByTargetInput{
 		TargetArn: aws.String(stateMachineArn),
 	})
 	rules := make([]*ScheduleRule, 0)

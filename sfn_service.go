@@ -14,6 +14,7 @@ import (
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/smithy-go"
 	"github.com/google/uuid"
+	"github.com/mashiike/stefunny/internal/sfnx"
 	"github.com/shogo82148/go-retry"
 )
 
@@ -28,12 +29,12 @@ var (
 
 type SFnClient interface {
 	sfn.ListStateMachinesAPIClient
+	sfnx.ListStateMachineAliasesAPIClient
+	sfnx.ListStateMachineVersionsAPIClient
 	CreateStateMachine(ctx context.Context, params *sfn.CreateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error)
 	CreateStateMachineAlias(ctx context.Context, params *sfn.CreateStateMachineAliasInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineAliasOutput, error)
 	DescribeStateMachine(ctx context.Context, params *sfn.DescribeStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineOutput, error)
 	DescribeStateMachineAlias(ctx context.Context, params *sfn.DescribeStateMachineAliasInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineAliasOutput, error)
-	ListStateMachineVersions(ctx context.Context, params *sfn.ListStateMachineVersionsInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineVersionsOutput, error)
-	ListStateMachineAliases(ctx context.Context, params *sfn.ListStateMachineAliasesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineAliasesOutput, error)
 	UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error)
 	UpdateStateMachineAlias(ctx context.Context, params *sfn.UpdateStateMachineAliasInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineAliasOutput, error)
 	DeleteStateMachine(ctx context.Context, params *sfn.DeleteStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineOutput, error)
@@ -355,7 +356,7 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 	var ok bool
 	var aliasListItemes []sfntypes.StateMachineAliasListItem
 	if aliasListItemes, ok = svc.cacheStateMachineAliasesByARN[*stateMachine.StateMachineArn]; !ok {
-		p := NewListStateMachineAliasesPaginator(svc.client, &sfn.ListStateMachineAliasesInput{
+		p := sfnx.NewListStateMachineAliasesPaginator(svc.client, &sfn.ListStateMachineAliasesInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 			MaxResults:      32,
 		})
@@ -382,7 +383,7 @@ func (svc *SFnServiceImpl) listStateMachineVersions(ctx context.Context, stateMa
 
 	var versionListItems []sfntypes.StateMachineVersionListItem
 	if versionListItems, ok = svc.cacheStateMachineVersionsByARN[*stateMachine.StateMachineArn]; !ok {
-		p := NewListStateMachineVersionsPaginator(svc.client, &sfn.ListStateMachineVersionsInput{
+		p := sfnx.NewListStateMachineVersionsPaginator(svc.client, &sfn.ListStateMachineVersionsInput{
 			StateMachineArn: stateMachine.StateMachineArn,
 			MaxResults:      32,
 		})
