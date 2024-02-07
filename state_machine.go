@@ -17,7 +17,7 @@ type StateMachine struct {
 	Status          sfntypes.StateMachineStatus
 }
 
-func (s *StateMachine) AliasARN(name string) string {
+func (s *StateMachine) QualifiedARN(name string) string {
 	if s.StateMachineArn == nil {
 		return ""
 	}

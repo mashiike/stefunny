@@ -266,7 +266,7 @@ func (svc *SFnServiceImpl) describeStateMachineVersion(ctx context.Context, vers
 }
 
 func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine *StateMachine, versionARN string, optFns ...func(*sfn.Options)) error {
-	aliasARN := stateMachine.AliasARN(svc.aliasName)
+	aliasARN := stateMachine.QualifiedARN(svc.aliasName)
 	alias, err := svc.describeStateMachineAlias(ctx, aliasARN, optFns...)
 	if err != nil {
 		var notExists *sfntypes.ResourceNotFound
@@ -479,7 +479,7 @@ func (svc *SFnServiceImpl) RollbackStateMachine(ctx context.Context, stateMachin
 		log.Printf("[info] %s already deleting...\n", *stateMachine.StateMachineArn)
 		return nil
 	}
-	aliasARN := stateMachine.AliasARN(svc.aliasName)
+	aliasARN := stateMachine.QualifiedARN(svc.aliasName)
 	alias, err := svc.describeStateMachineAlias(ctx, aliasARN, optFns...)
 	if err != nil {
 		var notExists *sfntypes.ResourceNotFound
@@ -661,7 +661,7 @@ func (svc *SFnServiceImpl) StartExecution(ctx context.Context, stateMachine *Sta
 	if params.Qualifier == nil {
 		params.Target = *stateMachine.StateMachineArn
 	} else {
-		params.Target = stateMachine.AliasARN(*params.Qualifier)
+		params.Target = stateMachine.QualifiedARN(*params.Qualifier)
 	}
 	switch stateMachine.Type {
 	case sfntypes.StateMachineTypeStandard:
