@@ -9,7 +9,11 @@ import (
 	"github.com/fujiwara/logutils"
 )
 
-func LoggerSetup(w io.Writer, minLevel string) {
+func LoggerSetup(w io.Writer, minLevel string) func() {
+	beforeOutput := log.Writer()
+	cleanup := func() {
+		log.SetOutput(beforeOutput)
+	}
 	filter := &logutils.LevelFilter{
 		Levels:   []logutils.LogLevel{"debug", "info", "notice", "warn", "error"},
 		MinLevel: "info",
@@ -44,9 +48,10 @@ func LoggerSetup(w io.Writer, minLevel string) {
 			}),
 		)
 		log.Println("[debug] Setting log level to", minLevel)
-		return
+		return cleanup
 	}
 	log.SetOutput(filter)
+	return cleanup
 }
 
 type writerFunc func([]byte) (int, error)

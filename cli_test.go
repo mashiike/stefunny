@@ -172,6 +172,7 @@ func TestCLI__Parse(t *testing.T) {
 	)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			LoggerSetup(t, "debug")
 			loc := dataloc.L(c.name)
 			for k, v := range c.envs {
 				t.Setenv(k, v)

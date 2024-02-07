@@ -14,6 +14,7 @@ import (
 )
 
 func TestYAML2JSON(t *testing.T) {
+	LoggerSetup(t, "debug")
 	yamlASL := LoadString(t, "testdata/hello_world.asl.yaml")
 	jsonASL := LoadString(t, "testdata/hello_world.asl.json")
 	bs, err := stefunny.YAML2JSON([]byte(yamlASL))
@@ -42,6 +43,7 @@ func TestJSON2Jsonnet(t *testing.T) {
 }
 
 func TestKeysToSnakeCase__CreateStateMachineInput(t *testing.T) {
+	LoggerSetup(t, "debug")
 	yamlStr := `
 name: "test"
 definition: "test.asl.json"
@@ -52,7 +54,6 @@ logging_configuration:
   destinations:
     - cloudwatch_logs_log_group:
         log_group_arn: "arn:aws:logs:ap-northeast-1:123456789012:log-group:test:*"
-publish: false
 `
 	var obj stefunny.KeysToSnakeCase[sfn.CreateStateMachineInput]
 	err := yaml.Unmarshal([]byte(yamlStr), &obj)

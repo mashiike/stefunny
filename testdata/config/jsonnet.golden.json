@@ -11,15 +11,11 @@
           }
         }
       ],
-      "include_execution_data": false,
       "level": "ALL"
     },
     "name": "Hello",
-    "publish": false,
     "role_arn": "arn:aws:iam::123456789012:role/StepFunctions-Hello-Role",
-    "tracing_configuration": {
-      "enabled": false
-    },
+    "tracing_configuration": {},
     "type": "STANDARD"
   },
   "ConfigDir": "testdata"

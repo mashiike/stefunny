@@ -254,6 +254,120 @@ func (m *mockSFnClient) GetExecutionHistory(ctx context.Context, params *sfn.Get
 	return nil, err
 }
 
+func (m *mockSFnClient) CreateStateMachineAlias(ctx context.Context, params *sfn.CreateStateMachineAliasInput, optFns ...func(*sfn.Options)) (*sfn.CreateStateMachineAliasOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.CreateStateMachineAliasOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.CreateStateMachineAliasOutput")
+		return nil, errors.New("mock data is not *sfn.CreateStateMachineAliasOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnClient) DescribeStateMachineAlias(ctx context.Context, params *sfn.DescribeStateMachineAliasInput, optFns ...func(*sfn.Options)) (*sfn.DescribeStateMachineAliasOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.DescribeStateMachineAliasOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.DescribeStateMachineAliasOutput")
+		return nil, errors.New("mock data is not *sfn.DescribeStateMachineAliasOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnClient) ListStateMachineAliases(ctx context.Context, params *sfn.ListStateMachineAliasesInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineAliasesOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.ListStateMachineAliasesOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.ListStateMachineAliasesOutput")
+		return nil, errors.New("mock data is not *sfn.ListStateMachineAliasesOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnClient) ListStateMachineVersions(ctx context.Context, params *sfn.ListStateMachineVersionsInput, optFns ...func(*sfn.Options)) (*sfn.ListStateMachineVersionsOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.ListStateMachineVersionsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.ListStateMachineVersionsOutput")
+		return nil, errors.New("mock data is not *sfn.ListStateMachineVersionsOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnClient) UpdateStateMachineAlias(ctx context.Context, params *sfn.UpdateStateMachineAliasInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineAliasOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.UpdateStateMachineAliasOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.UpdateStateMachineAliasOutput")
+		return nil, errors.New("mock data is not *sfn.UpdateStateMachineAliasOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSFnClient) DeleteStateMachineVersion(ctx context.Context, params *sfn.DeleteStateMachineVersionInput, optFns ...func(*sfn.Options)) (*sfn.DeleteStateMachineVersionOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*sfn.DeleteStateMachineVersionOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *sfn.DeleteStateMachineVersionOutput")
+		return nil, errors.New("mock data is not *sfn.DeleteStateMachineVersionOutput")
+	}
+	return nil, err
+}
+
 func (m *mockEventBridgeClient) TagResource(ctx context.Context, params *eventbridge.TagResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.TagResourceOutput, error) {
 	var args mock.Arguments
 	if len(optFns) > 0 {
@@ -415,6 +529,10 @@ func NewMockSFnService(t *testing.T) *mockSFnService {
 	return m
 }
 
+func (m *mockSFnService) SetAliasName(name string) {
+	m.Called(name)
+}
+
 func (m *mockSFnService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
 	var args mock.Arguments
 	if len(optFns) > 0 {
@@ -440,6 +558,35 @@ func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, 
 		}
 		require.FailNow(m.t, "mock data is not *stefunny.StateMachine")
 		return nil, errors.New("mock data is not *stefunny.StateMachine")
+	}
+	return nil, err
+}
+
+func (m *mockSFnService) PurgeStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersions int, optFns ...func(*sfn.Options)) error {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, keepVersions, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine, keepVersions)
+	}
+	return args.Error(0)
+}
+
+func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.ListStateMachineVersionsOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*stefunny.ListStateMachineVersionsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not []stefunny.StateMachineVersion")
+		return nil, errors.New("mock data is not []stefunny.StateMachineVersion")
 	}
 	return nil, err
 }
@@ -473,22 +620,23 @@ func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *s
 	return args.Error(0)
 }
 
-func (m *mockSFnService) WaitExecution(ctx context.Context, executionArn string) (*stefunny.WaitExecutionOutput, error) {
-	args := m.Called(ctx, executionArn)
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*stefunny.WaitExecutionOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *stefunny.WaitExecutionOutput")
-		return nil, errors.New("mock data is not *stefunny.WaitExecutionOutput")
+func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, keepVersion, dryRun, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine, keepVersion, dryRun)
 	}
-	return nil, err
+	return args.Error(0)
 }
 
-func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, executionName, input string) (*stefunny.StartExecutionOutput, error) {
-	args := m.Called(ctx, stateMachine, executionName, input)
+func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput, optFns ...func(*sfn.Options)) (*stefunny.StartExecutionOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, stateMachine, params, optFns)
+	} else {
+		args = m.Called(ctx, stateMachine, params)
+	}
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -497,20 +645,6 @@ func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefu
 		}
 		require.FailNow(m.t, "mock data is not *stefunny.StartExecutionOutput")
 		return nil, errors.New("mock data is not *stefunny.StartExecutionOutput")
-	}
-	return nil, err
-}
-
-func (m *mockSFnService) StartSyncExecution(ctx context.Context, stateMachine *stefunny.StateMachine, executionName, input string) (*sfn.StartSyncExecutionOutput, error) {
-	args := m.Called(ctx, stateMachine, executionName, input)
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*sfn.StartSyncExecutionOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *sfn.StartSyncExecutionOutput")
-		return nil, errors.New("mock data is not *sfn.StartSyncExecutionOutput")
 	}
 	return nil, err
 }

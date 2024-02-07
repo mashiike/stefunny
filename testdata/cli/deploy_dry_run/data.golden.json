@@ -8,11 +8,21 @@
   },
   "delete": {},
   "deploy": {
-    "dry_run": true
+    "dry_run": true,
+    "alias": "current"
   },
-  "schedule": {},
+  "rollback": {
+    "alias": "current"
+  },
+  "schedule": {
+    "alias": "current"
+  },
   "render": {},
   "execute": {
     "input": "-"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
   }
 }

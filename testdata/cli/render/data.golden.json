@@ -7,8 +7,15 @@
     "definition_file_path": "definition.asl.json"
   },
   "delete": {},
-  "deploy": {},
-  "schedule": {},
+  "deploy": {
+    "alias": "current"
+  },
+  "rollback": {
+    "alias": "current"
+  },
+  "schedule": {
+    "alias": "current"
+  },
   "render": {
     "targets": [
       "config"
@@ -16,5 +23,9 @@
   },
   "execute": {
     "input": "-"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
   }
 }

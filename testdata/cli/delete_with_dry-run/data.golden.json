@@ -9,10 +9,21 @@
   "delete": {
     "dry_run": true
   },
-  "deploy": {},
-  "schedule": {},
+  "deploy": {
+    "alias": "current"
+  },
+  "rollback": {
+    "alias": "current"
+  },
+  "schedule": {
+    "alias": "current"
+  },
   "render": {},
   "execute": {
     "input": "-"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
   }
 }

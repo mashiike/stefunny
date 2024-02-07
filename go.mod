@@ -12,6 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.24.7
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7
+	github.com/aws/smithy-go v1.19.0
 	github.com/fatih/color v1.16.0
 	github.com/fujiwara/logutils v1.1.2
 	github.com/fujiwara/tfstate-lookup v1.1.6
@@ -23,6 +24,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sebdah/goldie/v2 v2.5.3
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
+	github.com/shogo82148/go-retry v1.2.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/term v0.16.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -63,7 +65,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.48.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.18.7 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
-	github.com/aws/smithy-go v1.19.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect

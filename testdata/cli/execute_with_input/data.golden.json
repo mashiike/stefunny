@@ -7,10 +7,21 @@
     "definition_file_path": "definition.asl.json"
   },
   "delete": {},
-  "deploy": {},
-  "schedule": {},
+  "deploy": {
+    "alias": "current"
+  },
+  "rollback": {
+    "alias": "current"
+  },
+  "schedule": {
+    "alias": "current"
+  },
   "render": {},
   "execute": {
     "input": "testdata/input.json"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
   }
 }

@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/olekukonko/tablewriter"
 	"golang.org/x/term"
 )
@@ -20,10 +19,11 @@ type ExecuteOption struct {
 	Stdout io.Writer `kong:"-" json:"-"`
 	Stderr io.Writer `kong:"-" json:"-"`
 
-	Input         string `name:"input" help:"input JSON string" default:"-" type:"existingfile" json:"input,omitempty"`
-	ExecutionName string `name:"name" help:"execution name" default:"" json:"name,omitempty"`
-	Async         bool   `name:"async" help:"start execution and return immediately" json:"async,omitempty"`
-	DumpHistory   bool   `name:"dump-history" help:"dump execution history" json:"dump_history,omitempty"`
+	Input         string  `name:"input" help:"input JSON string" default:"-" type:"existingfile" json:"input,omitempty"`
+	ExecutionName string  `name:"name" help:"execution name" default:"" json:"name,omitempty"`
+	Async         bool    `name:"async" help:"start execution and return immediately" json:"async,omitempty"`
+	DumpHistory   bool    `name:"dump-history" help:"dump execution history" json:"dump_history,omitempty"`
+	Qualifier     *string `name:"qualifier" help:"state machine version qualifier" json:"qualifier,omitempty"`
 }
 
 func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
@@ -59,94 +59,52 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	if err != nil {
 		return err
 	}
-	if stateMachine.Type == sfntypes.StateMachineTypeExpress {
-		return app.ExecuteForExpress(ctx, stateMachine, input, opt)
-	}
-	if stateMachine.Type == sfntypes.StateMachineTypeStandard {
-		return app.ExecuteForStandard(ctx, stateMachine, input, opt)
-	}
-	return fmt.Errorf("unknown StateMachine Type:%s", stateMachine.Type)
-}
-
-func (app *App) ExecuteForExpress(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
-	if opt.DumpHistory {
-		log.Println("[warn] this state machine is EXPRESS type, history is not supported.")
+	output, err := app.sfnSvc.StartExecution(ctx, stateMachine, &StartExecutionInput{
+		Input:         input,
+		ExecutionName: opt.ExecutionName,
+		Qualifier:     opt.Qualifier,
+		Async:         opt.Async,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start execution: %w", err)
 	}
 	if opt.Async {
-		output, err := app.sfnSvc.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
-		if err != nil {
-			return err
-		}
-		log.Printf("[notice] execution arn=%s", output.ExecutionArn)
-		log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
 		return nil
 	}
-	output, err := app.sfnSvc.StartSyncExecution(ctx, stateMachine, opt.ExecutionName, input)
+	log.Printf("[info] execution time: %s", output.Elapsed())
+	if !opt.DumpHistory {
+		return nil
+	}
+	if output.CanNotDumpHistory {
+		log.Println("[warn] this state machine can not dump history.")
+		return nil
+	}
+	events, err := app.sfnSvc.GetExecutionHistory(ctx, output.ExecutionArn)
 	if err != nil {
 		return err
 	}
-	log.Printf("[notice] execution arn=%s", *output.ExecutionArn)
-	log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
+	table := tablewriter.NewWriter(opt.Stderr)
+	table.SetHeader([]string{"ID", "Type", "Step", "Elapsed(ms)", "Timestamp"})
+	for _, event := range events {
+		table.Append([]string{
+			fmt.Sprintf("%3d", event.Id),
+			fmt.Sprintf("%v", event.HistoryEvent.Type),
+			event.Step,
+			fmt.Sprintf("%d", event.Elapsed().Milliseconds()),
+			event.Timestamp.Format(time.RFC3339),
+		})
+	}
+	table.Render()
 
-	if output.Status != sfntypes.SyncExecutionStatusSucceeded {
-		if output.Error != nil {
-			log.Println("[info] error: ", *output.Error)
-		}
-		if output.Cause != nil {
-			log.Println("[info] cause: ", *output.Cause)
-		}
+	if output.Datail != nil {
+		log.Printf("[info] execution detail:\n%s", MarshalJSONString(output.Datail))
+	}
+	if output.Failed != nil && *output.Failed {
 		return errors.New("state machine execution failed")
 	}
 	log.Printf("[info] execution success")
-	if opt.Stdout != nil && output.Output != nil {
+	if opt.Stdout != nil && output.Output != nil && len(*output.Output) > 0 {
 		io.WriteString(opt.Stdout, *output.Output)
-		io.WriteString(opt.Stdout, "\n")
-	}
-	return nil
-}
-
-func (app *App) ExecuteForStandard(ctx context.Context, stateMachine *StateMachine, input string, opt ExecuteOption) error {
-	output, err := app.sfnSvc.StartExecution(ctx, stateMachine, opt.ExecutionName, input)
-	if err != nil {
-		return err
-	}
-	log.Printf("[notice] execution arn=%s", output.ExecutionArn)
-	log.Printf("[notice] state at=%s", output.StartDate.In(time.Local))
-	if opt.Async {
-		return nil
-	}
-	waitOutput, err := app.sfnSvc.WaitExecution(ctx, output.ExecutionArn)
-	if err != nil {
-		return err
-	}
-	log.Printf("[info] execution time: %s", waitOutput.Elapsed())
-	if opt.DumpHistory {
-		events, err := app.sfnSvc.GetExecutionHistory(ctx, output.ExecutionArn)
-		if err != nil {
-			return err
-		}
-		table := tablewriter.NewWriter(opt.Stderr)
-		table.SetHeader([]string{"ID", "Type", "Step", "Elapsed(ms)", "Timestamp"})
-		for _, event := range events {
-			table.Append([]string{
-				fmt.Sprintf("%3d", event.Id),
-				fmt.Sprintf("%v", event.HistoryEvent.Type),
-				event.Step,
-				fmt.Sprintf("%d", event.Elapsed().Milliseconds()),
-				event.Timestamp.Format(time.RFC3339),
-			})
-		}
-		table.Render()
-	}
-	if waitOutput.Datail != nil {
-		log.Printf("[info] execution detail:\n%s", MarshalJSONString(waitOutput.Datail))
-	}
-	if waitOutput.Failed {
-		return errors.New("state machine execution failed")
-	}
-	log.Printf("[info] execution success")
-	if opt.Stdout != nil && len(waitOutput.Output) > 0 {
-		io.WriteString(opt.Stdout, waitOutput.Output)
 		io.WriteString(opt.Stdout, "\n")
 	}
 	return nil

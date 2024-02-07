@@ -11,11 +11,9 @@
           }
         }
       ],
-      "include_execution_data": false,
       "level": "ALL"
     },
     "name": "Hello",
-    "publish": false,
     "role_arn": "arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role",
     "tracing_configuration": {
       "enabled": true

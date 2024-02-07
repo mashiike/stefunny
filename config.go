@@ -494,6 +494,12 @@ func (cfg *StateMachineConfig) Restrict() error {
 			Enabled: false,
 		}
 	}
+	if cfg.Value.Publish {
+		cfg.Value.Publish = false
+	}
+	if cfg.Value.VersionDescription != nil {
+		cfg.Value.VersionDescription = nil
+	}
 	return nil
 }
 

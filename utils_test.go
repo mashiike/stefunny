@@ -2,7 +2,6 @@ package stefunny_test
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	gc "github.com/kayac/go-config"
@@ -19,12 +18,8 @@ func LoadString(t *testing.T, path string) string {
 }
 
 func LoggerSetup(t *testing.T, minLevel string) {
+	t.Helper()
 	var buf bytes.Buffer
-	stefunny.LoggerSetup(&buf, minLevel)
-	t.Cleanup(
-		func() {
-			stefunny.LoggerSetup(os.Stderr, minLevel)
-			t.Log(buf.String())
-		},
-	)
+	cleanup := stefunny.LoggerSetup(&buf, minLevel)
+	t.Cleanup(cleanup)
 }
