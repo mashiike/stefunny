@@ -36,6 +36,13 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	if len(currentRules) > 0 {
 		log.Printf("[notice] delete related rules is %s\n%s", opt.DryRunString(), currentRules)
 	}
+	currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	if err != nil {
+		return fmt.Errorf("failed to search related schedules: %w", err)
+	}
+	if len(currentSchedules) > 0 {
+		log.Printf("[notice] delete related schedules is %s\n%s", opt.DryRunString(), currentSchedules)
+	}
 	if opt.DryRun {
 		log.Println("[info] dry run ok")
 		return nil
@@ -58,6 +65,12 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 		err := app.eventbridgeSvc.DeployRules(ctx, stateMachine.QualifiedARN(opt.AliasName), EventBridgeRules{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to delete rules: %w", err)
+		}
+	}
+	if len(currentSchedules) > 0 {
+		err := app.schedulerSvc.DeploySchedules(ctx, stateMachine.QualifiedARN(opt.AliasName), Schedules{}, false)
+		if err != nil {
+			return fmt.Errorf("failed to delete schedules: %w", err)
 		}
 	}
 	log.Println("[info] finish delete", opt.DryRunString())

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 )
 
 type InitOption struct {
@@ -30,7 +32,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	cfg.StateMachine.Value = stateMachine.CreateStateMachineInput
 	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, stateMachine.QualifiedARN(opt.AliasName))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed search related rules: %w", err)
 	}
 	if len(rules) > 0 {
 		if cfg.Trigger == nil {
@@ -51,6 +53,26 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 				log.Printf("[debug] StateMachine/%s has additional targets, skip non related target", coalesce(stateMachine.Name))
 			}
 			cfg.Trigger.Event = append(cfg.Trigger.Event, eventsRule)
+		}
+	}
+
+	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	if err != nil {
+		return fmt.Errorf("failed search related schedules: %w", err)
+	}
+	if len(schedules) > 0 {
+		if cfg.Trigger == nil {
+			cfg.Trigger = &TriggerConfig{}
+		}
+		for _, schedule := range schedules {
+			schedule.DeleteTag(tagManagedBy)
+			scheduleRule := TriggerScheduleConfig{
+				KeysToSnakeCase: KeysToSnakeCase[scheduler.CreateScheduleInput]{
+					Value:  schedule.CreateScheduleInput,
+					Strict: true,
+				},
+			}
+			cfg.Trigger.Schedule = append(cfg.Trigger.Schedule, scheduleRule)
 		}
 	}
 
