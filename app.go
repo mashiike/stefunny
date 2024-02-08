@@ -146,6 +146,9 @@ func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
 	}
 	scheduelrSvc, err := o.GetSchedulerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Scheduler client: %w", err)
+	}
 	app := &App{
 		cfg:            cfg,
 		sfnSvc:         sfnSvc,
