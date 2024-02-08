@@ -1,6 +1,7 @@
 package stefunny
 
 import (
+	"log"
 	"strings"
 	"time"
 
@@ -22,6 +23,42 @@ func (s *Schedule) configureJSON() string {
 	return MarshalJSONString(s.CreateScheduleInput, map[string]interface{}{
 		"Target": s.Target,
 	})
+}
+
+func (s *Schedule) HasItPassed() bool {
+	if s.EndDate != nil {
+		log.Printf("[debug] check if schedule `%s` has passed, end_date=%s", coalesce(s.Name), s.EndDate.String())
+		if time.Now().After(*s.EndDate) {
+			return true
+		}
+	}
+	// ScheduleExpressionが at(yyyy-mm-ddThh:mm:ss) の場合は、時刻をパースして現在時刻と比較する
+	expression := coalesce(s.ScheduleExpression)
+	if strings.HasPrefix(expression, "at(") {
+		at := expression[3 : len(expression)-1]
+		tz := coalesce(s.ScheduleExpressionTimezone)
+		var loc *time.Location
+		if tz == "" {
+			loc = time.UTC
+		} else {
+			var err error
+			loc, err = time.LoadLocation(tz)
+			if err != nil {
+				log.Printf("[warn] failed to load location `%s` as : %s", tz, err)
+				return false
+			}
+		}
+		t, err := time.Parse("2006-01-02T15:04:05", at)
+		if err != nil {
+			log.Printf("[warn] failed to parse schedule expression `%s` as : %s", expression, err)
+			return false
+		}
+		log.Printf("[debug] check if schedule `%s` has passed, at=%s tz=%s", coalesce(s.Name), t.String(), loc.String())
+		t = t.In(loc)
+		now := time.Now().In(loc)
+		return now.After(t)
+	}
+	return false
 }
 
 func (s *Schedule) String() string {
@@ -95,6 +132,17 @@ func (s Schedules) DiffString(newSchedules Schedules) string {
 		builder.WriteRune('\n')
 	}
 	return builder.String()
+}
+
+func (s Schedules) FilterPassed() (result, passed Schedules) {
+	for _, schedule := range s {
+		if !schedule.HasItPassed() {
+			result = append(result, schedule)
+		} else {
+			passed = append(passed, schedule)
+		}
+	}
+	return result, passed
 }
 
 func (s Schedules) Len() int {

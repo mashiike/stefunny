@@ -2,7 +2,6 @@ package stefunny
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 
@@ -116,6 +115,7 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 		}
 		svc.cacheScheduleByName[name] = schedule
 	}
+	schedule.Target.Arn = nil
 	result := &Schedule{
 		CreateScheduleInput: scheduler.CreateScheduleInput{
 			Name:                  schedule.Name,
@@ -136,6 +136,55 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 	return result, nil
 }
 
-func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachineArn string, rules Schedules, keepState bool) error {
-	return errors.New("not implemented yet")
+func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachineArn string, schedules Schedules, keepState bool) error {
+	currentSchedules, err := svc.SearchRelatedSchedules(ctx, stateMachineArn)
+	if err != nil {
+		return fmt.Errorf("failed to search related schedules: %w", err)
+	}
+	if keepState {
+		schedules.SyncState(currentSchedules)
+	}
+	newSchedules, passed := schedules.FilterPassed()
+	for _, schedule := range passed {
+		log.Printf("[warn] schedule `%s` has passed, skip deploy or delete", coalesce(schedule.Name))
+	}
+	plan := diff(currentSchedules, newSchedules, func(schedule *Schedule) string {
+		return coalesce(schedule.Name)
+	})
+	for _, schedule := range plan.Delete {
+		log.Println("[info] delete schedule", coalesce(schedule.Arn))
+		_, err := svc.client.DeleteSchedule(ctx, &scheduler.DeleteScheduleInput{
+			Name: schedule.Name,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to delete schedule `%s`: %w", coalesce(schedule.Name), err)
+		}
+	}
+	for _, schedule := range plan.Change {
+		log.Println("[info] update schedule", coalesce(schedule.Before.Arn))
+		if _, err := svc.client.UpdateSchedule(ctx, &scheduler.UpdateScheduleInput{
+			Name:                  schedule.After.Name,
+			FlexibleTimeWindow:    schedule.After.FlexibleTimeWindow,
+			ScheduleExpression:    schedule.After.ScheduleExpression,
+			State:                 schedule.After.State,
+			Target:                schedule.After.Target,
+			ActionAfterCompletion: schedule.After.ActionAfterCompletion,
+			Description:           schedule.After.Description,
+			EndDate:               schedule.After.EndDate,
+			GroupName:             schedule.After.GroupName,
+			StartDate:             schedule.After.StartDate,
+			KmsKeyArn:             schedule.After.KmsKeyArn,
+		}); err != nil {
+			return fmt.Errorf("failed to update schedule `%s`: %w", coalesce(schedule.Before.Name), err)
+		}
+	}
+	for _, schedule := range plan.Add {
+		log.Println("[info] create schedule", coalesce(schedule.Name))
+		output, err := svc.client.CreateSchedule(ctx, &schedule.CreateScheduleInput)
+		if err != nil {
+			return fmt.Errorf("failed to create schedule `%s`: %w", coalesce(schedule.Name), err)
+		}
+		schedule.Arn = output.ScheduleArn
+	}
+	return nil
 }

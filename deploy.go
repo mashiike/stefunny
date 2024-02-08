@@ -84,8 +84,10 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 		if err := app.deployEventBridgeRules(ctx, opt); err != nil {
 			return fmt.Errorf("failed to deploy event bridge rules: %w", err)
 		}
+		if err := app.deploySchedules(ctx, opt); err != nil {
+			return fmt.Errorf("failed to deploy schedules: %w", err)
+		}
 	}
-
 	log.Println("[info] finish deploy", opt.DryRunString())
 	return nil
 }
