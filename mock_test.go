@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
@@ -457,6 +458,144 @@ func (m *mockEventBridgeClient) ListRuleNamesByTarget(ctx context.Context, param
 	return args.Get(0).(*eventbridge.ListRuleNamesByTargetOutput), args.Error(1)
 }
 
+type mockSchdulerClient struct {
+	mock.Mock
+	t *testing.T
+}
+
+func (m *mockSchdulerClient) CreateSchedule(ctx context.Context, params *scheduler.CreateScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.CreateScheduleOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.CreateScheduleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.CreateScheduleOutput")
+		return nil, errors.New("mock data is not *scheduler.CreateScheduleOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSchdulerClient) DeleteSchedule(ctx context.Context, params *scheduler.DeleteScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.DeleteScheduleOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.DeleteScheduleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.DeleteScheduleOutput")
+		return nil, errors.New("mock data is not *scheduler.DeleteScheduleOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSchdulerClient) GetSchedule(ctx context.Context, params *scheduler.GetScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.GetScheduleOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.GetScheduleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.GetScheduleOutput")
+		return nil, errors.New("mock data is not *scheduler.GetScheduleOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSchdulerClient) ListSchedules(ctx context.Context, params *scheduler.ListSchedulesInput, optFns ...func(*scheduler.Options)) (*scheduler.ListSchedulesOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.ListSchedulesOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.ListSchedulesOutput")
+		return nil, errors.New("mock data is not *scheduler.ListSchedulesOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSchdulerClient) UpdateSchedule(ctx context.Context, params *scheduler.UpdateScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.UpdateScheduleOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.UpdateScheduleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.UpdateScheduleOutput")
+		return nil, errors.New("mock data is not *scheduler.UpdateScheduleOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSchdulerClient) TagResource(ctx context.Context, params *scheduler.TagResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.TagResourceOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.TagResourceOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.TagResourceOutput")
+		return nil, errors.New("mock data is not *scheduler.TagResourceOutput")
+	}
+	return nil, err
+}
+
+func (m *mockSchdulerClient) ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.ListTagsForResourceOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.ListTagsForResourceOutput")
+		return nil, errors.New("mock data is not *scheduler.ListTagsForResourceOutput")
+	}
+	return nil, err
+}
+
 func newListStateMachinesOutput() *sfn.ListStateMachinesOutput {
 	return &sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{
@@ -511,6 +650,13 @@ func NewMockSFnClient(t *testing.T) *mockSFnClient {
 func NewMockEventBridgeClient(t *testing.T) *mockEventBridgeClient {
 	t.Helper()
 	m := new(mockEventBridgeClient)
+	m.Test(t)
+	return m
+}
+
+func NewMockSchedulerClient(t *testing.T) *mockSchdulerClient {
+	t.Helper()
+	m := new(mockSchdulerClient)
 	m.Test(t)
 	return m
 }
@@ -696,9 +842,43 @@ func (m *mockEventBridgeService) DeployRules(ctx context.Context, stateMachineAR
 	return args.Error(0)
 }
 
+type mockSchedulerService struct {
+	mock.Mock
+	t *testing.T
+}
+
+func NewMockSchedulerService(t *testing.T) *mockSchedulerService {
+	t.Helper()
+	m := &mockSchedulerService{
+		t: t,
+	}
+	m.Test(t)
+	return m
+}
+
+func (m *mockSchedulerService) SearchRelatedSchedules(ctx context.Context, stateMachineArn string) (stefunny.Schedules, error) {
+	args := m.Called(ctx, stateMachineArn)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(stefunny.Schedules); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not stefunny.Schedules")
+		return nil, errors.New("mock data is not stefunny.Schedules")
+	}
+	return nil, err
+}
+
+func (m *mockSchedulerService) DeploySchedules(ctx context.Context, stateMachineARN string, schedules stefunny.Schedules, keepState bool) error {
+	args := m.Called(ctx, stateMachineARN, schedules, keepState)
+	return args.Error(0)
+}
+
 type mocks struct {
 	sfn         *mockSFnService
 	eventBridge *mockEventBridgeService
+	scheduler   *mockSchedulerService
 }
 
 func NewMocks(t *testing.T) *mocks {
@@ -706,6 +886,7 @@ func NewMocks(t *testing.T) *mocks {
 	m := &mocks{
 		sfn:         NewMockSFnService(t),
 		eventBridge: NewMockEventBridgeService(t),
+		scheduler:   NewMockSchedulerService(t),
 	}
 	return m
 }
@@ -726,6 +907,7 @@ func newMockApp(t *testing.T, path string, m *mocks) *stefunny.App {
 		ctx, cfg,
 		stefunny.WithSFnService(m.sfn),
 		stefunny.WithEventBridgeService(m.eventBridge),
+		stefunny.WithSchedulerService(m.scheduler),
 	)
 	require.NoError(t, err)
 	return app
