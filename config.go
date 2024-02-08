@@ -514,15 +514,23 @@ func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	if cfg.awsCfg != nil {
 		return *cfg.awsCfg, nil
 	}
-	opts := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithRegion(cfg.AWSRegion),
+	opts := []func(*awsconfig.LoadOptions) error{}
+	if cfg.AWSRegion != "" {
+		log.Printf("[debug] use aws_region = %s", cfg.AWSRegion)
+		opts = append(opts, awsconfig.WithRegion(cfg.AWSRegion))
 	}
 	if endpointsResolver, ok := cfg.EndpointResolver(); ok {
 		opts = append(opts, awsconfig.WithEndpointResolverWithOptions(endpointsResolver))
 	}
+	log.Println("[debug] load aws default config")
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return aws.Config{}, err
+	}
+	stsClient := sts.NewFromConfig(awsCfg)
+	identity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err == nil {
+		log.Printf("[debug] caller identity: %s", *identity.Arn)
 	}
 	cfg.awsCfg = &awsCfg
 	return awsCfg, nil
