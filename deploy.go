@@ -151,3 +151,26 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 	}
 	return nil
 }
+
+func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
+	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	if err != nil {
+		return fmt.Errorf("failed to get state machine arn: %w", err)
+	}
+	newSchedules := app.cfg.NewSchedules()
+	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
+	newSchedules.SetStateMachineQualifiedARN(targetARN)
+	if opt.DryRun {
+		currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, targetARN)
+		if err != nil {
+			return fmt.Errorf("failed to search related schedules: %w", err)
+		}
+		diffString := currentSchedules.DiffString(newSchedules)
+		log.Printf("[notice] change related schedules %s\n%s", opt.DryRunString(), diffString)
+		return nil
+	}
+	if err := app.schedulerSvc.DeploySchedules(ctx, targetARN, newSchedules, opt.KeepVersions > 0); err != nil {
+		return fmt.Errorf("failed to deploy schedules: %w", err)
+	}
+	return nil
+}

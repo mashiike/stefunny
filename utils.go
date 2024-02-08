@@ -94,21 +94,6 @@ func unqualifyARN(arnStr string) string {
 	return arnObj.String()
 }
 
-// getDifference return exists this but not exists in other
-func setDifference[T any](slice1, slice2 []T, fetchKey func(T) string) []T {
-	result := make([]T, 0)
-	otherMap := make(map[string]struct{})
-	for _, item := range slice2 {
-		otherMap[fetchKey(item)] = struct{}{}
-	}
-	for _, item := range slice1 {
-		if _, ok := otherMap[fetchKey(item)]; !ok {
-			result = append(result, item)
-		}
-	}
-	return result
-}
-
 func unique[T comparable](slice []T) []T {
 	result := make([]T, 0)
 	seen := make(map[T]struct{})

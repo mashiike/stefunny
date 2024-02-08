@@ -133,13 +133,6 @@ func (rules EventBridgeRules) SyncState(other EventBridgeRules) {
 	}
 }
 
-// Difference return exists this but not exists in other
-func (rules EventBridgeRules) Difference(other EventBridgeRules) EventBridgeRules {
-	return setDifference(rules, other, func(r *EventBridgeRule) string {
-		return coalesce(r.Name)
-	})
-}
-
 func (rules EventBridgeRules) DiffString(newRules EventBridgeRules) string {
 	result := diff(rules, newRules, func(r *EventBridgeRule) string {
 		return coalesce(r.Name)

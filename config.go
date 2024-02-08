@@ -572,6 +572,30 @@ func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
 	return rules
 }
 
+func (cfg *Config) NewSchedules() Schedules {
+	if cfg.Trigger == nil {
+		return Schedules{}
+	}
+	tags := make(map[string]string)
+	for _, tag := range cfg.StateMachine.Value.Tags {
+		tags[coalesce(tag.Key)] = coalesce(tag.Value)
+	}
+	for k, v := range cfg.Tags {
+		tags[k] = v
+	}
+	tags[tagManagedBy] = appName
+	schedules := make(Schedules, 0, len(cfg.Trigger.Schedule))
+	for _, s := range cfg.Trigger.Schedule {
+		schedule := &Schedule{
+			CreateScheduleInput: s.Value,
+		}
+		schedule.AppendTags(tags)
+		schedules = append(schedules, schedule)
+	}
+	sort.Sort(schedules)
+	return schedules
+}
+
 func (cfg *StateMachineConfig) SetDetinitionPath(path string) {
 	cfg.DefinitionPath = path
 }
