@@ -65,7 +65,6 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 			cfg.Trigger = &TriggerConfig{}
 		}
 		for _, schedule := range schedules {
-			schedule.DeleteTag(tagManagedBy)
 			scheduleRule := TriggerScheduleConfig{
 				KeysToSnakeCase: KeysToSnakeCase[scheduler.CreateScheduleInput]{
 					Value:  schedule.CreateScheduleInput,

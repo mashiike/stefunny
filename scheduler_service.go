@@ -16,8 +16,6 @@ type SchedulerClient interface {
 	GetSchedule(ctx context.Context, params *scheduler.GetScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.GetScheduleOutput, error)
 	ListSchedules(ctx context.Context, params *scheduler.ListSchedulesInput, optFns ...func(*scheduler.Options)) (*scheduler.ListSchedulesOutput, error)
 	UpdateSchedule(ctx context.Context, params *scheduler.UpdateScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.UpdateScheduleOutput, error)
-	TagResource(ctx context.Context, params *scheduler.TagResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.TagResourceOutput, error)
-	ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error)
 }
 
 type SchedulerService interface {
@@ -31,7 +29,6 @@ type SchedulerServiceImpl struct {
 	client                      SchedulerClient
 	cacheNamesByStateMachineARN map[string][]string
 	cacheScheduleByName         map[string]*scheduler.GetScheduleOutput
-	cacheTagsByName             map[string]*scheduler.ListTagsForResourceOutput
 }
 
 func NewSchedulerService(client SchedulerClient) *SchedulerServiceImpl {
@@ -39,7 +36,6 @@ func NewSchedulerService(client SchedulerClient) *SchedulerServiceImpl {
 		client:                      client,
 		cacheNamesByStateMachineARN: make(map[string][]string),
 		cacheScheduleByName:         make(map[string]*scheduler.GetScheduleOutput),
-		cacheTagsByName:             make(map[string]*scheduler.ListTagsForResourceOutput),
 	}
 }
 
@@ -120,17 +116,6 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 		}
 		svc.cacheScheduleByName[name] = schedule
 	}
-	tags, ok := svc.cacheTagsByName[name]
-	if !ok {
-		var err error
-		tags, err = svc.client.ListTagsForResource(ctx, &scheduler.ListTagsForResourceInput{
-			ResourceArn: schedule.Arn,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("scheduler.ListTagsForResource `%s`: %w", name, err)
-		}
-		svc.cacheTagsByName[name] = tags
-	}
 	result := &Schedule{
 		CreateScheduleInput: scheduler.CreateScheduleInput{
 			Name:                  schedule.Name,
@@ -147,7 +132,6 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 		},
 		Arn:          schedule.Arn,
 		CreationDate: schedule.CreationDate,
-		Tags:         tags.Tags,
 	}
 	return result, nil
 }

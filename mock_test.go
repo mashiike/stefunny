@@ -558,44 +558,6 @@ func (m *mockSchdulerClient) UpdateSchedule(ctx context.Context, params *schedul
 	return nil, err
 }
 
-func (m *mockSchdulerClient) TagResource(ctx context.Context, params *scheduler.TagResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.TagResourceOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, params, optFns)
-	} else {
-		args = m.Called(ctx, params)
-	}
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*scheduler.TagResourceOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *scheduler.TagResourceOutput")
-		return nil, errors.New("mock data is not *scheduler.TagResourceOutput")
-	}
-	return nil, err
-}
-
-func (m *mockSchdulerClient) ListTagsForResource(ctx context.Context, params *scheduler.ListTagsForResourceInput, optFns ...func(*scheduler.Options)) (*scheduler.ListTagsForResourceOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, params, optFns)
-	} else {
-		args = m.Called(ctx, params)
-	}
-	output := args.Get(0)
-	err := args.Error(1)
-	if err == nil {
-		if o, ok := output.(*scheduler.ListTagsForResourceOutput); ok {
-			return o, nil
-		}
-		require.FailNow(m.t, "mock data is not *scheduler.ListTagsForResourceOutput")
-		return nil, errors.New("mock data is not *scheduler.ListTagsForResourceOutput")
-	}
-	return nil, err
-}
-
 func newListStateMachinesOutput() *sfn.ListStateMachinesOutput {
 	return &sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{

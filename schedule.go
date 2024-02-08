@@ -4,14 +4,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	schedulertypes "github.com/aws/aws-sdk-go-v2/service/scheduler/types"
 )
 
 type Schedule struct {
 	scheduler.CreateScheduleInput
-	Tags         []schedulertypes.Tag
 	Arn          *string    `min:"1" type:"string"`
 	CreationDate *time.Time `type:"timestamp"`
 }
@@ -20,53 +18,8 @@ func (s *Schedule) SetStateMachineQualifiedARN(stateMachineArn string) {
 	s.Target.Arn = &stateMachineArn
 }
 
-func (s *Schedule) AppendTags(tags map[string]string) {
-	notExists := make([]schedulertypes.Tag, 0, len(s.Tags))
-	aleradyExists := make(map[string]string, len(s.Tags))
-	pos := make(map[string]int, len(s.Tags))
-	for i, tag := range s.Tags {
-		aleradyExists[coalesce(tag.Key)] = coalesce(tag.Value)
-		pos[coalesce(tag.Key)] = i
-	}
-	for key, value := range tags {
-		if _, ok := aleradyExists[key]; !ok {
-			notExists = append(notExists, schedulertypes.Tag{
-				Key:   aws.String(key),
-				Value: aws.String(value),
-			})
-			continue
-		}
-		s.Tags[pos[key]].Value = aws.String(value)
-	}
-	s.Tags = append(s.Tags, notExists...)
-
-}
-
-func (s *Schedule) DeleteTag(key string) {
-	for i, tag := range s.Tags {
-		if coalesce(tag.Key) == key {
-			s.Tags = append(s.Tags[:i], s.Tags[i+1:]...)
-			return
-		}
-	}
-}
-
-func (s *Schedule) IsManagedBy() bool {
-	for _, tag := range s.Tags {
-		if coalesce(tag.Key) == tagManagedBy && coalesce(tag.Value) == appName {
-			return true
-		}
-	}
-	return false
-}
-
 func (s *Schedule) configureJSON() string {
-	tags := make(map[string]string, len(s.Tags))
-	for _, tag := range s.Tags {
-		tags[coalesce(tag.Key)] = coalesce(tag.Value)
-	}
 	return MarshalJSONString(s.CreateScheduleInput, map[string]interface{}{
-		"Tags":   tags,
 		"Target": s.Target,
 	})
 }
