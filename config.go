@@ -456,6 +456,9 @@ func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
 	if cfg.Value.Target.Arn != nil {
 		return errors.New("target.arn is not allowed")
 	}
+	if cfg.Value.State == "" {
+		cfg.Value.State = eventbridgetypes.RuleStateEnabled
+	}
 	return nil
 }
 
