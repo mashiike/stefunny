@@ -28,5 +28,6 @@
       }
     ]
   },
-  "ConfigDir": "testdata"
+  "ConfigDir": "",
+  "ConfigFileName": "event.yaml"
 }

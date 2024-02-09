@@ -27,5 +27,6 @@
       "url": "./terraform.tfstate"
     }
   ],
-  "ConfigDir": "testdata"
+  "ConfigDir": "",
+  "ConfigFileName": "tfstate.yaml"
 }

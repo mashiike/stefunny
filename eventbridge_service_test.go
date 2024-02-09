@@ -136,7 +136,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
 			Target: eventbridgetypes.Target{
-				Id: aws.String("stefunny-managed"),
+				Id:  aws.String("stefunny-managed"),
+				Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
 			},
 			AdditionalTargets: []eventbridgetypes.Target{},
 		},
@@ -149,7 +150,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),
 			Target: eventbridgetypes.Target{
-				Id: aws.String("Id0000000-0000-0000-0000-000000000000"),
+				Id:  aws.String("Id0000000-0000-0000-0000-000000000000"),
+				Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
 			},
 			AdditionalTargets: []eventbridgetypes.Target{
 				{

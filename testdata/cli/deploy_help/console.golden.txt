@@ -24,3 +24,4 @@ Flags:
       --alias="current"         alias name for publish
       --trigger-enabled         Enable trigger
       --trigger-disabled        Disable trigger
+      --unified                 when dry run, output unified diff

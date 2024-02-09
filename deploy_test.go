@@ -192,6 +192,9 @@ func TestDeploy(t *testing.T) {
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
 					mock.MatchedBy(
 						func(input stefunny.EventBridgeRules) bool {
+							for _, rule := range input {
+								rule.ConfigFilePath = nil
+							}
 							return assert.EqualValues(t, stefunny.EventBridgeRules{
 								{
 									PutRuleInput: eventbridge.PutRuleInput{
@@ -265,6 +268,9 @@ func TestDeploy(t *testing.T) {
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
 					mock.MatchedBy(
 						func(input stefunny.EventBridgeRules) bool {
+							for _, rule := range input {
+								rule.ConfigFilePath = nil
+							}
 							return assert.EqualValues(t, stefunny.EventBridgeRules{
 								{
 									PutRuleInput: eventbridge.PutRuleInput{
@@ -348,6 +354,9 @@ func TestDeploy(t *testing.T) {
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
 					mock.MatchedBy(
 						func(input stefunny.Schedules) bool {
+							for _, schedule := range input {
+								schedule.ConfigFilePath = nil
+							}
 							return assert.EqualValues(t, stefunny.Schedules{
 								{
 									CreateScheduleInput: scheduler.CreateScheduleInput{

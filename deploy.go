@@ -169,7 +169,8 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 			newRules.SyncState(currentRules)
 		}
 		diffString := currentRules.DiffString(newRules, opt.Unified)
-		log.Printf("[notice] change related rules %s\n%s", opt.DryRunString(), diffString)
+		log.Printf("[notice] change related rules %s\n", opt.DryRunString())
+		fmt.Println(diffString)
 		return nil
 	}
 	if err := app.eventbridgeSvc.DeployRules(ctx, targetARN, newRules, keepState); err != nil {
@@ -201,7 +202,8 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 			}
 		}
 		diffString := currentSchedules.DiffString(newSchedules, opt.Unified)
-		log.Printf("[notice] change related schedules %s\n%s", opt.DryRunString(), diffString)
+		log.Printf("[notice] change related schedules %s", opt.DryRunString())
+		fmt.Println(diffString)
 		return nil
 	}
 	if err := app.schedulerSvc.DeploySchedules(ctx, targetARN, newSchedules, opt.KeepVersions > 0); err != nil {

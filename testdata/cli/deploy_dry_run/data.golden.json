@@ -12,7 +12,8 @@
   },
   "deploy": {
     "dry_run": true,
-    "alias": "current"
+    "alias": "current",
+    "unified": true
   },
   "rollback": {
     "alias": "current"

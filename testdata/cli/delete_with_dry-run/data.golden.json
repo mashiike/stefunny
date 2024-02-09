@@ -12,7 +12,8 @@
     "alias": "current"
   },
   "deploy": {
-    "alias": "current"
+    "alias": "current",
+    "unified": true
   },
   "rollback": {
     "alias": "current"

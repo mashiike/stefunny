@@ -13,7 +13,8 @@
   "deploy": {
     "skip_state_machine": true,
     "alias": "current",
-    "trigger_enabled": true
+    "trigger_enabled": true,
+    "unified": true
   },
   "rollback": {
     "alias": "current"

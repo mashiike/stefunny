@@ -85,7 +85,9 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 					Name:               aws.String("Scheduled"),
 					ScheduleExpression: aws.String("rate(1 day)"),
 					State:              schedulertypes.ScheduleStateEnabled,
-					Target:             &schedulertypes.Target{},
+					Target: &schedulertypes.Target{
+						Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
+					},
 				},
 				ScheduleArn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Scheduled"),
 			},
@@ -94,7 +96,9 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 					Name:               aws.String("Unqualified"),
 					ScheduleExpression: aws.String("rate(1 day)"),
 					State:              schedulertypes.ScheduleStateEnabled,
-					Target:             &schedulertypes.Target{},
+					Target: &schedulertypes.Target{
+						Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
+					},
 				},
 				ScheduleArn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Unqualified"),
 			},

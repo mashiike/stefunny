@@ -13,7 +13,8 @@
   "deploy": {
     "alias": "current",
     "trigger_enabled": true,
-    "trigger_disabled": true
+    "trigger_disabled": true,
+    "unified": true
   },
   "rollback": {
     "alias": "current"
