@@ -173,6 +173,29 @@ func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, unified bool
 	return builder.String()
 }
 
+func (rules EventBridgeRules) Names() []string {
+	names := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		if name := coalesce(rule.Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
+}
+
+func (rules EventBridgeRules) Override(newRules EventBridgeRules) {
+	newMap := make(map[string]*EventBridgeRule, len(newRules))
+	for _, r := range newRules {
+		newMap[coalesce(r.Name)] = r
+	}
+	for _, r := range rules {
+		name := coalesce(r.Name)
+		if new, ok := newMap[name]; ok {
+			*r = *new
+		}
+	}
+}
+
 // sort.Interfaces
 func (rules EventBridgeRules) Len() int {
 	return len(rules)
