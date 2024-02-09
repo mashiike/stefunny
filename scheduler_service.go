@@ -130,7 +130,7 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 			StartDate:             schedule.StartDate,
 			KmsKeyArn:             schedule.KmsKeyArn,
 		},
-		Arn:          schedule.Arn,
+		ScheduleArn:  schedule.Arn,
 		CreationDate: schedule.CreationDate,
 	}
 	return result, nil
@@ -148,11 +148,12 @@ func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachi
 	for _, schedule := range passed {
 		log.Printf("[warn] schedule `%s` has passed, skip deploy or delete", coalesce(schedule.Name))
 	}
+	newSchedules.SetStateMachineQualifiedARN(stateMachineArn)
 	plan := diff(currentSchedules, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})
 	for _, schedule := range plan.Delete {
-		log.Println("[info] delete schedule", coalesce(schedule.Arn))
+		log.Println("[info] delete schedule", coalesce(schedule.ScheduleArn))
 		_, err := svc.client.DeleteSchedule(ctx, &scheduler.DeleteScheduleInput{
 			Name: schedule.Name,
 		})
@@ -161,7 +162,7 @@ func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachi
 		}
 	}
 	for _, schedule := range plan.Change {
-		log.Println("[info] update schedule", coalesce(schedule.Before.Arn))
+		log.Println("[info] update schedule", coalesce(schedule.Before.ScheduleArn))
 		if _, err := svc.client.UpdateSchedule(ctx, &scheduler.UpdateScheduleInput{
 			Name:                  schedule.After.Name,
 			FlexibleTimeWindow:    schedule.After.FlexibleTimeWindow,
@@ -184,7 +185,7 @@ func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachi
 		if err != nil {
 			return fmt.Errorf("failed to create schedule `%s`: %w", coalesce(schedule.Name), err)
 		}
-		schedule.Arn = output.ScheduleArn
+		schedule.ScheduleArn = output.ScheduleArn
 	}
 	return nil
 }

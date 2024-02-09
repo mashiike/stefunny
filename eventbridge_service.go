@@ -163,7 +163,8 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 				additional = append(additional, t)
 				continue
 			}
-			target = &t
+			cloned := t
+			target = &cloned
 			continue
 		}
 		additional = append(additional, t)
@@ -182,6 +183,7 @@ func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachine
 	if keepState {
 		rules.SyncState(currentRules)
 	}
+	rules.SetStateMachineQualifiedARN(stateMachineArn)
 	plan := diff(currentRules, rules, func(rule *EventBridgeRule) string {
 		return coalesce(rule.Name)
 	})

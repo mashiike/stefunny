@@ -11,11 +11,14 @@ import (
 
 type Schedule struct {
 	scheduler.CreateScheduleInput
-	Arn          *string    `min:"1" type:"string"`
+	ScheduleArn  *string    `min:"1" type:"string"`
 	CreationDate *time.Time `type:"timestamp"`
 }
 
 func (s *Schedule) SetStateMachineQualifiedARN(stateMachineArn string) {
+	if s.Target == nil {
+		s.Target = &schedulertypes.Target{}
+	}
 	s.Target.Arn = &stateMachineArn
 }
 
