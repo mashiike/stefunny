@@ -59,13 +59,13 @@ func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, state
 	if err != nil {
 		return nil, err
 	}
-	unqualifed := unqualifyARN(stateMachineArn)
-	if unqualifed != stateMachineArn {
-		unqualifedRelatedRuleNames, err := svc.searchRelatedRuleNames(ctx, unqualifed)
+	unqualified := unqualifyARN(stateMachineArn)
+	if unqualified != stateMachineArn {
+		unqualifiedRelatedRuleNames, err := svc.searchRelatedRuleNames(ctx, unqualified)
 		if err != nil {
 			return nil, err
 		}
-		ruleNames = append(ruleNames, unqualifedRelatedRuleNames...)
+		ruleNames = append(ruleNames, unqualifiedRelatedRuleNames...)
 		ruleNames = unique(ruleNames)
 	}
 	rules := make(EventBridgeRules, 0, len(ruleNames))
@@ -148,7 +148,7 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 	}
 	additional := make([]eventbridgetypes.Target, 0, len(listTargetsOutput.Targets))
 	var target *eventbridgetypes.Target
-	unqualifed := unqualifyARN(stateMachineARN)
+	unqualified := unqualifyARN(stateMachineARN)
 	for i, t := range listTargetsOutput.Targets {
 		if coalesce(t.Arn) == stateMachineARN {
 			if target != nil {
@@ -158,7 +158,7 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 			additional = append(additional, listTargetsOutput.Targets[:i]...)
 			break
 		}
-		if coalesce(t.Arn) == unqualifed {
+		if coalesce(t.Arn) == unqualified {
 			if target != nil {
 				additional = append(additional, t)
 				continue

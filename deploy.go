@@ -118,7 +118,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		return nil
 	}
 	if opt.VersionDescription != "" {
-		newStateMachine.CreateStateMachineInput.VersionDescription = aws.String(opt.VersionDescription)
+		newStateMachine.VersionDescription = aws.String(opt.VersionDescription)
 	}
 	output, err := app.sfnSvc.DeployStateMachine(ctx, newStateMachine)
 	if err != nil {
