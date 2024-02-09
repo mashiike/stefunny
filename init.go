@@ -40,6 +40,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		}
 		for _, rule := range rules {
 			rule.DeleteTag(tagManagedBy)
+			rule.Target.Arn = nil
 			eventsRule := TriggerEventConfig{
 				KeysToSnakeCase: KeysToSnakeCase[TriggerEventConfigInner]{
 					Value: TriggerEventConfigInner{
@@ -65,6 +66,9 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 			cfg.Trigger = &TriggerConfig{}
 		}
 		for _, schedule := range schedules {
+			if schedule.CreateScheduleInput.Target != nil {
+				schedule.CreateScheduleInput.Target.Arn = nil
+			}
 			scheduleRule := TriggerScheduleConfig{
 				KeysToSnakeCase: KeysToSnakeCase[scheduler.CreateScheduleInput]{
 					Value:  schedule.CreateScheduleInput,
