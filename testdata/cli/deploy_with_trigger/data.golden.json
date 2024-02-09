@@ -1,0 +1,32 @@
+{
+  "log_level": "info",
+  "config": "config.yaml",
+  "region": "us-east-1",
+  "version": {},
+  "init": {
+    "definition_file_path": "definition.asl.json",
+    "alias": "current"
+  },
+  "delete": {
+    "alias": "current"
+  },
+  "deploy": {
+    "skip_state_machine": true,
+    "alias": "current",
+    "trigger_enabled": true
+  },
+  "rollback": {
+    "alias": "current"
+  },
+  "schedule": {
+    "alias": "current"
+  },
+  "render": {},
+  "execute": {
+    "input": "-"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
+  }
+}
