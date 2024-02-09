@@ -206,6 +206,7 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 	case "deploy":
 		return app.Deploy(ctx, cli.Deploy.DeployOption())
 	case "schedule":
+		log.Println("[warn] schedule command is deprecated, use deploy command with --skip-state-machine, (since v0.6.0)")
 		return app.Deploy(ctx, cli.Schedule.DeployOption())
 	case "rollback":
 		return app.Rollback(ctx, cli.Rollback)

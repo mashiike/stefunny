@@ -61,6 +61,16 @@ func TestConfigLoadValid(t *testing.T) {
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
 		},
 		{
+			casename:    "event",
+			path:        "testdata/event.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
+			casename:    "schedule",
+			path:        "testdata/schedule.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
 			casename:    "old_type_config_v0.5.0",
 			path:        "testdata/old_config.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),

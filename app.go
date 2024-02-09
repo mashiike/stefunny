@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
-	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 )
 
@@ -20,6 +20,7 @@ type App struct {
 	cfg            *Config
 	sfnSvc         SFnService
 	eventbridgeSvc EventBridgeService
+	schedulerSvc   SchedulerService
 }
 
 type newAppOptions struct {
@@ -27,6 +28,7 @@ type newAppOptions struct {
 	cfg            *Config
 	sfnSvc         SFnService
 	eventbridgeSvc EventBridgeService
+	schedulerSvc   SchedulerService
 	awsCfg         *aws.Config
 }
 
@@ -62,6 +64,21 @@ func (o *newAppOptions) GetEventBridgeService(ctx context.Context) (EventBridgeS
 	return o.eventbridgeSvc, nil
 }
 
+func (o *newAppOptions) GetSchedulerService(ctx context.Context) (SchedulerService, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	if o.schedulerSvc != nil {
+		return o.schedulerSvc, nil
+	}
+	awsCfg, err := o.cfg.LoadAWSConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	client := scheduler.NewFromConfig(awsCfg)
+	o.schedulerSvc = NewSchedulerService(client)
+	return o.schedulerSvc, nil
+}
+
 // WithSFNClient sets the SFn client for New(ctx, cfg, opts...)
 // this is for testing
 func WithSFnClient(sfnClient SFnClient) NewAppOption {
@@ -74,6 +91,18 @@ func WithSFnClient(sfnClient SFnClient) NewAppOption {
 func WithSFnService(sfnService SFnService) NewAppOption {
 	return func(o *newAppOptions) {
 		o.sfnSvc = sfnService
+	}
+}
+
+func WithSchedulerService(schedulerService SchedulerService) NewAppOption {
+	return func(o *newAppOptions) {
+		o.schedulerSvc = schedulerService
+	}
+}
+
+func WithSchedulerClient(schedulerClient SchedulerClient) NewAppOption {
+	return func(o *newAppOptions) {
+		o.schedulerSvc = NewSchedulerService(schedulerClient)
 	}
 }
 
@@ -116,51 +145,15 @@ func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
 	}
+	scheduelrSvc, err := o.GetSchedulerService(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Scheduler client: %w", err)
+	}
 	app := &App{
 		cfg:            cfg,
 		sfnSvc:         sfnSvc,
 		eventbridgeSvc: eventbridgeSvc,
+		schedulerSvc:   scheduelrSvc,
 	}
 	return app, nil
-}
-
-func (app *App) LoadStateMachine() (*StateMachine, error) {
-	stateMachine := &StateMachine{
-		CreateStateMachineInput: app.cfg.NewCreateStateMachineInput(),
-	}
-	stateMachine.AppendTags(app.cfg.Tags)
-	return stateMachine, nil
-}
-
-func (app *App) LoadScheduleRules(_ context.Context, stateMachineArn string) (ScheduleRules, error) {
-	rules := make([]*ScheduleRule, 0, len(app.cfg.Schedule))
-	for _, cfg := range app.cfg.Schedule {
-		rule := &ScheduleRule{
-			PutRuleInput: eventbridge.PutRuleInput{
-				Name:               aws.String(cfg.RuleName),
-				ScheduleExpression: &cfg.Expression,
-				State:              eventbridgetypes.RuleStateEnabled,
-				Tags:               make([]eventbridgetypes.Tag, 0, len(app.cfg.Tags)),
-			},
-			Targets: []eventbridgetypes.Target{{
-				RoleArn: aws.String(cfg.RoleArn),
-			}},
-			TargetRoleArn: cfg.RoleArn,
-		}
-		if cfg.Description != "" {
-			rule.Description = aws.String(cfg.Description)
-		}
-		if cfg.ID != "" {
-			rule.Targets[0].Id = aws.String(cfg.ID)
-		}
-		for k, v := range app.cfg.Tags {
-			rule.Tags = append(rule.Tags, eventbridgetypes.Tag{
-				Key:   aws.String(k),
-				Value: aws.String(v),
-			})
-		}
-		rule.SetStateMachineArn(stateMachineArn)
-		rules = append(rules, rule)
-	}
-	return rules, nil
 }

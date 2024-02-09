@@ -11,7 +11,9 @@
     "alias": "current"
   },
   "deploy": {
-    "alias": "current"
+    "skip_state_machine": true,
+    "alias": "current",
+    "trigger_enabled": true
   },
   "rollback": {
     "alias": "current"
@@ -19,12 +21,7 @@
   "schedule": {
     "alias": "current"
   },
-  "render": {
-    "targets": [
-      "def"
-    ],
-    "format": "yaml"
-  },
+  "render": {},
   "execute": {
     "input": "-"
   },

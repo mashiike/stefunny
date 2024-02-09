@@ -95,6 +95,16 @@ func TestCLI__Parse(t *testing.T) {
 			code: 0,
 		},
 		{
+			name: "deploy with trigger",
+			args: []string{"deploy", "--skip-state-machine", "--trigger-enabled"},
+			cmd:  "deploy",
+		},
+		{
+			name: "deploy with both trigger",
+			args: []string{"deploy", "--trigger-enabled", "--trigger-disabled"},
+			code: 1,
+		},
+		{
 			name: "schedule dry run",
 			args: []string{"schedule", "--dry-run", "--enabled"},
 			cmd:  "schedule",

@@ -10,3 +10,8 @@ state_machine:
       log_group: /aws/vendedlogs/states/Hello-Logs
   tracing:
     enabled: true
+
+schedule:
+  - rule_name: Scheduled-hourly
+    expression: rate(1 hour)
+    role_arn: arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role

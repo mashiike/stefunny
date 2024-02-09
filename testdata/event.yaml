@@ -12,9 +12,7 @@ state_machine:
 
 
 trigger:
-  schedule:
+  event:
     - name: Scheduled-hourly
       schedule_expression: rate(1 hour)
-      schedule_expression_timezone: Asia/Tokyo
-      target:
-        role_arn: arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role
+      role_arn: arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role

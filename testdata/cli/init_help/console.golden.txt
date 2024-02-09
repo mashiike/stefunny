@@ -18,3 +18,4 @@ Flags:
   -d, --definition="definition.asl.json"
                                 Path to state machine definition file
                                 ($DEFINITION_FILE_PATH)
+      --alias="current"         alias name for publish

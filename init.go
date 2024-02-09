@@ -5,11 +5,14 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 )
 
 type InitOption struct {
 	StateMachineName   string `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
 	DefinitionFilePath string `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
+	AliasName          string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
 
 	ConfigPath string `kong:"-" json:"-"`
 	AWSRegion  string `kong:"-" json:"-"`
@@ -25,20 +28,50 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	if err != nil {
 		return fmt.Errorf("failed describe state machine: %w", err)
 	}
-	cfg.StateMachine = setStateMachineConfig(cfg.StateMachine, stateMachine)
-
-	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, coalesce(stateMachine.StateMachineArn))
+	stateMachine.DeleteTag(tagManagedBy)
+	cfg.StateMachine.Value = stateMachine.CreateStateMachineInput
+	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, stateMachine.QualifiedARN(opt.AliasName))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed search related rules: %w", err)
 	}
 	if len(rules) > 0 {
+		if cfg.Trigger == nil {
+			cfg.Trigger = &TriggerConfig{}
+		}
 		for _, rule := range rules {
-			s, err := newScheduleConfigFromSchedule(rule)
-			if err != nil {
-				log.Printf("[warn] schedule rule can not managed by %s skip this rule: %s", appName, err)
-				continue
+			rule.DeleteTag(tagManagedBy)
+			eventsRule := TriggerEventConfig{
+				KeysToSnakeCase: KeysToSnakeCase[TriggerEventConfigInner]{
+					Value: TriggerEventConfigInner{
+						PutRuleInput: rule.PutRuleInput,
+						Target:       rule.Target,
+					},
+					Strict: true,
+				},
 			}
-			cfg.Schedule = append(cfg.Schedule, s)
+			if len(rule.AdditionalTargets) > 0 {
+				log.Printf("[debug] StateMachine/%s has additional targets, skip non related target", coalesce(stateMachine.Name))
+			}
+			cfg.Trigger.Event = append(cfg.Trigger.Event, eventsRule)
+		}
+	}
+
+	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	if err != nil {
+		return fmt.Errorf("failed search related schedules: %w", err)
+	}
+	if len(schedules) > 0 {
+		if cfg.Trigger == nil {
+			cfg.Trigger = &TriggerConfig{}
+		}
+		for _, schedule := range schedules {
+			scheduleRule := TriggerScheduleConfig{
+				KeysToSnakeCase: KeysToSnakeCase[scheduler.CreateScheduleInput]{
+					Value:  schedule.CreateScheduleInput,
+					Strict: true,
+				},
+			}
+			cfg.Trigger.Schedule = append(cfg.Trigger.Schedule, scheduleRule)
 		}
 	}
 
@@ -62,30 +95,4 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		return fmt.Errorf("failed render state machine definition file: %w", err)
 	}
 	return nil
-}
-
-func setStateMachineConfig(cfg *StateMachineConfig, s *StateMachine) *StateMachineConfig {
-	cfg.Value = s.CreateStateMachineInput
-	for i := 0; i < len(cfg.Value.Tags); i++ {
-		tag := cfg.Value.Tags[i]
-		if *tag.Key == tagManagedBy {
-			cfg.Value.Tags = append(cfg.Value.Tags[:i], cfg.Value.Tags[i+1:]...)
-			continue
-		}
-	}
-
-	return cfg
-}
-
-func newScheduleConfigFromSchedule(s *ScheduleRule) (*ScheduleConfig, error) {
-	cfg := &ScheduleConfig{}
-	cfg.RuleName = coalesce(s.Name)
-	cfg.Description = coalesce(s.Description)
-	cfg.Expression = coalesce(s.ScheduleExpression)
-	if len(s.Targets) != 1 {
-		return nil, fmt.Errorf("rule target must be 1, now %d", len(s.Targets))
-	}
-	cfg.RoleArn = coalesce(s.Targets[0].RoleArn)
-	cfg.ID = coalesce(s.Targets[0].Id)
-	return cfg, nil
 }

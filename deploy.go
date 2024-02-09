@@ -10,20 +10,32 @@ import (
 )
 
 type DeployCommandOption struct {
-	DryRun                 bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	SkipDeployStateMachine bool   `name:"skip-deploy-state-machine" help:"Skip deploy state machine" json:"skip_deploy_state_machine,omitempty"`
-	VersionDescription     string `name:"version-description" help:"Version description" json:"version_description,omitempty"`
-	KeepVersions           int    `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
-	AliasName              string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
+	DryRun             bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	SkipStateMachine   bool   `name:"skip-state-machine" help:"Skip deploy state machine" json:"skip_state_machine,omitempty"`
+	SkipTrigger        bool   `name:"skip-trigger" help:"Skip deploy trigger" json:"skip_trigger,omitempty"`
+	VersionDescription string `name:"version-description" help:"Version description" json:"version_description,omitempty"`
+	KeepVersions       int    `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
+	AliasName          string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
+	TriggerEnabled     bool   `name:"trigger-enabled" help:"Enable trigger" xor:"trigger" json:"trigger_enabled,omitempty"`
+	TriggerDisabled    bool   `name:"trigger-disabled" help:"Disable trigger" xor:"trigger" json:"trigger_disabled,omitempty"`
 }
 
 func (cmd *DeployCommandOption) DeployOption() DeployOption {
+	var enabled *bool
+	if cmd.TriggerEnabled {
+		enabled = ptr(true)
+	}
+	if cmd.TriggerDisabled {
+		enabled = ptr(false)
+	}
 	return DeployOption{
-		DryRun:                 cmd.DryRun,
-		SkipDeployStateMachine: cmd.SkipDeployStateMachine,
-		VersionDescription:     cmd.VersionDescription,
-		KeepVersions:           cmd.KeepVersions,
-		AliasName:              cmd.AliasName,
+		DryRun:             cmd.DryRun,
+		SkipStateMachine:   cmd.SkipStateMachine,
+		SkipTrigger:        cmd.SkipTrigger,
+		VersionDescription: cmd.VersionDescription,
+		KeepVersions:       cmd.KeepVersions,
+		AliasName:          cmd.AliasName,
+		ScheduleEnabled:    enabled,
 	}
 }
 
@@ -43,20 +55,22 @@ func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
 		enabled = ptr(false)
 	}
 	return DeployOption{
-		DryRun:                 cmd.DryRun,
-		ScheduleEnabled:        enabled,
-		SkipDeployStateMachine: true,
-		AliasName:              cmd.AliasName,
+		DryRun:           cmd.DryRun,
+		ScheduleEnabled:  enabled,
+		SkipTrigger:      false,
+		SkipStateMachine: true,
+		AliasName:        cmd.AliasName,
 	}
 }
 
 type DeployOption struct {
-	DryRun                 bool
-	ScheduleEnabled        *bool
-	SkipDeployStateMachine bool
-	VersionDescription     string
-	KeepVersions           int
-	AliasName              string
+	DryRun             bool
+	ScheduleEnabled    *bool
+	SkipStateMachine   bool
+	SkipTrigger        bool
+	VersionDescription string
+	KeepVersions       int
+	AliasName          string
 }
 
 func (opt DeployOption) DryRunString() string {
@@ -71,24 +85,25 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	if opt.AliasName != "" {
 		app.sfnSvc.SetAliasName(opt.AliasName)
 	}
-	if !opt.SkipDeployStateMachine {
+	if !opt.SkipStateMachine {
 		if err := app.deployStateMachine(ctx, opt); err != nil {
-			return err
+			return fmt.Errorf("failed to deploy state machine: %w", err)
 		}
 	}
-	if err := app.deployScheduleRule(ctx, opt); err != nil {
-		return err
+	if !opt.SkipTrigger {
+		if err := app.deployEventBridgeRules(ctx, opt); err != nil {
+			return fmt.Errorf("failed to deploy event bridge rules: %w", err)
+		}
+		if err := app.deploySchedules(ctx, opt); err != nil {
+			return fmt.Errorf("failed to deploy schedules: %w", err)
+		}
 	}
-
 	log.Println("[info] finish deploy", opt.DryRunString())
 	return nil
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
-	newStateMachine, err := app.LoadStateMachine()
-	if err != nil {
-		return err
-	}
+	newStateMachine := app.cfg.NewStateMachine()
 	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
@@ -103,7 +118,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		return nil
 	}
 	if opt.VersionDescription != "" {
-		newStateMachine.CreateStateMachineInput.VersionDescription = aws.String(opt.VersionDescription)
+		newStateMachine.VersionDescription = aws.String(opt.VersionDescription)
 	}
 	output, err := app.sfnSvc.DeployStateMachine(ctx, newStateMachine)
 	if err != nil {
@@ -118,70 +133,56 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	return nil
 }
 
-func (app *App) deployScheduleRule(ctx context.Context, opt DeployOption) error {
-	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) error {
+	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
 		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	rules, err := app.eventbridgeSvc.SearchScheduleRule(ctx, stateMachineArn)
-	if err != nil {
-		return err
-	}
-	newRules, err := app.LoadScheduleRules(ctx, stateMachineArn)
-	if err != nil {
-		return err
-	}
-	newRules.SetStateMachineArn(stateMachineArn)
+	newRules := app.cfg.NewEventBridgeRules()
+	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
+	newRules.SetStateMachineQualifiedARN(targetARN)
+	keepState := true
 	if opt.ScheduleEnabled != nil {
 		newRules.SetEnabled(*opt.ScheduleEnabled)
-	} else {
-		newRules.SyncState(rules)
+		keepState = false
 	}
-
-	//Ignore no managed rule
-	noConfigRules := rules.Subtract(newRules)
-	noManageRules := make(ScheduleRules, 0, len(noConfigRules))
-	for _, rule := range noConfigRules {
-		if !rule.IsManagedBy() {
-			log.Printf("[warn] found a scheduled rule `%s` that %s does not manage.", *rule.Name, appName)
-			noManageRules = append(noManageRules, rule)
-		}
-	}
-	rules = rules.Exclude(noManageRules)
-
-	if len(rules) == 0 && len(newRules) == 0 {
-		log.Println("[debug] no thing to do")
-		return nil
-	}
-
-	deleteRules := rules.Exclude(newRules)
-	log.Printf("[debug] delete rules:\n%s\n", MarshalJSONString(deleteRules))
 	if opt.DryRun {
-		diffString := rules.DiffString(newRules)
-		log.Printf("[notice] change schedule rule %s\n%s", opt.DryRunString(), diffString)
-		return nil
-	}
-	if len(deleteRules) != 0 {
-		log.Printf("[debug] try delete %d rules", len(deleteRules))
-		err := app.eventbridgeSvc.DeleteScheduleRules(ctx, deleteRules)
+		currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, targetARN)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to search related rules: %w", err)
 		}
-		log.Printf("[info] delete %d schedule rule", len(deleteRules))
+		if keepState {
+			newRules.SyncState(currentRules)
+		}
+		diffString := currentRules.DiffString(newRules)
+		log.Printf("[notice] change related rules %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}
-	output, err := app.eventbridgeSvc.DeployScheduleRules(ctx, newRules)
+	if err := app.eventbridgeSvc.DeployRules(ctx, targetARN, newRules, keepState); err != nil {
+		return fmt.Errorf("failed to deploy rules: %w", err)
+	}
+	return nil
+}
+
+func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
+	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get state machine arn: %w", err)
 	}
-	if output.FailedEntryCount() != 0 {
-		for _, o := range output {
-			log.Printf("[error] deploy schedule rule with failed entries %s", MarshalJSONString(o.FailedEntries))
+	newSchedules := app.cfg.NewSchedules()
+	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
+	newSchedules.SetStateMachineQualifiedARN(targetARN)
+	if opt.DryRun {
+		currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, targetARN)
+		if err != nil {
+			return fmt.Errorf("failed to search related schedules: %w", err)
 		}
-		return errors.New("failed entry count > 0")
+		diffString := currentSchedules.DiffString(newSchedules)
+		log.Printf("[notice] change related schedules %s\n%s", opt.DryRunString(), diffString)
+		return nil
 	}
-	for _, o := range output {
-		log.Printf("[info] deploy schedule rule %s", *o.RuleArn)
+	if err := app.schedulerSvc.DeploySchedules(ctx, targetARN, newSchedules, opt.KeepVersions > 0); err != nil {
+		return fmt.Errorf("failed to deploy schedules: %w", err)
 	}
 	return nil
 }

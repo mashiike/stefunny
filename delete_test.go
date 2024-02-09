@@ -41,8 +41,12 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello").Return(
-					stefunny.ScheduleRules{},
+				m.eventBridge.On("SearchRelatedRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current").Return(
+					stefunny.EventBridgeRules{},
+					nil,
+				).Once()
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current").Return(
+					stefunny.Schedules{},
 					nil,
 				).Once()
 			},
@@ -65,8 +69,12 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello").Return(
-					stefunny.ScheduleRules{},
+				m.eventBridge.On("SearchRelatedRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current").Return(
+					stefunny.EventBridgeRules{},
+					nil,
+				).Once()
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current").Return(
+					stefunny.Schedules{},
 					nil,
 				).Once()
 				m.sfn.On("DeleteStateMachine", mock.Anything, mock.MatchedBy(
@@ -80,7 +88,7 @@ func TestDelete(t *testing.T) {
 		},
 		{
 			casename: "scheduled dry run",
-			path:     "testdata/schedule.yaml",
+			path:     "testdata/event.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
@@ -96,8 +104,8 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled").Return(
-					stefunny.ScheduleRules{
+				m.eventBridge.On("SearchRelatedRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current").Return(
+					stefunny.EventBridgeRules{
 						{
 							PutRuleInput: eventbridge.PutRuleInput{
 								Name: aws.String("Scheduled"),
@@ -108,22 +116,24 @@ func TestDelete(t *testing.T) {
 									},
 								},
 							},
-							TargetRoleArn: "arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1",
-							Targets: []eventbridgetypes.Target{
-								{
-									Id:  aws.String("Scheduled"),
-									Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
-								},
+							Target: eventbridgetypes.Target{
+								Id:      aws.String("stefunny-managed"),
+								RoleArn: aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+								Arn:     aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
 							},
 						},
 					},
+					nil,
+				).Once()
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current").Return(
+					stefunny.Schedules{},
 					nil,
 				).Once()
 			},
 		},
 		{
 			casename: "scheduled",
-			path:     "testdata/schedule.yaml",
+			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
@@ -139,8 +149,8 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("SearchScheduleRule", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled").Return(
-					stefunny.ScheduleRules{
+				m.eventBridge.On("SearchRelatedRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current").Return(
+					stefunny.EventBridgeRules{
 						{
 							PutRuleInput: eventbridge.PutRuleInput{
 								Name: aws.String("Scheduled"),
@@ -151,15 +161,17 @@ func TestDelete(t *testing.T) {
 									},
 								},
 							},
-							TargetRoleArn: "arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1",
-							Targets: []eventbridgetypes.Target{
-								{
-									Id:  aws.String("Scheduled"),
-									Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
-								},
+							Target: eventbridgetypes.Target{
+								Id:      aws.String("stefunny-managed"),
+								RoleArn: aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+								Arn:     aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
 							},
 						},
 					},
+					nil,
+				).Once()
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current").Return(
+					stefunny.Schedules{},
 					nil,
 				).Once()
 				m.sfn.On("DeleteStateMachine", mock.Anything, mock.MatchedBy(
@@ -169,11 +181,11 @@ func TestDelete(t *testing.T) {
 				)).Return(
 					nil,
 				).Once()
-				m.eventBridge.On("DeleteScheduleRules", mock.Anything, mock.MatchedBy(
-					func(input stefunny.ScheduleRules) bool {
-						return assert.Contains(t, *input[0].Name, "Scheduled")
+				m.eventBridge.On("DeployRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current", mock.MatchedBy(
+					func(input stefunny.EventBridgeRules) bool {
+						return len(input) == 0
 					},
-				)).Return(
+				), false).Return(
 					nil,
 				).Once()
 			},
@@ -191,8 +203,9 @@ func TestDelete(t *testing.T) {
 			}
 			app := newMockApp(t, c.path, mocks)
 			err := app.Delete(context.Background(), stefunny.DeleteOption{
-				DryRun: c.DryRun,
-				Force:  true,
+				DryRun:    c.DryRun,
+				AliasName: "current",
+				Force:     true,
 			})
 			require.NoError(t, err)
 		})

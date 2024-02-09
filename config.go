@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"text/template"
@@ -19,6 +20,8 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
+	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
@@ -26,7 +29,6 @@ import (
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
 	gc "github.com/kayac/go-config"
-	"github.com/serenize/snaker"
 	"gopkg.in/yaml.v3"
 )
 
@@ -229,7 +231,26 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 			Enabled: cfg.StateMachine.Tracing.Enabled,
 		}
 	}
-
+	if cfg.Schedule != nil {
+		log.Println("[warn] schedule is deprecated. Use trigger.schedule or trigger.event instead. (since v0.6.0)")
+		if cfg.Trigger == nil {
+			cfg.Trigger = &TriggerConfig{}
+		}
+		for _, s := range cfg.Schedule {
+			event := TriggerEventConfig{
+				KeysToSnakeCase: NewKeysToSnakeCase(TriggerEventConfigInner{
+					PutRuleInput: eventbridge.PutRuleInput{
+						Name:               &s.RuleName,
+						ScheduleExpression: &s.Expression,
+						Description:        &s.Description,
+						RoleArn:            &s.RoleArn,
+					},
+				}),
+			}
+			cfg.Trigger.Event = append(cfg.Trigger.Event, event)
+		}
+		cfg.Schedule = nil
+	}
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -258,6 +279,7 @@ type Config struct {
 	AWSRegion       string `yaml:"aws_region,omitempty" json:"aws_region,omitempty" toml:"aws_region,omitempty" env:"AWS_REGION" validate:"omitempty,region"`
 
 	StateMachine *StateMachineConfig `yaml:"state_machine,omitempty" json:"state_machine,omitempty"`
+	Trigger      *TriggerConfig      `yaml:"trigger,omitempty" json:"trigger,omitempty"`
 	Schedule     []*ScheduleConfig   `yaml:"schedule,omitempty" json:"schedule,omitempty"`
 	Tags         map[string]string   `yaml:"tags,omitempty" json:"tags,omitempty"`
 
@@ -360,6 +382,24 @@ type ScheduleConfig struct {
 	RoleArn     string `yaml:"role_arn,omitempty" json:"role_arn,omitempty"`
 }
 
+type TriggerConfig struct {
+	Schedule []TriggerScheduleConfig `yaml:"schedule,omitempty" json:"schedule,omitempty"`
+	Event    []TriggerEventConfig    `yaml:"event,omitempty" json:"event,omitempty"`
+}
+
+type TriggerScheduleConfig struct {
+	KeysToSnakeCase[scheduler.CreateScheduleInput] `yaml:",inline" json:",inline"`
+}
+
+type TriggerEventConfig struct {
+	KeysToSnakeCase[TriggerEventConfigInner] `yaml:",inline" json:",inline"`
+}
+
+type TriggerEventConfigInner struct {
+	eventbridge.PutRuleInput `yaml:",inline"`
+	Target                   eventbridgetypes.Target `yaml:"Target,omitempty" json:"Target,omitempty"`
+}
+
 // Restrict restricts a configuration.
 func (cfg *Config) Restrict() error {
 	if cfg.RequiredVersion != "" {
@@ -375,15 +415,98 @@ func (cfg *Config) Restrict() error {
 	if err := cfg.StateMachine.Restrict(); err != nil {
 		return fmt.Errorf("state_machine.%w", err)
 	}
-	if len(cfg.Schedule) != 0 {
-		for i, s := range cfg.Schedule {
-			if err := s.Restrict(i, *cfg.StateMachine.Value.Name); err != nil {
-				return fmt.Errorf("schedule[%d].%w", i, err)
-			}
+	if cfg.Trigger != nil {
+		if err := cfg.Trigger.Restrict(cfg.StateMachineName()); err != nil {
+			return fmt.Errorf("trigger.%w", err)
 		}
 	}
 	if len(cfg.Tags) > 0 {
 		log.Println("[warn] tags is deprecated. Use state_machine.tags instead. (since v0.6.0)")
+	}
+	return nil
+}
+
+func (cfg *TriggerConfig) Restrict(stateMachineName string) error {
+	for i, s := range cfg.Schedule {
+		if err := s.Restrict(i, stateMachineName); err != nil {
+			return fmt.Errorf("schedule[%d].%w", i, err)
+		}
+	}
+	for i, e := range cfg.Event {
+		if err := e.Restrict(i, stateMachineName); err != nil {
+			return fmt.Errorf("event[%d].%w", i, err)
+		}
+	}
+	return nil
+}
+
+func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
+	cfg.Value.PutRuleInput.RoleArn = ptr(coalesce(cfg.Value.PutRuleInput.RoleArn, cfg.Value.Target.RoleArn))
+	cfg.Value.Target.RoleArn = nil
+	if coalesce(cfg.Value.PutRuleInput.RoleArn) == "" {
+		return errors.New("role_arn is required")
+	}
+	if coalesce(cfg.Value.PutRuleInput.Name) == "" {
+		log.Printf("[warn] trigger.event[%d].rule_name is empty. Use state_machine.name as rule_name.", i)
+		cfg.Value.PutRuleInput.Name = aws.String(stateMachineName)
+	}
+	if coalesce(cfg.Value.PutRuleInput.ScheduleExpression) == "" && coalesce(cfg.Value.PutRuleInput.EventPattern) == "" {
+		return errors.New("schedule_expression or event_pattern is required")
+	}
+	if cfg.Value.Target.Arn != nil {
+		return errors.New("target.arn is not allowed")
+	}
+	if cfg.Value.State == "" {
+		cfg.Value.State = eventbridgetypes.RuleStateEnabled
+	}
+	return nil
+}
+
+func (cfg *TriggerEventConfig) UnmarshalYAML(node *yaml.Node) error {
+	cfg.Strict = true
+	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TriggerEventConfig) UnmarshalJSON(b []byte) error {
+	cfg.Strict = true
+	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TriggerScheduleConfig) Restrict(i int, stateMachineName string) error {
+	if coalesce(cfg.Value.Name) == "" {
+		log.Printf("[warn] trigger.schedule[%d].schedule_name is empty. Use state_machine.name as rule_name.", i)
+		cfg.Value.Name = aws.String(stateMachineName)
+	}
+	if coalesce(cfg.Value.ScheduleExpression) == "" {
+		return errors.New("schedule_expression is required")
+	}
+	if cfg.Value.Target == nil {
+		return nil
+	}
+	if coalesce(cfg.Value.Target.Arn) != "" {
+		return errors.New("target.arn is not allowed")
+	}
+	return nil
+}
+
+func (cfg *TriggerScheduleConfig) UnmarshalYAML(node *yaml.Node) error {
+	cfg.Strict = true
+	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (cfg *TriggerScheduleConfig) UnmarshalJSON(b []byte) error {
+	cfg.Strict = true
+	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
+		return err
 	}
 	return nil
 }
@@ -394,15 +517,23 @@ func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	if cfg.awsCfg != nil {
 		return *cfg.awsCfg, nil
 	}
-	opts := []func(*awsconfig.LoadOptions) error{
-		awsconfig.WithRegion(cfg.AWSRegion),
+	opts := []func(*awsconfig.LoadOptions) error{}
+	if cfg.AWSRegion != "" {
+		log.Printf("[debug] use aws_region = %s", cfg.AWSRegion)
+		opts = append(opts, awsconfig.WithRegion(cfg.AWSRegion))
 	}
 	if endpointsResolver, ok := cfg.EndpointResolver(); ok {
 		opts = append(opts, awsconfig.WithEndpointResolverWithOptions(endpointsResolver))
 	}
+	log.Println("[debug] load aws default config")
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return aws.Config{}, err
+	}
+	stsClient := sts.NewFromConfig(awsCfg)
+	identity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err == nil {
+		log.Printf("[debug] caller identity: %s", *identity.Arn)
 	}
 	cfg.awsCfg = &awsCfg
 	return awsCfg, nil
@@ -416,25 +547,55 @@ func (cfg *Config) StateMachineDefinition() string {
 	return *cfg.StateMachine.Value.Definition
 }
 
-func (cfg *Config) NewCreateStateMachineInput() sfn.CreateStateMachineInput {
-	input := cfg.StateMachine.Value
-	found := false
-	for _, tag := range input.Tags {
-		if tag.Key == nil {
-			continue
-		}
-		if *tag.Key == tagManagedBy {
-			tag.Value = aws.String(appName)
-			found = true
-		}
+func (cfg *Config) NewStateMachine() *StateMachine {
+	stateMachine := &StateMachine{
+		CreateStateMachineInput: cfg.StateMachine.Value,
 	}
-	if !found {
-		input.Tags = append(input.Tags, sfntypes.Tag{
-			Key:   aws.String(tagManagedBy),
-			Value: aws.String(appName),
-		})
+	stateMachine.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
+	stateMachine.AppendTags(cfg.Tags)
+	return stateMachine
+}
+
+func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
+	if cfg.Trigger == nil {
+		return EventBridgeRules{}
 	}
-	return input
+	tags := make(map[string]string)
+	for _, tag := range cfg.StateMachine.Value.Tags {
+		tags[coalesce(tag.Key)] = coalesce(tag.Value)
+	}
+	for k, v := range cfg.Tags {
+		tags[k] = v
+	}
+	tags[tagManagedBy] = appName
+	rules := make(EventBridgeRules, 0, len(cfg.Trigger.Event))
+	for _, e := range cfg.Trigger.Event {
+		rule := &EventBridgeRule{
+			PutRuleInput: e.Value.PutRuleInput,
+			Target:       e.Value.Target,
+		}
+		rule.AppendTags(tags)
+		rules = append(rules, rule)
+	}
+	sort.Sort(rules)
+	return rules
+}
+
+func (cfg *Config) NewSchedules() Schedules {
+	if cfg.Trigger == nil {
+		return Schedules{}
+	}
+	schedules := make(Schedules, 0, len(cfg.Trigger.Schedule))
+	for _, s := range cfg.Trigger.Schedule {
+		schedule := &Schedule{
+			CreateScheduleInput: s.Value,
+		}
+		schedules = append(schedules, schedule)
+	}
+	sort.Sort(schedules)
+	return schedules
 }
 
 func (cfg *StateMachineConfig) SetDetinitionPath(path string) {
@@ -502,24 +663,6 @@ func (cfg *StateMachineConfig) Restrict() error {
 	}
 	if cfg.Value.VersionDescription != nil {
 		cfg.Value.VersionDescription = nil
-	}
-	return nil
-}
-
-// Restrict restricts a configuration.
-func (cfg *ScheduleConfig) Restrict(index int, stateMachineName string) error {
-	if cfg.RuleName == "" {
-		middle := snaker.CamelToSnake(stateMachineName)
-		cfg.RuleName = fmt.Sprintf("%s-%s-schedule", appName, middle)
-		if index != 0 {
-			cfg.RuleName += fmt.Sprintf("%d", index)
-		}
-	}
-	if cfg.Expression == "" {
-		return errors.New("expression is required")
-	}
-	if cfg.RoleArn == "" {
-		return errors.New("role_arn is required")
 	}
 	return nil
 }
