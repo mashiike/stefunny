@@ -169,9 +169,21 @@ func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 	if err := json.Unmarshal(bs, &v); err != nil {
 		return nil, err
 	}
+	o := make([]interface{}, 0, len(overrides))
+	for _, override := range overrides {
+		bs, err := json.Marshal(override)
+		if err != nil {
+			return nil, err
+		}
+		var ov interface{}
+		if err := json.Unmarshal(bs, &ov); err != nil {
+			return nil, err
+		}
+		o = append(o, ov)
+	}
 	if v, ok := v.(map[string]interface{}); ok {
 		if len(overrides) > 0 {
-			for _, override := range overrides {
+			for _, override := range o {
 				if override, ok := override.(map[string]interface{}); ok {
 					for key, value := range override {
 						v[key] = value
@@ -183,7 +195,7 @@ func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 	}
 	if vs, ok := v.([]interface{}); ok {
 		if len(overrides) > 0 {
-			for _, override := range overrides {
+			for _, override := range o {
 				if override, ok := override.([]interface{}); ok {
 					vs = append(vs, override...)
 				}
@@ -201,7 +213,7 @@ func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 
 func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 	for key, value := range v {
-		if value == nil {
+		if isNil(value) {
 			delete(v, key)
 			continue
 		}

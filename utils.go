@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -104,6 +105,17 @@ func unique[T comparable](slice []T) []T {
 		}
 	}
 	return result
+}
+
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	v := reflect.ValueOf(i)
+	if v.Kind() != reflect.Ptr {
+		return false
+	}
+	return v.IsNil()
 }
 
 type change[T any] struct {

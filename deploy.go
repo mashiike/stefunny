@@ -137,8 +137,13 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 
 func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) error {
 	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	isStateMachineFound := true
 	if err != nil {
-		return fmt.Errorf("failed to get state machine arn: %w", err)
+		if !errors.Is(err, ErrStateMachineDoesNotExist) {
+			return fmt.Errorf("failed to get state machine arn: %w", err)
+		}
+		stateMachineARN = "[known after deploy]"
+		isStateMachineFound = false
 	}
 	newRules := app.cfg.NewEventBridgeRules()
 	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
@@ -149,9 +154,12 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		keepState = false
 	}
 	if opt.DryRun {
-		currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, targetARN)
-		if err != nil {
-			return fmt.Errorf("failed to search related rules: %w", err)
+		currentRules := EventBridgeRules{}
+		if isStateMachineFound {
+			currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, targetARN)
+			if err != nil {
+				return fmt.Errorf("failed to search related rules: %w", err)
+			}
 		}
 		if keepState {
 			newRules.SyncState(currentRules)
@@ -168,16 +176,25 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 
 func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	isStateMachineFound := true
 	if err != nil {
-		return fmt.Errorf("failed to get state machine arn: %w", err)
+		if !errors.Is(err, ErrStateMachineDoesNotExist) {
+
+			return fmt.Errorf("failed to get state machine arn: %w", err)
+		}
+		stateMachineARN = "[known after deploy]"
+		isStateMachineFound = false
 	}
 	newSchedules := app.cfg.NewSchedules()
 	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
 	newSchedules.SetStateMachineQualifiedARN(targetARN)
 	if opt.DryRun {
-		currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, targetARN)
-		if err != nil {
-			return fmt.Errorf("failed to search related schedules: %w", err)
+		currentSchedules := Schedules{}
+		if isStateMachineFound {
+			currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, targetARN)
+			if err != nil {
+				return fmt.Errorf("failed to search related schedules: %w", err)
+			}
 		}
 		diffString := currentSchedules.DiffString(newSchedules)
 		log.Printf("[notice] change related schedules %s\n%s", opt.DryRunString(), diffString)
