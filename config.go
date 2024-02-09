@@ -140,7 +140,22 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
-	cfg.ConfigDir = filepath.Dir(path)
+	dir, err := os.Getwd()
+	if err != nil {
+		log.Printf("[debug] os.Getwd: %s", err)
+	}
+	if !filepath.IsAbs(dir) {
+		dir, err = filepath.Abs(dir)
+		if err != nil {
+			log.Printf("[debug] filepath.Abs: %s", err)
+		}
+	}
+	relPath, err := filepath.Rel(dir, filepath.Dir(path))
+	if err != nil {
+		log.Printf("[debug] filepath.Rel: %s", err)
+	}
+	cfg.ConfigDir = relPath
+	cfg.ConfigFileName = filepath.Base(path)
 	// pre load for tfstate path read
 	if err := l.load(path, false, false, cfg); err != nil {
 		return nil, fmt.Errorf("pre load config `%s`: %w", path, err)
@@ -287,7 +302,8 @@ type Config struct {
 
 	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
 
-	ConfigDir string `yaml:"-"`
+	ConfigDir      string `yaml:"-"`
+	ConfigFileName string `yaml:"-"`
 	//private field
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
@@ -555,6 +571,9 @@ func (cfg *Config) NewStateMachine() *StateMachine {
 		tagManagedBy: appName,
 	})
 	stateMachine.AppendTags(cfg.Tags)
+
+	stateMachine.ConfigFilePath = aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName))
+	stateMachine.DefinitionPath = aws.String(filepath.Join(cfg.ConfigDir, cfg.StateMachine.DefinitionPath))
 	return stateMachine
 }
 
@@ -573,8 +592,9 @@ func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
 	rules := make(EventBridgeRules, 0, len(cfg.Trigger.Event))
 	for _, e := range cfg.Trigger.Event {
 		rule := &EventBridgeRule{
-			PutRuleInput: e.Value.PutRuleInput,
-			Target:       e.Value.Target,
+			PutRuleInput:   e.Value.PutRuleInput,
+			Target:         e.Value.Target,
+			ConfigFilePath: aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
 		}
 		rule.AppendTags(tags)
 		rules = append(rules, rule)
@@ -591,6 +611,7 @@ func (cfg *Config) NewSchedules() Schedules {
 	for _, s := range cfg.Trigger.Schedule {
 		schedule := &Schedule{
 			CreateScheduleInput: s.Value,
+			ConfigFilePath:      aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
 		}
 		schedules = append(schedules, schedule)
 	}

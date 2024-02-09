@@ -18,6 +18,7 @@ type DeployCommandOption struct {
 	AliasName          string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
 	TriggerEnabled     bool   `name:"trigger-enabled" help:"Enable trigger" xor:"trigger" json:"trigger_enabled,omitempty"`
 	TriggerDisabled    bool   `name:"trigger-disabled" help:"Disable trigger" xor:"trigger" json:"trigger_disabled,omitempty"`
+	Unified            bool   `name:"unified" help:"when dry run, output unified diff" negative:"" default:"true" json:"unified,omitempty"`
 }
 
 func (cmd *DeployCommandOption) DeployOption() DeployOption {
@@ -36,6 +37,7 @@ func (cmd *DeployCommandOption) DeployOption() DeployOption {
 		KeepVersions:       cmd.KeepVersions,
 		AliasName:          cmd.AliasName,
 		ScheduleEnabled:    enabled,
+		Unified:            cmd.Unified,
 	}
 }
 
@@ -71,6 +73,7 @@ type DeployOption struct {
 	VersionDescription string
 	KeepVersions       int
 	AliasName          string
+	Unified            bool
 }
 
 func (opt DeployOption) DryRunString() string {
@@ -115,8 +118,9 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		newStateMachine.StateMachineArn = stateMachine.StateMachineArn
 	}
 	if opt.DryRun {
-		diffString := stateMachine.DiffString(newStateMachine)
-		log.Printf("[notice] change state machine %s\n%s", opt.DryRunString(), diffString)
+		diffString := stateMachine.DiffString(newStateMachine, opt.Unified)
+		log.Printf("[notice] change state machine %s\n", opt.DryRunString())
+		fmt.Println(diffString)
 		return nil
 	}
 	if opt.VersionDescription != "" {
@@ -164,7 +168,7 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		if keepState {
 			newRules.SyncState(currentRules)
 		}
-		diffString := currentRules.DiffString(newRules)
+		diffString := currentRules.DiffString(newRules, opt.Unified)
 		log.Printf("[notice] change related rules %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}
@@ -196,7 +200,7 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 				return fmt.Errorf("failed to search related schedules: %w", err)
 			}
 		}
-		diffString := currentSchedules.DiffString(newSchedules)
+		diffString := currentSchedules.DiffString(newSchedules, opt.Unified)
 		log.Printf("[notice] change related schedules %s\n%s", opt.DryRunString(), diffString)
 		return nil
 	}

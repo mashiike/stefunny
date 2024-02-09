@@ -217,7 +217,7 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[debug] revision_id = `%s`", *output.RevisionId)
+	log.Printf("[debug] revision_id = `%s`", coalesce(output.RevisionId))
 	log.Println("[debug] finish update state machine")
 
 	log.Println("[debug] try update state machine tags")

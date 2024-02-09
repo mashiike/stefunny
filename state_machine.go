@@ -14,6 +14,8 @@ type StateMachine struct {
 	CreationDate    *time.Time
 	StateMachineArn *string
 	Status          sfntypes.StateMachineStatus
+	ConfigFilePath  *string
+	DefinitionPath  *string
 }
 
 func (s *StateMachine) QualifiedARN(name string) string {
@@ -69,16 +71,46 @@ func (s *StateMachine) String() string {
 	return builder.String()
 }
 
-func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
+func (s *StateMachine) DiffString(newStateMachine *StateMachine, unified bool) string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString("StateMachine Configure:\n"))
-	builder.WriteString(JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
-	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
+	from := "[known after deploy]"
+	if s != nil {
+		from = coalesce(s.StateMachineArn, s.ConfigFilePath, s.Name)
+	}
+	to := "[known after deploy]"
+	if newStateMachine != nil {
+		to = coalesce(newStateMachine.StateMachineArn, newStateMachine.ConfigFilePath, newStateMachine.Name)
+	}
+	builder.WriteString(
+		JSONDiffString(
+			s.configureJSON(),
+			newStateMachine.configureJSON(),
+			JSONDiffUnified(unified),
+			JSONDiffFromURI(from),
+			JSONDiffToURI(to),
+		),
+	)
 	def := "null"
 	if s != nil {
 		def = coalesce(s.Definition)
 	}
-	builder.WriteString(JSONDiffString(def, coalesce(newStateMachine.Definition)))
+	from = "[known after deploy]"
+	if s != nil {
+		from = coalesce(s.StateMachineArn, s.DefinitionPath, s.Name)
+	}
+	to = "[known after deploy]"
+	if newStateMachine != nil {
+		to = coalesce(newStateMachine.StateMachineArn, newStateMachine.DefinitionPath, newStateMachine.Name)
+	}
+	builder.WriteString(
+		JSONDiffString(
+			def,
+			coalesce(newStateMachine.Definition),
+			JSONDiffUnified(unified),
+			JSONDiffFromURI(from),
+			JSONDiffToURI(to),
+		),
+	)
 	return builder.String()
 }
 

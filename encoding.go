@@ -8,6 +8,7 @@ import (
 	"log"
 	"strings"
 
+	"github.com/fatih/color"
 	"github.com/google/go-jsonnet/formatter"
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
@@ -106,22 +107,46 @@ func JSONDiffToURI(uri string) JSONDiffOption {
 	}
 }
 
-func JSONDiffUnified() JSONDiffOption {
+func JSONDiffUnified(b bool) JSONDiffOption {
 	return func(p *jsonDiffParams) {
-		p.unified = true
+		p.unified = b
 	}
 }
 
 func JSONDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
+	var b strings.Builder
+	str := jsonDiffString(fromStr, toStr, opts...)
+	for _, line := range strings.Split(str, "\n") {
+		if strings.HasPrefix(line, "-") {
+			b.WriteString(color.RedString(line) + "\n")
+		} else if strings.HasPrefix(line, "+") {
+			b.WriteString(color.GreenString(line) + "\n")
+		} else {
+			b.WriteString(line + "\n")
+		}
+	}
+	return b.String()
+}
+
+func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
 	var params jsonDiffParams
 	for _, opt := range opts {
 		opt(&params)
 	}
 	if strings.EqualFold(fromStr, "null") || strings.EqualFold(fromStr, "null\n") {
 		fromStr = ""
+	} else {
+		if !strings.HasSuffix(fromStr, "\n") {
+			fromStr += "\n"
+		}
 	}
+
 	if strings.EqualFold(toStr, "null") || strings.EqualFold(toStr, "null\n") {
 		toStr = ""
+	} else {
+		if !strings.HasSuffix(toStr, "\n") {
+			toStr += "\n"
+		}
 	}
 
 	if params.unified {

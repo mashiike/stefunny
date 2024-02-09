@@ -169,7 +169,6 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 		}
 		additional = append(additional, t)
 	}
-	target.Arn = nil
 	rule.Target = *target
 	rule.AdditionalTargets = additional
 	return rule, nil

@@ -115,7 +115,6 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 		}
 		svc.cacheScheduleByName[name] = schedule
 	}
-	schedule.Target.Arn = nil
 	result := &Schedule{
 		CreateScheduleInput: scheduler.CreateScheduleInput{
 			Name:                  schedule.Name,
