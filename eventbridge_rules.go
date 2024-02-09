@@ -134,7 +134,7 @@ func (rules EventBridgeRules) SyncState(other EventBridgeRules) {
 }
 
 func (rules EventBridgeRules) DiffString(newRules EventBridgeRules) string {
-	result := diff(rules, newRules, func(r *EventBridgeRule) string {
+	result := sliceDiff(rules, newRules, func(r *EventBridgeRule) string {
 		return coalesce(r.Name)
 	})
 	var builder strings.Builder

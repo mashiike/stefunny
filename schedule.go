@@ -118,7 +118,7 @@ func (s Schedules) SyncState(other Schedules) {
 }
 
 func (s Schedules) DiffString(newSchedules Schedules) string {
-	result := diff(s, newSchedules, func(schedule *Schedule) string {
+	result := sliceDiff(s, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})
 	var builder strings.Builder

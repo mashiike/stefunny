@@ -103,9 +103,11 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 }
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
+	log.Println("[debug] deploy state machine")
 	newStateMachine := app.cfg.NewStateMachine()
 	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
 	if err != nil {
+		log.Printf("[debug] describe state machine error %#v", err)
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
 			return fmt.Errorf("failed to describe current state machine status: %w", err)
 		}

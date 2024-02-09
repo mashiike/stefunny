@@ -74,11 +74,18 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine) string {
 	builder.WriteString(colorRestString("StateMachine Configure:\n"))
 	builder.WriteString(JSONDiffString(s.configureJSON(), newStateMachine.configureJSON()))
 	builder.WriteString(colorRestString("\nStateMachine Definition:\n"))
-	builder.WriteString(JSONDiffString(*s.Definition, *newStateMachine.Definition))
+	def := "null"
+	if s != nil {
+		def = coalesce(s.Definition)
+	}
+	builder.WriteString(JSONDiffString(def, coalesce(newStateMachine.Definition)))
 	return builder.String()
 }
 
 func (s *StateMachine) configureJSON() string {
+	if s == nil {
+		return "null"
+	}
 	tags := make(map[string]string, len(s.Tags))
 	for _, tag := range s.Tags {
 		tags[coalesce(tag.Key)] = coalesce(tag.Value)

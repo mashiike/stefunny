@@ -184,7 +184,7 @@ func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachine
 		rules.SyncState(currentRules)
 	}
 	rules.SetStateMachineQualifiedARN(stateMachineArn)
-	plan := diff(currentRules, rules, func(rule *EventBridgeRule) string {
+	plan := sliceDiff(currentRules, rules, func(rule *EventBridgeRule) string {
 		return coalesce(rule.Name)
 	})
 	for _, rule := range plan.Delete {

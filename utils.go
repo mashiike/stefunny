@@ -111,15 +111,15 @@ type change[T any] struct {
 	After  T
 }
 
-type diffResult[T any] struct {
+type sliceDiffResult[T any] struct {
 	Add    []T
 	Delete []T
 	Change []change[T]
 }
 
 // diff for this -> other
-func diff[T any](this, other []T, fetchKey func(T) string) diffResult[T] {
-	result := diffResult[T]{}
+func sliceDiff[T any](this, other []T, fetchKey func(T) string) sliceDiffResult[T] {
+	result := sliceDiffResult[T]{}
 	thisMap := make(map[string]T)
 	for _, item := range this {
 		thisMap[fetchKey(item)] = item

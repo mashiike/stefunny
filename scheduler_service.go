@@ -149,7 +149,7 @@ func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachi
 		log.Printf("[warn] schedule `%s` has passed, skip deploy or delete", coalesce(schedule.Name))
 	}
 	newSchedules.SetStateMachineQualifiedARN(stateMachineArn)
-	plan := diff(currentSchedules, newSchedules, func(schedule *Schedule) string {
+	plan := sliceDiff(currentSchedules, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})
 	for _, schedule := range plan.Delete {
