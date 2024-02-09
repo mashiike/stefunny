@@ -35,6 +35,11 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	}
 	newRules := app.cfg.NewEventBridgeRules()
 	newRules.SetStateMachineQualifiedARN(qualified)
+	sameNameRules, err := app.eventbridgeSvc.SearchRulesByNames(ctx, newRules.Names(), qualified)
+	if err != nil {
+		return fmt.Errorf("failed to search rules by names: %w", err)
+	}
+	currentRules = currentRules.Merge(sameNameRules)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)

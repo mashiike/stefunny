@@ -183,17 +183,19 @@ func (rules EventBridgeRules) Names() []string {
 	return names
 }
 
-func (rules EventBridgeRules) Override(newRules EventBridgeRules) {
-	newMap := make(map[string]*EventBridgeRule, len(newRules))
-	for _, r := range newRules {
-		newMap[coalesce(r.Name)] = r
+func (rules EventBridgeRules) Merge(newRules EventBridgeRules) EventBridgeRules {
+	rulesMap := make(map[string]*EventBridgeRule, len(rules))
+	for _, rule := range rules {
+		rulesMap[coalesce(rule.Name)] = rule
 	}
-	for _, r := range rules {
-		name := coalesce(r.Name)
-		if new, ok := newMap[name]; ok {
-			*r = *new
-		}
+	for _, rule := range newRules {
+		rulesMap[coalesce(rule.Name)] = rule
 	}
+	result := make(EventBridgeRules, 0, len(rulesMap))
+	for _, rule := range rulesMap {
+		result = append(result, rule)
+	}
+	return result
 }
 
 // sort.Interfaces

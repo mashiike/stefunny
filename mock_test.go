@@ -785,6 +785,20 @@ func NewMockEventBridgeService(t *testing.T) *mockEventBridgeService {
 	return m
 }
 
+func (m *mockEventBridgeService) SearchRulesByNames(ctx context.Context, names []string, stateMachineArn string) (stefunny.EventBridgeRules, error) {
+	args := m.Called(ctx, names, stateMachineArn)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(stefunny.EventBridgeRules); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not stefunny.EventBridgeRules")
+		return nil, errors.New("mock data is not stefunny.EventBridgeRules")
+	}
+	return nil, err
+}
+
 func (m *mockEventBridgeService) SearchRelatedRules(ctx context.Context, stateMachineArn string) (stefunny.EventBridgeRules, error) {
 	args := m.Called(ctx, stateMachineArn)
 	output := args.Get(0)

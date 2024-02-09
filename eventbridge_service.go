@@ -31,6 +31,7 @@ var (
 )
 
 type EventBridgeService interface {
+	SearchRulesByNames(ctx context.Context, ruleNames []string, stateMachineArn string) (EventBridgeRules, error)
 	SearchRelatedRules(ctx context.Context, stateMachineArn string) (EventBridgeRules, error)
 	DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error
 }
@@ -51,6 +52,26 @@ func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
 		cacheTargetsByName: make(map[string]*eventbridge.ListTargetsByRuleOutput),
 		cacheTagsByName:    make(map[string]*eventbridge.ListTagsForResourceOutput),
 	}
+}
+
+func (svc *EventBridgeServiceImpl) SearchRulesByNames(ctx context.Context, ruleNames []string, stateMachineArn string) (EventBridgeRules, error) {
+	log.Printf("[debug] call SearchRulesByNames(ctx,%s)", ruleNames)
+	rules := make(EventBridgeRules, 0, len(ruleNames))
+	for _, name := range ruleNames {
+		rule, err := svc.describeRule(ctx, name, stateMachineArn)
+		if err != nil {
+			if !errors.Is(err, ErrEventBridgeRuleDoesNotExist) {
+				return nil, err
+			}
+			log.Println("[debug] rule not found", name)
+			continue
+		}
+		log.Println("[debug] rule found", coalesce(rule.Name))
+		rules = append(rules, rule)
+	}
+	sort.Sort(rules)
+	log.Printf("[debug] end SearchRulesByNames() %d rules found", len(rules))
+	return rules, nil
 }
 
 func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, stateMachineArn string) (EventBridgeRules, error) {
@@ -149,28 +170,47 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 	additional := make([]eventbridgetypes.Target, 0, len(listTargetsOutput.Targets))
 	var target *eventbridgetypes.Target
 	unqualified := unqualifyARN(stateMachineARN)
+	log.Printf("[debug] state machine arn: %s", stateMachineARN)
+	log.Printf("[debug] unqualified arn: %s", unqualified)
 	for i, t := range listTargetsOutput.Targets {
-		if coalesce(t.Arn) == stateMachineARN {
+		currentArn := coalesce(t.Arn)
+		log.Printf("[debug] current target arn: %s", currentArn)
+		if currentArn == stateMachineARN {
 			if target != nil {
 				additional = append(additional, t)
 			}
+			log.Println("[debug] found same arn target")
 			target = &t
 			additional = append(additional, listTargetsOutput.Targets[:i]...)
 			break
 		}
-		if coalesce(t.Arn) == unqualified {
+		if currentArn == unqualified {
 			if target != nil {
 				additional = append(additional, t)
 				continue
 			}
+			log.Printf("[debug] found unqualified arn target")
+			cloned := t
+			target = &cloned
+			continue
+		}
+		if unqualifyARN(currentArn) == unqualified {
+			if target != nil {
+				additional = append(additional, t)
+				continue
+			}
+			log.Printf("[debug] found other alias arn target")
 			cloned := t
 			target = &cloned
 			continue
 		}
 		additional = append(additional, t)
 	}
-	rule.Target = *target
 	rule.AdditionalTargets = additional
+	if target == nil {
+		return rule, nil
+	}
+	rule.Target = *target
 	return rule, nil
 }
 
