@@ -31,8 +31,7 @@ var (
 )
 
 type EventBridgeService interface {
-	SearchRulesByNames(ctx context.Context, ruleNames []string, stateMachineArn string) (EventBridgeRules, error)
-	SearchRelatedRules(ctx context.Context, stateMachineArn string) (EventBridgeRules, error)
+	SearchRelatedRules(ctx context.Context, params *SearchRelatedRulesInput) (EventBridgeRules, error)
 	DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error
 }
 
@@ -54,28 +53,14 @@ func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
 	}
 }
 
-func (svc *EventBridgeServiceImpl) SearchRulesByNames(ctx context.Context, ruleNames []string, stateMachineArn string) (EventBridgeRules, error) {
-	log.Printf("[debug] call SearchRulesByNames(ctx,%s)", ruleNames)
-	rules := make(EventBridgeRules, 0, len(ruleNames))
-	for _, name := range ruleNames {
-		rule, err := svc.describeRule(ctx, name, stateMachineArn)
-		if err != nil {
-			if !errors.Is(err, ErrEventBridgeRuleDoesNotExist) {
-				return nil, err
-			}
-			log.Println("[debug] rule not found", name)
-			continue
-		}
-		log.Println("[debug] rule found", coalesce(rule.Name))
-		rules = append(rules, rule)
-	}
-	sort.Sort(rules)
-	log.Printf("[debug] end SearchRulesByNames() %d rules found", len(rules))
-	return rules, nil
+type SearchRelatedRulesInput struct {
+	StateMachineQualifiedARN string
+	RuleNames                []string
 }
 
-func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, stateMachineArn string) (EventBridgeRules, error) {
-	log.Printf("[debug] call SearchRelatedRules(ctx,%s)", stateMachineArn)
+func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, params *SearchRelatedRulesInput) (EventBridgeRules, error) {
+	stateMachineArn := params.StateMachineQualifiedARN
+	log.Printf("[debug] call SearchRelatedRules(ctx,%#v)", params)
 	ruleNames, err := svc.searchRelatedRuleNames(ctx, stateMachineArn)
 	if err != nil {
 		return nil, err
@@ -89,11 +74,19 @@ func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, state
 		ruleNames = append(ruleNames, unqualifiedRelatedRuleNames...)
 		ruleNames = unique(ruleNames)
 	}
+	if len(params.RuleNames) > 0 {
+		ruleNames = append(ruleNames, params.RuleNames...)
+		ruleNames = unique(ruleNames)
+	}
 	rules := make(EventBridgeRules, 0, len(ruleNames))
 	for _, name := range ruleNames {
 		rule, err := svc.describeRule(ctx, name, stateMachineArn)
 		if err != nil {
-			return nil, err
+			if !errors.Is(err, ErrEventBridgeRuleDoesNotExist) {
+				return nil, err
+			}
+			log.Println("[debug] rule not found", name)
+			continue
 		}
 		rules = append(rules, rule)
 	}
@@ -215,7 +208,10 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 }
 
 func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error {
-	currentRules, err := svc.SearchRelatedRules(ctx, stateMachineArn)
+	currentRules, err := svc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+		StateMachineQualifiedARN: stateMachineArn,
+		RuleNames:                rules.Names(),
+	})
 	if err != nil {
 		return err
 	}

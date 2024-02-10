@@ -183,21 +183,6 @@ func (rules EventBridgeRules) Names() []string {
 	return names
 }
 
-func (rules EventBridgeRules) Merge(newRules EventBridgeRules) EventBridgeRules {
-	rulesMap := make(map[string]*EventBridgeRule, len(rules))
-	for _, rule := range rules {
-		rulesMap[coalesce(rule.Name)] = rule
-	}
-	for _, rule := range newRules {
-		rulesMap[coalesce(rule.Name)] = rule
-	}
-	result := make(EventBridgeRules, 0, len(rulesMap))
-	for _, rule := range rulesMap {
-		result = append(result, rule)
-	}
-	return result
-}
-
 // sort.Interfaces
 func (rules EventBridgeRules) Len() int {
 	return len(rules)

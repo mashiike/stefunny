@@ -29,7 +29,9 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	}
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
-	currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(opt.AliasName),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to search related rules: %w", err)
 	}

@@ -30,7 +30,9 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	}
 	stateMachine.DeleteTag(tagManagedBy)
 	cfg.StateMachine.Value = stateMachine.CreateStateMachineInput
-	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(opt.AliasName),
+	})
 	if err != nil {
 		return fmt.Errorf("failed search related rules: %w", err)
 	}

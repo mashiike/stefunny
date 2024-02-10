@@ -160,16 +160,14 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 	if opt.DryRun {
 		currentRules := EventBridgeRules{}
 		if isStateMachineFound {
-			currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, targetARN)
+			currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+				StateMachineQualifiedARN: targetARN,
+				RuleNames:                newRules.Names(),
+			})
 			if err != nil {
 				return fmt.Errorf("failed to search related rules: %w", err)
 			}
 		}
-		sameNameRules, err := app.eventbridgeSvc.SearchRulesByNames(ctx, newRules.Names(), targetARN)
-		if err != nil {
-			return fmt.Errorf("failed to search related rules: %w", err)
-		}
-		currentRules = currentRules.Merge(sameNameRules)
 		if keepState {
 			newRules.SyncState(currentRules)
 		}

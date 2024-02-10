@@ -26,20 +26,20 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	}
 	var qualified string
 	var currentRules EventBridgeRules
+	newRules := app.cfg.NewEventBridgeRules()
 	if currentStateMachine != nil {
 		qualified = currentStateMachine.QualifiedARN(opt.AliasName)
-		currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, qualified)
+		currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+			StateMachineQualifiedARN: qualified,
+			RuleNames:                newRules.Names(),
+		})
 		if err != nil {
 			return fmt.Errorf("failed to search related rules: %w", err)
 		}
+	} else {
+		qualified = "[known after deploy]:" + opt.AliasName
 	}
-	newRules := app.cfg.NewEventBridgeRules()
 	newRules.SetStateMachineQualifiedARN(qualified)
-	sameNameRules, err := app.eventbridgeSvc.SearchRulesByNames(ctx, newRules.Names(), qualified)
-	if err != nil {
-		return fmt.Errorf("failed to search rules by names: %w", err)
-	}
-	currentRules = currentRules.Merge(sameNameRules)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)
