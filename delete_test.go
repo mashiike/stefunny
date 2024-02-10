@@ -41,13 +41,15 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, stefunny.SearchRelatedRulesInput{
+				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
 				}).Return(
 					stefunny.EventBridgeRules{},
 					nil,
 				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current").Return(
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
+				}).Return(
 					stefunny.Schedules{},
 					nil,
 				).Once()
@@ -77,7 +79,9 @@ func TestDelete(t *testing.T) {
 					stefunny.EventBridgeRules{},
 					nil,
 				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current").Return(
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
+				}).Return(
 					stefunny.Schedules{},
 					nil,
 				).Once()
@@ -131,7 +135,9 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current").Return(
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
+				}).Return(
 					stefunny.Schedules{},
 					nil,
 				).Once()
@@ -178,7 +184,9 @@ func TestDelete(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current").Return(
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
+				}).Return(
 					stefunny.Schedules{},
 					nil,
 				).Once()

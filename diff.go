@@ -45,13 +45,16 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		fmt.Println(ds)
 	}
 	var currentSchedules Schedules
+	newSchedules := app.cfg.NewSchedules()
 	if currentStateMachine != nil {
-		currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, qualified)
+		currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+			StateMachineQualifiedARN: qualified,
+			ScheduleNames:            newSchedules.Names(),
+		})
 		if err != nil {
 			return fmt.Errorf("failed to search related schedules: %w", err)
 		}
 	}
-	newSchedules := app.cfg.NewSchedules()
 	newSchedules.SetStateMachineQualifiedARN(qualified)
 	ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
 	if ds != "" {

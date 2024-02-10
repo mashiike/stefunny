@@ -891,8 +891,8 @@ func NewMockSchedulerService(t *testing.T) *mockSchedulerService {
 	return m
 }
 
-func (m *mockSchedulerService) SearchRelatedSchedules(ctx context.Context, stateMachineArn string) (stefunny.Schedules, error) {
-	args := m.Called(ctx, stateMachineArn)
+func (m *mockSchedulerService) SearchRelatedSchedules(ctx context.Context, params *stefunny.SearchRelatedSchedulesInput) (stefunny.Schedules, error) {
+	args := m.Called(ctx, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {

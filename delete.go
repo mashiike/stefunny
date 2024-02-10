@@ -38,7 +38,9 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	if len(currentRules) > 0 {
 		log.Printf("[notice] delete related rules is %s\n%s", opt.DryRunString(), currentRules)
 	}
-	currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(opt.AliasName),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to search related schedules: %w", err)
 	}

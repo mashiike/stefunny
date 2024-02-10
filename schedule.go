@@ -168,31 +168,13 @@ func (s Schedules) FilterPassed() (result, passed Schedules) {
 }
 
 func (s Schedules) Names() []string {
-	var names []string
+	names := make([]string, 0, len(s))
 	for _, schedule := range s {
 		if name := coalesce(schedule.Name); name != "" {
 			names = append(names, name)
 		}
 	}
 	return names
-}
-
-func (s Schedules) Override(other Schedules) Schedules {
-	var result Schedules
-	for _, schedule := range s {
-		var found bool
-		for _, otherSchedule := range other {
-			if coalesce(schedule.Name) == coalesce(otherSchedule.Name) {
-				result = append(result, otherSchedule)
-				found = true
-				break
-			}
-		}
-		if !found {
-			result = append(result, schedule)
-		}
-	}
-	return result
 }
 
 func (s Schedules) Len() int {

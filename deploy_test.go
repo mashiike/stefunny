@@ -60,7 +60,10 @@ func TestDeploy(t *testing.T) {
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test").Return(
+				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
+					ScheduleNames:            []string{},
+				}).Return(
 					stefunny.Schedules{},
 					nil,
 				).Once()

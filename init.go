@@ -59,7 +59,9 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		}
 	}
 
-	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(opt.AliasName),
+	})
 	if err != nil {
 		return fmt.Errorf("failed search related schedules: %w", err)
 	}

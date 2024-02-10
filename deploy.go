@@ -199,7 +199,10 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 	if opt.DryRun {
 		currentSchedules := Schedules{}
 		if isStateMachineFound {
-			currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, targetARN)
+			currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+				StateMachineQualifiedARN: targetARN,
+				ScheduleNames:            newSchedules.Names(),
+			})
 			if err != nil {
 				return fmt.Errorf("failed to search related schedules: %w", err)
 			}
