@@ -613,6 +613,10 @@ func (cfg *Config) NewSchedules() Schedules {
 			CreateScheduleInput: s.Value,
 			ConfigFilePath:      aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
 		}
+		if schedule.HasItPassed() {
+			log.Printf("[warn] schedule %s has passed, ignore this schedule", coalesce(schedule.Name))
+			continue
+		}
 		schedules = append(schedules, schedule)
 	}
 	sort.Sort(schedules)
