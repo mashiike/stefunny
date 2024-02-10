@@ -938,6 +938,7 @@ func newMockApp(t *testing.T, path string, m *mocks) *stefunny.App {
 	ctx := context.Background()
 	cfg, err := l.Load(ctx, path)
 	require.NoError(t, err)
+	m.sfn.On("SetAliasName", "current").Return()
 	app, err := stefunny.New(
 		ctx, cfg,
 		stefunny.WithSFnService(m.sfn),

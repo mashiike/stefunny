@@ -8,8 +8,7 @@ import (
 )
 
 type DiffOption struct {
-	Unified   bool   `name:"unified" help:"output in unified format" short:"u" default:"false" json:"unified,omitempty"`
-	AliasName string `name:"alias" help:"alias name" default:"current" json:"alias,omitempty"`
+	Unified bool `name:"unified" help:"output in unified format" short:"u" default:"false" json:"unified,omitempty"`
 }
 
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
@@ -28,7 +27,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	var currentRules EventBridgeRules
 	newRules := app.cfg.NewEventBridgeRules()
 	if currentStateMachine != nil {
-		qualified = currentStateMachine.QualifiedARN(opt.AliasName)
+		qualified = currentStateMachine.QualifiedARN(app.StateMachineAliasName())
 		currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
 			StateMachineQualifiedARN: qualified,
 			RuleNames:                newRules.Names(),
@@ -37,7 +36,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 			return fmt.Errorf("failed to search related rules: %w", err)
 		}
 	} else {
-		qualified = "[known after deploy]:" + opt.AliasName
+		qualified = "[known after deploy]:" + app.StateMachineAliasName()
 	}
 	newRules.SetStateMachineQualifiedARN(qualified)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))

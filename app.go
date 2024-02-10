@@ -3,6 +3,7 @@ package stefunny
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -12,8 +13,9 @@ import (
 )
 
 const (
-	tagManagedBy = "ManagedBy"
-	appName      = "stefunny"
+	tagManagedBy     = "ManagedBy"
+	appName          = "stefunny"
+	defaultAliasName = "current"
 )
 
 type App struct {
@@ -21,6 +23,7 @@ type App struct {
 	sfnSvc         SFnService
 	eventbridgeSvc EventBridgeService
 	schedulerSvc   SchedulerService
+	aliasName      string
 }
 
 type newAppOptions struct {
@@ -129,6 +132,19 @@ func WithAWSConfig(awsCfg aws.Config) NewAppOption {
 	}
 }
 
+func (app *App) SetAliasName(aliasName string) {
+	if aliasName == "" {
+		aliasName = defaultAliasName
+	}
+	app.aliasName = aliasName
+	app.sfnSvc.SetAliasName(aliasName)
+	log.Printf("[debug] set state machine alias name %s", aliasName)
+}
+
+func (app *App) StateMachineAliasName() string {
+	return app.aliasName
+}
+
 // New creates a new App
 func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 	o := newAppOptions{
@@ -155,5 +171,6 @@ func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 		eventbridgeSvc: eventbridgeSvc,
 		schedulerSvc:   scheduelrSvc,
 	}
+	app.SetAliasName("")
 	return app, nil
 }

@@ -21,6 +21,7 @@ type CLI struct {
 	ExtStr    []string `name:"ext-str" help:"external string values for Jsonnet" default:"" json:"ext_str,omitempty"`
 	ExtCode   []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
 	AWSRegion string   `name:"region" help:"AWS region" default:"" env:"AWS_REGION" json:"region,omitempty"`
+	AliasName string   `name:"alias" help:"Alias name for state machine" default:"current" env:"STEFUNNY_ALIAS" json:"alias,omitempty"`
 
 	Version  struct{}              `cmd:"" help:"Show version" json:"version,omitempty"`
 	Init     InitOption            `cmd:"" help:"Initialize stefunny configuration" json:"init,omitempty"`
@@ -203,6 +204,7 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	app.SetAliasName(cli.AliasName)
 	switch cmd {
 	case "deploy":
 		return app.Deploy(ctx, cli.Deploy.DeployOption())

@@ -2,25 +2,19 @@
   "log_level": "info",
   "config": "config.yaml",
   "region": "us-east-1",
+  "alias": "current",
   "version": {},
   "init": {
-    "definition_file_path": "definition.asl.json",
-    "alias": "current"
+    "definition_file_path": "definition.asl.json"
   },
   "delete": {
-    "dry_run": true,
-    "alias": "current"
+    "dry_run": true
   },
   "deploy": {
-    "alias": "current",
     "unified": true
   },
-  "rollback": {
-    "alias": "current"
-  },
-  "schedule": {
-    "alias": "current"
-  },
+  "rollback": {},
+  "schedule": {},
   "render": {},
   "execute": {
     "input": "-"
@@ -28,5 +22,6 @@
   "versions": {
     "format": "table",
     "keep_versions": 5
-  }
+  },
+  "diff": {}
 }

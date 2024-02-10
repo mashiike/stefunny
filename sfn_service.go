@@ -18,10 +18,6 @@ import (
 	"github.com/shogo82148/go-retry"
 )
 
-const (
-	defaultAliasName = "current"
-)
-
 var (
 	ErrStateMachineDoesNotExist = errors.New("state machine does not exist")
 	ErrRollbackTargetNotFound   = errors.New("rollback target not found")

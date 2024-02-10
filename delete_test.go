@@ -219,9 +219,8 @@ func TestDelete(t *testing.T) {
 			}
 			app := newMockApp(t, c.path, mocks)
 			err := app.Delete(context.Background(), stefunny.DeleteOption{
-				DryRun:    c.DryRun,
-				AliasName: "current",
-				Force:     true,
+				DryRun: c.DryRun,
+				Force:  true,
 			})
 			require.NoError(t, err)
 		})

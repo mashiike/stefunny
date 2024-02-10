@@ -12,10 +12,10 @@ Flags:
       --ext-str=,...            external string values for Jsonnet
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
+      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
 
       --dry-run                 Dry run
       --enabled                 Enable schedule
       --disabled                Disable schedule
-      --alias="current"         alias name for publish
 
 stefunny: error: missing flags: --enabled or --disabled

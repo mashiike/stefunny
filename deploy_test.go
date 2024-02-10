@@ -395,9 +395,9 @@ func TestDeploy(t *testing.T) {
 				c.setupMocks(t, mocks)
 			}
 			app := newMockApp(t, c.path, mocks)
+			app.SetAliasName("test")
 			err := app.Deploy(context.Background(), stefunny.DeployOption{
-				DryRun:    c.DryRun,
-				AliasName: "test",
+				DryRun: c.DryRun,
 			})
 			require.NoError(t, err)
 		})

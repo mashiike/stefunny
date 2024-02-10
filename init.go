@@ -12,7 +12,6 @@ import (
 type InitOption struct {
 	StateMachineName   string `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
 	DefinitionFilePath string `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
-	AliasName          string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
 
 	ConfigPath string `kong:"-" json:"-"`
 	AWSRegion  string `kong:"-" json:"-"`
@@ -31,7 +30,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	stateMachine.DeleteTag(tagManagedBy)
 	cfg.StateMachine.Value = stateMachine.CreateStateMachineInput
 	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-		StateMachineQualifiedARN: stateMachine.QualifiedARN(opt.AliasName),
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return fmt.Errorf("failed search related rules: %w", err)
@@ -60,7 +59,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	}
 
 	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-		StateMachineQualifiedARN: stateMachine.QualifiedARN(opt.AliasName),
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return fmt.Errorf("failed search related schedules: %w", err)

@@ -12,6 +12,7 @@ Flags:
       --ext-str=,...            external string values for Jsonnet
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
+      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
 
 Commands:
   version
@@ -40,6 +41,9 @@ Commands:
 
   versions
     Manage state machine versions
+
+  diff
+    Show diff of state machine definition and trigers
 
 Run "stefunny <command> --help" for more information on a command.
 

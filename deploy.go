@@ -15,7 +15,6 @@ type DeployCommandOption struct {
 	SkipTrigger        bool   `name:"skip-trigger" help:"Skip deploy trigger" json:"skip_trigger,omitempty"`
 	VersionDescription string `name:"version-description" help:"Version description" json:"version_description,omitempty"`
 	KeepVersions       int    `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
-	AliasName          string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
 	TriggerEnabled     bool   `name:"trigger-enabled" help:"Enable trigger" xor:"trigger" json:"trigger_enabled,omitempty"`
 	TriggerDisabled    bool   `name:"trigger-disabled" help:"Disable trigger" xor:"trigger" json:"trigger_disabled,omitempty"`
 	Unified            bool   `name:"unified" help:"when dry run, output unified diff" negative:"" default:"true" json:"unified,omitempty"`
@@ -35,17 +34,15 @@ func (cmd *DeployCommandOption) DeployOption() DeployOption {
 		SkipTrigger:        cmd.SkipTrigger,
 		VersionDescription: cmd.VersionDescription,
 		KeepVersions:       cmd.KeepVersions,
-		AliasName:          cmd.AliasName,
 		ScheduleEnabled:    enabled,
 		Unified:            cmd.Unified,
 	}
 }
 
 type ScheduleCommandOption struct {
-	DryRun    bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	Enabled   bool   `name:"enabled" help:"Enable schedule" xor:"schedule" required:"" json:"enabled,omitempty"`
-	Disabled  bool   `name:"disabled" help:"Disable schedule" xor:"schedule" required:"" json:"disabled,omitempty"`
-	AliasName string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
+	DryRun   bool `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	Enabled  bool `name:"enabled" help:"Enable schedule" xor:"schedule" required:"" json:"enabled,omitempty"`
+	Disabled bool `name:"disabled" help:"Disable schedule" xor:"schedule" required:"" json:"disabled,omitempty"`
 }
 
 func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
@@ -61,7 +58,6 @@ func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
 		ScheduleEnabled:  enabled,
 		SkipTrigger:      false,
 		SkipStateMachine: true,
-		AliasName:        cmd.AliasName,
 	}
 }
 
@@ -72,7 +68,6 @@ type DeployOption struct {
 	SkipTrigger        bool
 	VersionDescription string
 	KeepVersions       int
-	AliasName          string
 	Unified            bool
 }
 
@@ -85,9 +80,6 @@ func (opt DeployOption) DryRunString() string {
 
 func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 	log.Println("[info] Starting deploy", opt.DryRunString())
-	if opt.AliasName != "" {
-		app.sfnSvc.SetAliasName(opt.AliasName)
-	}
 	if !opt.SkipStateMachine {
 		if err := app.deployStateMachine(ctx, opt); err != nil {
 			return fmt.Errorf("failed to deploy state machine: %w", err)
@@ -150,7 +142,7 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		isStateMachineFound = false
 	}
 	newRules := app.cfg.NewEventBridgeRules()
-	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
+	targetARN := qualifiedARN(stateMachineARN, app.StateMachineAliasName())
 	newRules.SetStateMachineQualifiedARN(targetARN)
 	keepState := true
 	if opt.ScheduleEnabled != nil {
@@ -194,7 +186,7 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 		isStateMachineFound = false
 	}
 	newSchedules := app.cfg.NewSchedules()
-	targetARN := qualifiedARN(stateMachineARN, opt.AliasName)
+	targetARN := qualifiedARN(stateMachineARN, app.StateMachineAliasName())
 	newSchedules.SetStateMachineQualifiedARN(targetARN)
 	if opt.DryRun {
 		currentSchedules := Schedules{}
