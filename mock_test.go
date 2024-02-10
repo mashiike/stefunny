@@ -24,6 +24,7 @@ type mockSFnClient struct {
 }
 
 type mockEventBridgeClient struct {
+	t *testing.T
 	mock.Mock
 }
 
@@ -376,7 +377,16 @@ func (m *mockEventBridgeClient) TagResource(ctx context.Context, params *eventbr
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.TagResourceOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.TagResourceOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.TagResourceOutput")
+		return nil, errors.New("mock data is not *eventbridge.TagResourceOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error) {
@@ -386,7 +396,16 @@ func (m *mockEventBridgeClient) PutRule(ctx context.Context, params *eventbridge
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.PutRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.PutRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.PutRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.PutRuleOutput")
+	}
+	return nil, err
 }
 func (m *mockEventBridgeClient) DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
 	var args mock.Arguments
@@ -395,7 +414,16 @@ func (m *mockEventBridgeClient) DescribeRule(ctx context.Context, params *eventb
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.DescribeRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.DescribeRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.DescribeRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.DescribeRuleOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error) {
@@ -405,7 +433,16 @@ func (m *mockEventBridgeClient) ListTargetsByRule(ctx context.Context, params *e
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.ListTargetsByRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.ListTargetsByRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.ListTargetsByRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.ListTargetsByRuleOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error) {
@@ -415,7 +452,16 @@ func (m *mockEventBridgeClient) PutTargets(ctx context.Context, params *eventbri
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.PutTargetsOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.PutTargetsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.PutTargetsOutput")
+		return nil, errors.New("mock data is not *eventbridge.PutTargetsOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error) {
@@ -425,7 +471,16 @@ func (m *mockEventBridgeClient) DeleteRule(ctx context.Context, params *eventbri
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.DeleteRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.DeleteRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.DeleteRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.DeleteRuleOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) RemoveTargets(ctx context.Context, params *eventbridge.RemoveTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.RemoveTargetsOutput, error) {
@@ -435,7 +490,16 @@ func (m *mockEventBridgeClient) RemoveTargets(ctx context.Context, params *event
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.RemoveTargetsOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.RemoveTargetsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.RemoveTargetsOutput")
+		return nil, errors.New("mock data is not *eventbridge.RemoveTargetsOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
@@ -455,7 +519,16 @@ func (m *mockEventBridgeClient) ListRuleNamesByTarget(ctx context.Context, param
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.ListRuleNamesByTargetOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.ListRuleNamesByTargetOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.ListRuleNamesByTargetOutput")
+		return nil, errors.New("mock data is not *eventbridge.ListRuleNamesByTargetOutput")
+	}
+	return nil, err
 }
 
 type mockSchdulerClient struct {

@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/smithy-go"
 	"github.com/mashiike/stefunny"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -226,6 +227,12 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			EventBusName: aws.String("default"),
 		},
 		nil,
+	).Once()
+	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+		Name: aws.String("Event"),
+	}).Return(
+		nil,
+		&smithy.GenericAPIError{Code: "ResourceNotFoundException"},
 	).Once()
 	m.On("ListTagsForResource", mock.Anything, &eventbridge.ListTagsForResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),

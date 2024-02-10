@@ -49,7 +49,10 @@ func TestDeploy(t *testing.T) {
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Once()
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test").Return(
+				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
+					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
+					RuleNames:                []string{},
+				}).Return(
 					stefunny.EventBridgeRules{},
 					nil,
 				).Once()
