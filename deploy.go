@@ -17,7 +17,7 @@ type DeployCommandOption struct {
 	KeepVersions       int    `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
 	TriggerEnabled     bool   `name:"trigger-enabled" help:"Enable trigger" xor:"trigger" json:"trigger_enabled,omitempty"`
 	TriggerDisabled    bool   `name:"trigger-disabled" help:"Disable trigger" xor:"trigger" json:"trigger_disabled,omitempty"`
-	Unified            bool   `name:"unified" help:"when dry run, output unified diff" negative:"" default:"true" json:"unified,omitempty"`
+	Unified            bool   `name:"unified" help:"when dry run, output unified diff" negatable:"" default:"true" json:"unified,omitempty"`
 }
 
 func (cmd *DeployCommandOption) DeployOption() DeployOption {

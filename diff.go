@@ -8,7 +8,7 @@ import (
 )
 
 type DiffOption struct {
-	Unified   bool   `name:"unified" help:"output in unified format" short:"u" default:"false" json:"unified,omitempty"`
+	Unified   bool   `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
 	Qualifier string `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
 }
 
