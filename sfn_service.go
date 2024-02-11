@@ -294,7 +294,7 @@ func (svc *SFnServiceImpl) describeStateMachineVersion(ctx context.Context, vers
 	return version, nil
 }
 
-func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine *StateMachine, versionARN string, optFns ...func(*sfn.Options)) error {
+func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine *StateMachine, versionARN string) error {
 	aliasARN := stateMachine.QualifiedARN(svc.aliasName)
 	alias, err := svc.describeStateMachineAlias(ctx, aliasARN)
 	if err != nil {
