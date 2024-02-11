@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
+	"github.com/aws/smithy-go"
 	"github.com/mashiike/stefunny"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -118,7 +119,10 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 
 	ctx := context.Background()
 	svc := stefunny.NewEventBridgeService(m)
-	rules, err := svc.SearchRelatedRules(ctx, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current")
+	rules, err := svc.SearchRelatedRules(ctx, &stefunny.SearchRelatedRulesInput{
+		StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
+		RuleNames:                []string{"Scheduled"},
+	})
 	require.NoError(t, err)
 	require.EqualValues(t, stefunny.EventBridgeRules{
 		{
@@ -136,7 +140,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
 			Target: eventbridgetypes.Target{
-				Id: aws.String("stefunny-managed"),
+				Id:  aws.String("stefunny-managed"),
+				Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
 			},
 			AdditionalTargets: []eventbridgetypes.Target{},
 		},
@@ -149,7 +154,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),
 			Target: eventbridgetypes.Target{
-				Id: aws.String("Id0000000-0000-0000-0000-000000000000"),
+				Id:  aws.String("Id0000000-0000-0000-0000-000000000000"),
+				Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
 			},
 			AdditionalTargets: []eventbridgetypes.Target{
 				{
@@ -221,6 +227,12 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			EventBusName: aws.String("default"),
 		},
 		nil,
+	).Once()
+	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+		Name: aws.String("Event"),
+	}).Return(
+		nil,
+		&smithy.GenericAPIError{Code: "ResourceNotFoundException"},
 	).Once()
 	m.On("ListTagsForResource", mock.Anything, &eventbridge.ListTagsForResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),

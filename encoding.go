@@ -8,9 +8,12 @@ import (
 	"log"
 	"strings"
 
-	"github.com/Cside/jsondiff"
 	"github.com/fatih/color"
 	"github.com/google/go-jsonnet/formatter"
+	"github.com/hexops/gotextdiff"
+	"github.com/hexops/gotextdiff/myers"
+	"github.com/hexops/gotextdiff/span"
+	"github.com/kylelemons/godebug/diff"
 	"github.com/serenize/snaker"
 	"gopkg.in/yaml.v3"
 )
@@ -77,28 +80,94 @@ func convertKeyString(v interface{}) (interface{}, error) {
 	return v, nil
 }
 
-func JSONDiffString(j1, j2 string) string {
-	diff := jsondiff.Diff([]byte(j1), []byte(j2))
-	var builder strings.Builder
-	c := color.New(color.Reset)
-	if diff == "" {
-		c.Fprint(&builder, j1, "\n")
-		return builder.String()
+func toDiffString(s1 string) string {
+	if strings.EqualFold(s1, "null") || strings.EqualFold(s1, "null\n") {
+		return ""
 	}
-	diffLines := strings.Split(diff, "\n")
-	for _, str := range diffLines {
-		trimStr := strings.TrimSpace(str)
-		if strings.HasPrefix(trimStr, "+") {
-			builder.WriteString(color.GreenString(str) + "\n")
-			continue
-		}
-		if strings.HasPrefix(trimStr, "-") {
-			builder.WriteString(color.RedString(str) + "\n")
-			continue
-		}
-		c.Fprint(&builder, str, "\n")
+	return s1
+}
+
+type jsonDiffParams struct {
+	unified bool
+	fromURI string
+	toURI   string
+}
+
+type JSONDiffOption func(*jsonDiffParams)
+
+func JSONDiffFromURI(uri string) JSONDiffOption {
+	return func(p *jsonDiffParams) {
+		p.fromURI = uri
 	}
-	return builder.String()
+}
+
+func JSONDiffToURI(uri string) JSONDiffOption {
+	return func(p *jsonDiffParams) {
+		p.toURI = uri
+	}
+}
+
+func JSONDiffUnified(b bool) JSONDiffOption {
+	return func(p *jsonDiffParams) {
+		p.unified = b
+	}
+}
+
+func JSONDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
+	var b strings.Builder
+	str := jsonDiffString(fromStr, toStr, opts...)
+	for _, line := range strings.Split(str, "\n") {
+		if strings.HasPrefix(line, "-") {
+			b.WriteString(color.RedString(line) + "\n")
+		} else if strings.HasPrefix(line, "+") {
+			b.WriteString(color.GreenString(line) + "\n")
+		} else {
+			b.WriteString(line + "\n")
+		}
+	}
+	return b.String()
+}
+
+func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
+	var params jsonDiffParams
+	for _, opt := range opts {
+		opt(&params)
+	}
+	var fromBuf, toBuf bytes.Buffer
+	if err := json.Indent(&fromBuf, []byte(toDiffString(fromStr)), "", "  "); err != nil {
+		log.Println("[warn] failed to indent json", err)
+	}
+	if err := json.Indent(&toBuf, []byte(toDiffString(toStr)), "", "  "); err != nil {
+		log.Println("[warn] failed to indent json", err)
+	}
+	fromStr = fromBuf.String()
+	toStr = toBuf.String()
+	if strings.EqualFold(fromStr, "null") || strings.EqualFold(fromStr, "null\n") {
+		fromStr = ""
+	} else {
+		if !strings.HasSuffix(fromStr, "\n") {
+			fromStr += "\n"
+		}
+	}
+
+	if strings.EqualFold(toStr, "null") || strings.EqualFold(toStr, "null\n") {
+		toStr = ""
+	} else {
+		if !strings.HasSuffix(toStr, "\n") {
+			toStr += "\n"
+		}
+	}
+
+	if params.unified {
+		edits := myers.ComputeEdits(span.URIFromPath(params.fromURI), fromStr, toStr)
+		return fmt.Sprint(gotextdiff.ToUnified(params.fromURI, params.toURI, fromStr, edits))
+	}
+
+	ds := diff.Diff(fromStr, toStr)
+	if ds == "" {
+		return ds
+	}
+	return fmt.Sprintf("--- %s\n+++ %s\n%s", params.fromURI, params.toURI, ds)
 }
 
 func marshalJSON(s interface{}, overrides ...any) (*bytes.Buffer, error) {
@@ -134,9 +203,21 @@ func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 	if err := json.Unmarshal(bs, &v); err != nil {
 		return nil, err
 	}
+	o := make([]interface{}, 0, len(overrides))
+	for _, override := range overrides {
+		bs, err := json.Marshal(override)
+		if err != nil {
+			return nil, err
+		}
+		var ov interface{}
+		if err := json.Unmarshal(bs, &ov); err != nil {
+			return nil, err
+		}
+		o = append(o, ov)
+	}
 	if v, ok := v.(map[string]interface{}); ok {
 		if len(overrides) > 0 {
-			for _, override := range overrides {
+			for _, override := range o {
 				if override, ok := override.(map[string]interface{}); ok {
 					for key, value := range override {
 						v[key] = value
@@ -148,7 +229,7 @@ func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 	}
 	if vs, ok := v.([]interface{}); ok {
 		if len(overrides) > 0 {
-			for _, override := range overrides {
+			for _, override := range o {
 				if override, ok := override.([]interface{}); ok {
 					vs = append(vs, override...)
 				}
@@ -166,7 +247,7 @@ func buildJSON(s interface{}, overrides ...any) ([]byte, error) {
 
 func deleteNilFromMap(v map[string]interface{}) map[string]interface{} {
 	for key, value := range v {
-		if value == nil {
+		if isNil(value) {
 			delete(v, key)
 			continue
 		}

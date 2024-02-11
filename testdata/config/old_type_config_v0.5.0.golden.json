@@ -30,5 +30,6 @@
       }
     ]
   },
-  "ConfigDir": "testdata"
+  "ConfigDir": "testdata",
+  "ConfigFileName": "old_config.yaml"
 }

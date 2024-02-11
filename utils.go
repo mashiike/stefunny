@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -68,14 +69,14 @@ func extructVersion(versionARN string) (int, error) {
 	return version, nil
 }
 
-func qualifiedARN(arnStr string, name string) string {
+func addQualifierToArn(arnStr string, name string) string {
 	if name == "" {
 		return arnStr
 	}
 	return fmt.Sprintf("%s:%s", arnStr, name)
 }
 
-func unqualifyARN(arnStr string) string {
+func removeQualifierFromArn(arnStr string) string {
 	arnObj, err := arn.Parse(arnStr)
 	if err != nil {
 		return arnStr
@@ -106,20 +107,31 @@ func unique[T comparable](slice []T) []T {
 	return result
 }
 
+func isNil(i interface{}) bool {
+	if i == nil {
+		return true
+	}
+	v := reflect.ValueOf(i)
+	if v.Kind() != reflect.Ptr {
+		return false
+	}
+	return v.IsNil()
+}
+
 type change[T any] struct {
 	Before T
 	After  T
 }
 
-type diffResult[T any] struct {
+type sliceDiffResult[T any] struct {
 	Add    []T
 	Delete []T
 	Change []change[T]
 }
 
 // diff for this -> other
-func diff[T any](this, other []T, fetchKey func(T) string) diffResult[T] {
-	result := diffResult[T]{}
+func sliceDiff[T any](this, other []T, fetchKey func(T) string) sliceDiffResult[T] {
+	result := sliceDiffResult[T]{}
 	thisMap := make(map[string]T)
 	for _, item := range this {
 		thisMap[fetchKey(item)] = item

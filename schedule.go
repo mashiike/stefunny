@@ -11,8 +11,9 @@ import (
 
 type Schedule struct {
 	scheduler.CreateScheduleInput
-	ScheduleArn  *string    `min:"1" type:"string"`
-	CreationDate *time.Time `type:"timestamp"`
+	ScheduleArn    *string    `min:"1" type:"string"`
+	CreationDate   *time.Time `type:"timestamp"`
+	ConfigFilePath *string
 }
 
 func (s *Schedule) SetStateMachineQualifiedARN(stateMachineArn string) {
@@ -23,6 +24,9 @@ func (s *Schedule) SetStateMachineQualifiedARN(stateMachineArn string) {
 }
 
 func (s *Schedule) configureJSON() string {
+	if s == nil {
+		return "null"
+	}
 	return MarshalJSONString(s.CreateScheduleInput, map[string]interface{}{
 		"Target": s.Target,
 	})
@@ -70,9 +74,23 @@ func (s *Schedule) String() string {
 	return builder.String()
 }
 
-func (s *Schedule) DiffString(newSchedule *Schedule) string {
+func (s *Schedule) DiffString(newSchedule *Schedule, unified bool) string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString(JSONDiffString(s.configureJSON(), newSchedule.configureJSON())))
+	from := "[known after apply]"
+	if s != nil {
+		from = coalesce(s.ScheduleArn, s.ConfigFilePath, s.Name)
+	}
+	to := "[known after apply]"
+	if newSchedule != nil {
+		to = coalesce(newSchedule.ScheduleArn, newSchedule.ConfigFilePath, newSchedule.Name)
+	}
+
+	builder.WriteString(JSONDiffString(
+		s.configureJSON(), newSchedule.configureJSON(),
+		JSONDiffFromURI(from),
+		JSONDiffToURI(to),
+		JSONDiffUnified(unified),
+	))
 	return builder.String()
 }
 
@@ -117,21 +135,22 @@ func (s Schedules) SyncState(other Schedules) {
 	}
 }
 
-func (s Schedules) DiffString(newSchedules Schedules) string {
-	result := diff(s, newSchedules, func(schedule *Schedule) string {
+func (s Schedules) DiffString(newSchedules Schedules, unified bool) string {
+	result := sliceDiff(s, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})
 	var builder strings.Builder
+	var zero *Schedule
 	for _, schedule := range result.Delete {
-		builder.WriteString(colorRestString(JSONDiffString(schedule.configureJSON(), "null")))
+		builder.WriteString(schedule.DiffString(zero, unified))
 		builder.WriteRune('\n')
 	}
 	for _, change := range result.Change {
-		builder.WriteString(colorRestString(change.Before.DiffString(change.After)))
+		builder.WriteString(change.Before.DiffString(change.After, unified))
 		builder.WriteRune('\n')
 	}
 	for _, schedule := range result.Add {
-		builder.WriteString(colorRestString(JSONDiffString("null", schedule.configureJSON())))
+		builder.WriteString(zero.DiffString(schedule, unified))
 		builder.WriteRune('\n')
 	}
 	return builder.String()
@@ -146,6 +165,16 @@ func (s Schedules) FilterPassed() (result, passed Schedules) {
 		}
 	}
 	return result, passed
+}
+
+func (s Schedules) Names() []string {
+	names := make([]string, 0, len(s))
+	for _, schedule := range s {
+		if name := coalesce(schedule.Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 func (s Schedules) Len() int {

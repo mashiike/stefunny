@@ -3,7 +3,6 @@ module github.com/mashiike/stefunny
 go 1.21.0
 
 require (
-	github.com/Cside/jsondiff v0.0.0-20230202095914-52b2619434ef
 	github.com/Songmu/prompter v0.5.1
 	github.com/alecthomas/kong v0.8.1
 	github.com/aws/aws-sdk-go-v2 v1.24.1
@@ -20,7 +19,9 @@ require (
 	github.com/google/go-jsonnet v0.20.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-version v1.6.0
+	github.com/hexops/gotextdiff v1.0.3
 	github.com/kayac/go-config v0.7.0
+	github.com/kylelemons/godebug v1.1.0
 	github.com/motemen/go-testutil v0.0.0-20231019055648-af6add1c10c8
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/sebdah/goldie/v2 v2.5.3
@@ -68,7 +69,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.21.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
-	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -88,7 +88,6 @@ require (
 	github.com/itchyny/gojq v0.12.14 // indirect
 	github.com/itchyny/timefmt-go v0.1.5 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
-	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect

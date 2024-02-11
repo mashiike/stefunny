@@ -15,6 +15,7 @@ type EventBridgeRule struct {
 	CreatedBy         *string                   `yaml:"CreatedBy,omitempty" json:"CreatedBy,omitempty"`
 	Target            eventbridgetypes.Target   `yaml:"Target,omitempty" json:"Target,omitempty"`
 	AdditionalTargets []eventbridgetypes.Target `yaml:"AdditionalTargets,omitempty" json:"AdditionalTargets,omitempty"`
+	ConfigFilePath    *string                   `yaml:"ConfigFilePath,omitempty" json:"ConfigFilePath,omitempty"`
 }
 
 func (rule *EventBridgeRule) SetStateMachineQualifiedARN(stateMachineArn string) {
@@ -64,6 +65,9 @@ func (rule *EventBridgeRule) DeleteTag(key string) {
 }
 
 func (rule *EventBridgeRule) configureJSON() string {
+	if rule == nil {
+		return "null"
+	}
 	tags := make(map[string]string, len(rule.Tags))
 	for _, tag := range rule.Tags {
 		tags[coalesce(tag.Key)] = coalesce(tag.Value)
@@ -81,9 +85,24 @@ func (rule *EventBridgeRule) String() string {
 	return builder.String()
 }
 
-func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule) string {
+func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, unified bool) string {
 	var builder strings.Builder
-	builder.WriteString(colorRestString(JSONDiffString(rule.configureJSON(), newRule.configureJSON())))
+	from := "[known after apply]"
+	if rule != nil {
+		from = coalesce(rule.RuleArn, rule.ConfigFilePath, rule.Name)
+	}
+	to := "[known after apply]"
+	if newRule != nil {
+		to = coalesce(newRule.RuleArn, newRule.ConfigFilePath, newRule.Name)
+	}
+	builder.WriteString(
+		JSONDiffString(
+			rule.configureJSON(), newRule.configureJSON(),
+			JSONDiffFromURI(from),
+			JSONDiffToURI(to),
+			JSONDiffUnified(unified),
+		),
+	)
 	return builder.String()
 }
 
@@ -133,21 +152,35 @@ func (rules EventBridgeRules) SyncState(other EventBridgeRules) {
 	}
 }
 
-func (rules EventBridgeRules) DiffString(newRules EventBridgeRules) string {
-	result := diff(rules, newRules, func(r *EventBridgeRule) string {
+func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, unified bool) string {
+	result := sliceDiff(rules, newRules, func(r *EventBridgeRule) string {
 		return coalesce(r.Name)
 	})
 	var builder strings.Builder
+	var zero *EventBridgeRule
 	for _, delete := range result.Delete {
-		builder.WriteString(colorRestString(JSONDiffString(delete.configureJSON(), "null")))
+		builder.WriteString(delete.DiffString(zero, unified))
+		builder.WriteRune('\n')
 	}
 	for _, c := range result.Change {
-		builder.WriteString(c.Before.DiffString(c.After))
+		builder.WriteString(c.Before.DiffString(c.After, unified))
+		builder.WriteRune('\n')
 	}
 	for _, add := range result.Add {
-		builder.WriteString(colorRestString(JSONDiffString("null", add.configureJSON())))
+		builder.WriteString(zero.DiffString(add, unified))
+		builder.WriteRune('\n')
 	}
 	return builder.String()
+}
+
+func (rules EventBridgeRules) Names() []string {
+	names := make([]string, 0, len(rules))
+	for _, rule := range rules {
+		if name := coalesce(rule.Name); name != "" {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // sort.Interfaces

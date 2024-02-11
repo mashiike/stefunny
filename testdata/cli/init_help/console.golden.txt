@@ -12,10 +12,10 @@ Flags:
       --ext-str=,...            external string values for Jsonnet
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
+      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
 
       --state-machine=STRING    AWS StepFunctions state machine name
                                 ($STATE_MACHINE_NAME)
   -d, --definition="definition.asl.json"
                                 Path to state machine definition file
                                 ($DEFINITION_FILE_PATH)
-      --alias="current"         alias name for publish

@@ -2,12 +2,16 @@ package stefunny
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
+	"github.com/aws/smithy-go"
 )
+
+var ErrScheduleNotFound = errors.New("schedule not found")
 
 type SchedulerClient interface {
 	CreateSchedule(ctx context.Context, params *scheduler.CreateScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.CreateScheduleOutput, error)
@@ -18,7 +22,7 @@ type SchedulerClient interface {
 }
 
 type SchedulerService interface {
-	SearchRelatedSchedules(ctx context.Context, stateMachineArn string) (Schedules, error)
+	SearchRelatedSchedules(ctx context.Context, params *SearchRelatedSchedulesInput) (Schedules, error)
 	DeploySchedules(ctx context.Context, stateMachineArn string, rules Schedules, keepState bool) error
 }
 
@@ -38,17 +42,31 @@ func NewSchedulerService(client SchedulerClient) *SchedulerServiceImpl {
 	}
 }
 
-func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, stateMachineArn string) (Schedules, error) {
-	log.Printf("[debug] call SearchRelatedSchedules(%s)", stateMachineArn)
+type SearchRelatedSchedulesInput struct {
+	StateMachineQualifiedARN string
+	ScheduleNames            []string
+}
+
+func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, params *SearchRelatedSchedulesInput) (Schedules, error) {
+
+	log.Printf("[debug] call SearchRelatedSchedules(%#v)", params)
+	stateMachineArn := params.StateMachineQualifiedARN
 	scheduleNames, err := svc.searchRelatedScheduleNames(ctx, stateMachineArn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search related schedule names: %w", err)
+	}
+	if len(params.ScheduleNames) > 0 {
+		scheduleNames = append(scheduleNames, params.ScheduleNames...)
+		scheduleNames = unique(scheduleNames)
 	}
 	schedules := make(Schedules, 0, len(scheduleNames))
 	for _, name := range scheduleNames {
 		schedule, err := svc.getSchedule(ctx, name)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get schedule `%s`: %w", name, err)
+			if !errors.Is(err, ErrScheduleNotFound) {
+				return nil, fmt.Errorf("failed to get schedule `%s`: %w", name, err)
+			}
+			continue
 		}
 		schedules = append(schedules, schedule)
 	}
@@ -57,7 +75,7 @@ func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, sta
 
 func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context, stateMachineArn string) ([]string, error) {
 	log.Printf("[debug] call searchRelatedScheduleNames(%s)", stateMachineArn)
-	unqualified := unqualifyARN(stateMachineArn)
+	unqualified := removeQualifierFromArn(stateMachineArn)
 	names, ok := svc.cacheNamesByStateMachineARN[stateMachineArn]
 	if ok {
 		if unqualified != stateMachineArn {
@@ -111,11 +129,14 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 			Name: aws.String(name),
 		})
 		if err != nil {
+			var apiErr smithy.APIError
+			if errors.As(err, &apiErr) && apiErr.ErrorCode() == "ResourceNotFoundException" {
+				return nil, ErrScheduleNotFound
+			}
 			return nil, fmt.Errorf("scheduler.GetSchedule `%s`: %w", name, err)
 		}
 		svc.cacheScheduleByName[name] = schedule
 	}
-	schedule.Target.Arn = nil
 	result := &Schedule{
 		CreateScheduleInput: scheduler.CreateScheduleInput{
 			Name:                  schedule.Name,
@@ -137,19 +158,22 @@ func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (
 }
 
 func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachineArn string, schedules Schedules, keepState bool) error {
-	currentSchedules, err := svc.SearchRelatedSchedules(ctx, stateMachineArn)
+	newSchedules, passed := schedules.FilterPassed()
+	for _, schedule := range passed {
+		log.Printf("[warn] schedule `%s` has passed, skip deploy or delete", coalesce(schedule.Name))
+	}
+	currentSchedules, err := svc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+		StateMachineQualifiedARN: stateMachineArn,
+		ScheduleNames:            newSchedules.Names(),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to search related schedules: %w", err)
 	}
 	if keepState {
 		schedules.SyncState(currentSchedules)
 	}
-	newSchedules, passed := schedules.FilterPassed()
-	for _, schedule := range passed {
-		log.Printf("[warn] schedule `%s` has passed, skip deploy or delete", coalesce(schedule.Name))
-	}
 	newSchedules.SetStateMachineQualifiedARN(stateMachineArn)
-	plan := diff(currentSchedules, newSchedules, func(schedule *Schedule) string {
+	plan := sliceDiff(currentSchedules, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})
 	for _, schedule := range plan.Delete {

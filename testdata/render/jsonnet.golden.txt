@@ -1,5 +1,6 @@
 {
   ConfigDir: 'testdata',
+  ConfigFileName: 'stefunny.yaml',
   aws_region: 'us-east-1',
   required_version: '>v0.0.0',
   state_machine: {

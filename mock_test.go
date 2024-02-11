@@ -24,6 +24,7 @@ type mockSFnClient struct {
 }
 
 type mockEventBridgeClient struct {
+	t *testing.T
 	mock.Mock
 }
 
@@ -376,7 +377,16 @@ func (m *mockEventBridgeClient) TagResource(ctx context.Context, params *eventbr
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.TagResourceOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.TagResourceOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.TagResourceOutput")
+		return nil, errors.New("mock data is not *eventbridge.TagResourceOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error) {
@@ -386,7 +396,16 @@ func (m *mockEventBridgeClient) PutRule(ctx context.Context, params *eventbridge
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.PutRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.PutRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.PutRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.PutRuleOutput")
+	}
+	return nil, err
 }
 func (m *mockEventBridgeClient) DescribeRule(ctx context.Context, params *eventbridge.DescribeRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DescribeRuleOutput, error) {
 	var args mock.Arguments
@@ -395,7 +414,16 @@ func (m *mockEventBridgeClient) DescribeRule(ctx context.Context, params *eventb
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.DescribeRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.DescribeRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.DescribeRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.DescribeRuleOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) ListTargetsByRule(ctx context.Context, params *eventbridge.ListTargetsByRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTargetsByRuleOutput, error) {
@@ -405,7 +433,16 @@ func (m *mockEventBridgeClient) ListTargetsByRule(ctx context.Context, params *e
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.ListTargetsByRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.ListTargetsByRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.ListTargetsByRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.ListTargetsByRuleOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) PutTargets(ctx context.Context, params *eventbridge.PutTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutTargetsOutput, error) {
@@ -415,7 +452,16 @@ func (m *mockEventBridgeClient) PutTargets(ctx context.Context, params *eventbri
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.PutTargetsOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.PutTargetsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.PutTargetsOutput")
+		return nil, errors.New("mock data is not *eventbridge.PutTargetsOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) DeleteRule(ctx context.Context, params *eventbridge.DeleteRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.DeleteRuleOutput, error) {
@@ -425,7 +471,16 @@ func (m *mockEventBridgeClient) DeleteRule(ctx context.Context, params *eventbri
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.DeleteRuleOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.DeleteRuleOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.DeleteRuleOutput")
+		return nil, errors.New("mock data is not *eventbridge.DeleteRuleOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) RemoveTargets(ctx context.Context, params *eventbridge.RemoveTargetsInput, optFns ...func(*eventbridge.Options)) (*eventbridge.RemoveTargetsOutput, error) {
@@ -435,7 +490,16 @@ func (m *mockEventBridgeClient) RemoveTargets(ctx context.Context, params *event
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.RemoveTargetsOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.RemoveTargetsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.RemoveTargetsOutput")
+		return nil, errors.New("mock data is not *eventbridge.RemoveTargetsOutput")
+	}
+	return nil, err
 }
 
 func (m *mockEventBridgeClient) ListTagsForResource(ctx context.Context, params *eventbridge.ListTagsForResourceInput, optFns ...func(*eventbridge.Options)) (*eventbridge.ListTagsForResourceOutput, error) {
@@ -455,7 +519,16 @@ func (m *mockEventBridgeClient) ListRuleNamesByTarget(ctx context.Context, param
 	} else {
 		args = m.Called(ctx, params)
 	}
-	return args.Get(0).(*eventbridge.ListRuleNamesByTargetOutput), args.Error(1)
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*eventbridge.ListRuleNamesByTargetOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *eventbridge.ListRuleNamesByTargetOutput")
+		return nil, errors.New("mock data is not *eventbridge.ListRuleNamesByTargetOutput")
+	}
+	return nil, err
 }
 
 type mockSchdulerClient struct {
@@ -641,23 +714,13 @@ func (m *mockSFnService) SetAliasName(name string) {
 	m.Called(name)
 }
 
-func (m *mockSFnService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, name, optFns)
-	} else {
-		args = m.Called(ctx, name)
-	}
+func (m *mockSFnService) GetStateMachineArn(ctx context.Context, params *stefunny.GetStateMachineArnInput) (string, error) {
+	args := m.Called(ctx, params)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*stefunny.StateMachine, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, name, optFns)
-	} else {
-		args = m.Called(ctx, name)
-	}
+func (m *mockSFnService) DescribeStateMachine(ctx context.Context, params *stefunny.DescribeStateMachineInput) (*stefunny.StateMachine, error) {
+	args := m.Called(ctx, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -670,23 +733,13 @@ func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, 
 	return nil, err
 }
 
-func (m *mockSFnService) PurgeStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersions int, optFns ...func(*sfn.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, keepVersions, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine, keepVersions)
-	}
+func (m *mockSFnService) PurgeStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersions int) error {
+	args := m.Called(ctx, stateMachine, keepVersions)
 	return args.Error(0)
 }
 
-func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.ListStateMachineVersionsOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine)
-	}
+func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine) (*stefunny.ListStateMachineVersionsOutput, error) {
+	args := m.Called(ctx, stateMachine)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -699,13 +752,8 @@ func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMach
 	return nil, err
 }
 
-func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.DeployStateMachineOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine)
-	}
+func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine) (*stefunny.DeployStateMachineOutput, error) {
+	args := m.Called(ctx, stateMachine)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -718,33 +766,18 @@ func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *s
 	return nil, err
 }
 
-func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine)
-	}
+func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine) error {
+	args := m.Called(ctx, stateMachine)
 	return args.Error(0)
 }
 
-func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, keepVersion, dryRun, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine, keepVersion, dryRun)
-	}
+func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersion bool, dryRun bool) error {
+	args := m.Called(ctx, stateMachine, keepVersion, dryRun)
 	return args.Error(0)
 }
 
-func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput, optFns ...func(*sfn.Options)) (*stefunny.StartExecutionOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, params, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine, params)
-	}
+func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput) (*stefunny.StartExecutionOutput, error) {
+	args := m.Called(ctx, stateMachine, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -785,8 +818,8 @@ func NewMockEventBridgeService(t *testing.T) *mockEventBridgeService {
 	return m
 }
 
-func (m *mockEventBridgeService) SearchRelatedRules(ctx context.Context, stateMachineArn string) (stefunny.EventBridgeRules, error) {
-	args := m.Called(ctx, stateMachineArn)
+func (m *mockEventBridgeService) SearchRelatedRules(ctx context.Context, params *stefunny.SearchRelatedRulesInput) (stefunny.EventBridgeRules, error) {
+	args := m.Called(ctx, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -818,8 +851,8 @@ func NewMockSchedulerService(t *testing.T) *mockSchedulerService {
 	return m
 }
 
-func (m *mockSchedulerService) SearchRelatedSchedules(ctx context.Context, stateMachineArn string) (stefunny.Schedules, error) {
-	args := m.Called(ctx, stateMachineArn)
+func (m *mockSchedulerService) SearchRelatedSchedules(ctx context.Context, params *stefunny.SearchRelatedSchedulesInput) (stefunny.Schedules, error) {
+	args := m.Called(ctx, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -865,6 +898,7 @@ func newMockApp(t *testing.T, path string, m *mocks) *stefunny.App {
 	ctx := context.Background()
 	cfg, err := l.Load(ctx, path)
 	require.NoError(t, err)
+	m.sfn.On("SetAliasName", "current").Return()
 	app, err := stefunny.New(
 		ctx, cfg,
 		stefunny.WithSFnService(m.sfn),

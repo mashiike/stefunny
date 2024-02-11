@@ -55,7 +55,9 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	}
 	input := string(bs)
 	log.Printf("[info] input:\n%s\n", input)
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	if err != nil {
 		return err
 	}

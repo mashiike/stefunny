@@ -12,6 +12,7 @@ Flags:
       --ext-str=,...            external string values for Jsonnet
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
+      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
 
       --input="-"               input JSON string
       --name=""                 execution name

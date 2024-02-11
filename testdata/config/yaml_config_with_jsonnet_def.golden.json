@@ -18,5 +18,6 @@
     "tracing_configuration": {},
     "type": "STANDARD"
   },
-  "ConfigDir": "testdata"
+  "ConfigDir": "testdata",
+  "ConfigFileName": "jsonnet_def.yaml"
 }

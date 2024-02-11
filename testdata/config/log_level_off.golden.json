@@ -11,5 +11,6 @@
     "tracing_configuration": {},
     "type": "STANDARD"
   },
-  "ConfigDir": "testdata"
+  "ConfigDir": "testdata",
+  "ConfigFileName": "logging_off.yaml"
 }

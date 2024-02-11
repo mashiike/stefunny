@@ -12,6 +12,7 @@ Flags:
       --ext-str=,...            external string values for Jsonnet
       --ext-code=,...           external code values for Jsonnet
       --region=""               AWS region ($AWS_REGION)
+      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
 
       --dry-run                 Dry run
       --skip-state-machine      Skip deploy state machine
@@ -21,8 +22,8 @@ Flags:
       --keep-versions=0         Number of latest versions to keep. Older
                                 versions will be deleted. (Optional value:
                                 default 0)
-      --alias="current"         alias name for publish
       --trigger-enabled         Enable trigger
       --trigger-disabled        Disable trigger
+      --[no-]unified            when dry run, output unified diff
 
 stefunny: error: --trigger-enabled and --trigger-disabled can't be used together

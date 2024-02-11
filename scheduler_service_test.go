@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	schedulertypes "github.com/aws/aws-sdk-go-v2/service/scheduler/types"
+	"github.com/aws/smithy-go"
 	"github.com/mashiike/stefunny"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -76,7 +77,9 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 	).Once()
 	svc := stefunny.NewSchedulerService(m)
 	ctx := context.Background()
-	schedules, err := svc.SearchRelatedSchedules(ctx, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current")
+	schedules, err := svc.SearchRelatedSchedules(ctx, &stefunny.SearchRelatedSchedulesInput{
+		StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
+	})
 	require.NoError(t, err)
 	require.EqualValues(t,
 		stefunny.Schedules{
@@ -85,7 +88,9 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 					Name:               aws.String("Scheduled"),
 					ScheduleExpression: aws.String("rate(1 day)"),
 					State:              schedulertypes.ScheduleStateEnabled,
-					Target:             &schedulertypes.Target{},
+					Target: &schedulertypes.Target{
+						Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
+					},
 				},
 				ScheduleArn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Scheduled"),
 			},
@@ -94,7 +99,9 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 					Name:               aws.String("Unqualified"),
 					ScheduleExpression: aws.String("rate(1 day)"),
 					State:              schedulertypes.ScheduleStateEnabled,
-					Target:             &schedulertypes.Target{},
+					Target: &schedulertypes.Target{
+						Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"),
+					},
 				},
 				ScheduleArn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Unqualified"),
 			},
@@ -162,6 +169,14 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 			Arn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Unqualified"),
 		},
 		nil,
+	).Once()
+	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
+		Name: aws.String("Monthly"),
+	}).Return(
+		nil,
+		&smithy.GenericAPIError{
+			Code: "ResourceNotFoundException",
+		},
 	).Once()
 	m.On("DeleteSchedule", mock.Anything, &scheduler.DeleteScheduleInput{
 		Name: aws.String("Unqualified"),

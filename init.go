@@ -12,7 +12,6 @@ import (
 type InitOption struct {
 	StateMachineName   string `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
 	DefinitionFilePath string `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
-	AliasName          string `name:"alias" help:"alias name for publish" default:"current" json:"alias,omitempty"`
 
 	ConfigPath string `kong:"-" json:"-"`
 	AWSRegion  string `kong:"-" json:"-"`
@@ -24,13 +23,17 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	cfg := NewDefaultConfig()
 	cfg.RequiredVersion = ">=" + Version
 	cfg.AWSRegion = opt.AWSRegion
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, opt.StateMachineName)
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: opt.StateMachineName,
+	})
 	if err != nil {
 		return fmt.Errorf("failed describe state machine: %w", err)
 	}
 	stateMachine.DeleteTag(tagManagedBy)
 	cfg.StateMachine.Value = stateMachine.CreateStateMachineInput
-	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
+	})
 	if err != nil {
 		return fmt.Errorf("failed search related rules: %w", err)
 	}
@@ -40,6 +43,7 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		}
 		for _, rule := range rules {
 			rule.DeleteTag(tagManagedBy)
+			rule.Target.Arn = nil
 			eventsRule := TriggerEventConfig{
 				KeysToSnakeCase: KeysToSnakeCase[TriggerEventConfigInner]{
 					Value: TriggerEventConfigInner{
@@ -56,7 +60,9 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		}
 	}
 
-	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, stateMachine.QualifiedARN(opt.AliasName))
+	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
+	})
 	if err != nil {
 		return fmt.Errorf("failed search related schedules: %w", err)
 	}
@@ -65,6 +71,9 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 			cfg.Trigger = &TriggerConfig{}
 		}
 		for _, schedule := range schedules {
+			if schedule.CreateScheduleInput.Target != nil {
+				schedule.CreateScheduleInput.Target.Arn = nil
+			}
 			scheduleRule := TriggerScheduleConfig{
 				KeysToSnakeCase: KeysToSnakeCase[scheduler.CreateScheduleInput]{
 					Value:  schedule.CreateScheduleInput,
