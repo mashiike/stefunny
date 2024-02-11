@@ -107,7 +107,7 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *Des
 	qualified := arn
 	if params.Qualifier != "" {
 		if _, err := strconv.Atoi(params.Qualifier); err != nil {
-			log.Println("[degbug] qualifier is not version number, try get version by alias")
+			log.Println("[debug] qualifier is not version number, try get version by alias")
 			alieasArn := addQualifierToArn(arn, params.Qualifier)
 			alias, err := svc.describeStateMachineAlias(ctx, alieasArn)
 			if err != nil {
