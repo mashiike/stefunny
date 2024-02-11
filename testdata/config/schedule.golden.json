@@ -30,6 +30,6 @@
       }
     ]
   },
-  "ConfigDir": "",
+  "ConfigDir": "testdata",
   "ConfigFileName": "schedule.yaml"
 }

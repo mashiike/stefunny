@@ -140,32 +140,89 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
+	if err := l.setConfigPath(cfg, path); err != nil {
+		return nil, fmt.Errorf("set config path:%w", err)
+	}
+	if err := l.preLoadForTemplateFuncs(ctx, cfg, path); err != nil {
+		return nil, fmt.Errorf("pre load for template funcs: %w", err)
+	}
+	if cfg.StateMachine == nil {
+		cfg.StateMachine = &StateMachineConfig{}
+	}
+	cfg.StateMachine.Strict = true
+	if err := l.load(path, true, true, cfg); err != nil {
+		return nil, fmt.Errorf("load config `%s`: %w", path, err)
+	}
+	if err := l.migrationForDeprecatedFields(ctx, cfg); err != nil {
+		return nil, fmt.Errorf("migration for deprecated fields: %w", err)
+	}
+	if err := cfg.Restrict(); err != nil {
+		return nil, fmt.Errorf("config restrict:%w", err)
+	}
+	if err := cfg.ValidateVersion(Version); err != nil {
+		return nil, fmt.Errorf("config validate version:%w", err)
+	}
+	if cfg.StateMachine.Value.Definition != nil {
+		return cfg, nil
+	}
+	if cfg.StateMachine.DefinitionPath == "" {
+		return nil, errors.New("state_machine.definition is required")
+	}
+	// cfg.StateMachine.Definition written definition file path
+	var definition JSONRawMessage
+	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.DefinitionPath))
+	log.Println("[debug] definition path =", definitionPath)
+	if err := l.load(definitionPath, false, true, &definition); err != nil {
+		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
+	}
+	cfg.StateMachine.Value.Definition = aws.String(string(definition))
+	return cfg, nil
+}
+
+func (l *ConfigLoader) setConfigPath(cfg *Config, path string) error {
 	dir, err := os.Getwd()
 	if err != nil {
 		log.Printf("[debug] os.Getwd: %s", err)
+		return err
 	}
+
 	if !filepath.IsAbs(dir) {
 		dir, err = filepath.Abs(dir)
 		if err != nil {
 			log.Printf("[debug] filepath.Abs: %s", err)
+			return err
 		}
 	}
-	relPath, err := filepath.Rel(dir, filepath.Dir(path))
+	pathDir := filepath.Dir(path)
+	if !filepath.IsAbs(pathDir) {
+		pathDir, err = filepath.Abs(pathDir)
+		if err != nil {
+			log.Printf("[debug] filepath.Abs: %s", err)
+			return err
+		}
+	}
+	relPath, err := filepath.Rel(dir, pathDir)
 	if err != nil {
 		log.Printf("[debug] filepath.Rel: %s", err)
+		return err
 	}
+
 	cfg.ConfigDir = relPath
 	cfg.ConfigFileName = filepath.Base(path)
-	// pre load for tfstate path read
+	return nil
+}
+
+// pre load for tfstate path read
+func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config, path string) error {
 	if err := l.load(path, false, false, cfg); err != nil {
-		return nil, fmt.Errorf("pre load config `%s`: %w", path, err)
+		return fmt.Errorf("load config `%s`: %w", path, err)
 	}
 	for i, tfstate := range cfg.TFState {
 		var loc string
 		if tfstate.URL != "" {
 			u, err := url.Parse(tfstate.URL)
 			if err != nil {
-				return nil, fmt.Errorf("tfstate[%d].url parse error: %w", i, err)
+				return fmt.Errorf("tfstate[%d].url parse error: %w", i, err)
 			}
 			if u.Scheme == "" {
 				tfstate.Path = tfstate.URL
@@ -178,19 +235,17 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 			}
 		}
 		if loc == "" {
-			return nil, fmt.Errorf("tfstate[%d].path or tfstate[%d].url is required", i, i)
+			return fmt.Errorf("tfstate[%d].path or tfstate[%d].url is required", i, i)
 		}
 		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
-			return nil, fmt.Errorf("tfstate[%d] %w", i, err)
+			return fmt.Errorf("tfstate[%d] %w", i, err)
 		}
 	}
+	return nil
+}
 
-	cfg.StateMachine.Strict = true
-	if err := l.load(path, true, true, cfg); err != nil {
-		return nil, fmt.Errorf("load config `%s`: %w", path, err)
-	}
+func (l *ConfigLoader) migrationForDeprecatedFields(ctx context.Context, cfg *Config) error {
 	// migration from old version: TODO delete v0.7.0
-
 	if cfg.StateMachine != nil && cfg.StateMachine.Logging != nil {
 		log.Println("[warn] state_machine.logging is deprecated. Use state_machine.logging_configuration instead. (since v0.6.0)")
 		cfg.StateMachine.Value.LoggingConfiguration = &sfntypes.LoggingConfiguration{
@@ -203,7 +258,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 				if client == nil {
 					awsCfg, err := cfg.LoadAWSConfig(ctx)
 					if err != nil {
-						return nil, fmt.Errorf("load aws config:%w", err)
+						return fmt.Errorf("load aws config:%w", err)
 					}
 					client = cloudwatchlogs.NewFromConfig(awsCfg)
 				}
@@ -214,7 +269,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 				for p.HasMorePages() {
 					page, err := p.NextPage(ctx)
 					if err != nil {
-						return nil, fmt.Errorf("describe log groups:%w", err)
+						return fmt.Errorf("describe log groups:%w", err)
 					}
 					for _, g := range page.LogGroups {
 						if *g.LogGroupName == cfg.StateMachine.Logging.Destination.LogGroup {
@@ -229,7 +284,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 					}
 				}
 				if !fround {
-					return nil, fmt.Errorf("log group `%s` not found", cfg.StateMachine.Logging.Destination.LogGroup)
+					return fmt.Errorf("log group `%s` not found", cfg.StateMachine.Logging.Destination.LogGroup)
 				}
 			} else {
 				cfg.StateMachine.Value.LoggingConfiguration.Destinations = append(cfg.StateMachine.Value.LoggingConfiguration.Destinations, sfntypes.LogDestination{
@@ -266,27 +321,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 		}
 		cfg.Schedule = nil
 	}
-	if err := cfg.Restrict(); err != nil {
-		return nil, fmt.Errorf("config restrict:%w", err)
-	}
-	if err := cfg.ValidateVersion(Version); err != nil {
-		return nil, fmt.Errorf("config validate version:%w", err)
-	}
-	if cfg.StateMachine.Value.Definition != nil {
-		return cfg, nil
-	}
-	if cfg.StateMachine.DefinitionPath == "" {
-		return nil, errors.New("state_machine.definition is required")
-	}
-	// cfg.StateMachine.Definition written definition file path
-	var definition JSONRawMessage
-	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.DefinitionPath))
-	log.Println("[debug] definition path =", definitionPath)
-	if err := l.load(definitionPath, false, true, &definition); err != nil {
-		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
-	}
-	cfg.StateMachine.Value.Definition = aws.String(string(definition))
-	return cfg, nil
+	return nil
 }
 
 type Config struct {
