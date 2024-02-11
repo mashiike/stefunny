@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -98,14 +99,33 @@ type DescribeStateMachineInput struct {
 
 func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *DescribeStateMachineInput) (*StateMachine, error) {
 	arn, err := svc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
-		Name:      params.Name,
-		Qualifier: params.Qualifier,
+		Name: params.Name,
 	})
 	if err != nil {
 		return nil, err
 	}
+	qualified := arn
+	if params.Qualifier != "" {
+		if _, err := strconv.Atoi(params.Qualifier); err != nil {
+			log.Println("[degbug] qualifier is not version number, try get version by alias")
+			alieasArn := qualifiedARN(arn, params.Qualifier)
+			alias, err := svc.describeStateMachineAlias(ctx, alieasArn)
+			if err != nil {
+				return nil, fmt.Errorf("describe state machine alias failed: %w", err)
+			}
+			var maxWeight int32
+			for _, routing := range alias.RoutingConfiguration {
+				if routing.Weight > maxWeight {
+					maxWeight = routing.Weight
+					qualified = *routing.StateMachineVersionArn
+				}
+			}
+		} else {
+			qualified = qualifiedARN(arn, params.Qualifier)
+		}
+	}
 	output, err := svc.client.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
-		StateMachineArn: &arn,
+		StateMachineArn: &qualified,
 	})
 	if err != nil {
 		if _, ok := err.(*sfntypes.StateMachineDoesNotExist); ok {
@@ -114,7 +134,7 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *Des
 		return nil, err
 	}
 	tagsOutput, err := svc.client.ListTagsForResource(ctx, &sfn.ListTagsForResourceInput{
-		ResourceArn: &arn,
+		ResourceArn: &qualified,
 	})
 	if err != nil {
 		return nil, err
@@ -137,8 +157,7 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *Des
 }
 
 type GetStateMachineArnInput struct {
-	Name      string
-	Qualifier string
+	Name string
 }
 
 func (svc *SFnServiceImpl) GetStateMachineArn(ctx context.Context, params *GetStateMachineArnInput) (string, error) {

@@ -15,7 +15,8 @@ type DiffOption struct {
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	newStateMachine := app.cfg.NewStateMachine()
 	currentStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
-		Name: app.cfg.StateMachineName(),
+		Name:      app.cfg.StateMachineName(),
+		Qualifier: opt.Qualifier,
 	})
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
