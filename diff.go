@@ -8,12 +8,15 @@ import (
 )
 
 type DiffOption struct {
-	Unified bool `name:"unified" help:"output in unified format" short:"u" default:"false" json:"unified,omitempty"`
+	Unified   bool   `name:"unified" help:"output in unified format" short:"u" default:"false" json:"unified,omitempty"`
+	Qualifier string `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
 }
 
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	newStateMachine := app.cfg.NewStateMachine()
-	currentStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	currentStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
 			return fmt.Errorf("failed to describe current state machine status: %w", err)

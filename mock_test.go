@@ -714,23 +714,13 @@ func (m *mockSFnService) SetAliasName(name string) {
 	m.Called(name)
 }
 
-func (m *mockSFnService) GetStateMachineArn(ctx context.Context, name string, optFns ...func(*sfn.Options)) (string, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, name, optFns)
-	} else {
-		args = m.Called(ctx, name)
-	}
+func (m *mockSFnService) GetStateMachineArn(ctx context.Context, params *stefunny.GetStateMachineArnInput) (string, error) {
+	args := m.Called(ctx, params)
 	return args.String(0), args.Error(1)
 }
 
-func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, optFns ...func(*sfn.Options)) (*stefunny.StateMachine, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, name, optFns)
-	} else {
-		args = m.Called(ctx, name)
-	}
+func (m *mockSFnService) DescribeStateMachine(ctx context.Context, params *stefunny.DescribeStateMachineInput) (*stefunny.StateMachine, error) {
+	args := m.Called(ctx, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -743,23 +733,13 @@ func (m *mockSFnService) DescribeStateMachine(ctx context.Context, name string, 
 	return nil, err
 }
 
-func (m *mockSFnService) PurgeStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersions int, optFns ...func(*sfn.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, keepVersions, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine, keepVersions)
-	}
+func (m *mockSFnService) PurgeStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersions int) error {
+	args := m.Called(ctx, stateMachine, keepVersions)
 	return args.Error(0)
 }
 
-func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.ListStateMachineVersionsOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine)
-	}
+func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMachine *stefunny.StateMachine) (*stefunny.ListStateMachineVersionsOutput, error) {
+	args := m.Called(ctx, stateMachine)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -772,13 +752,8 @@ func (m *mockSFnService) ListStateMachineVersions(ctx context.Context, stateMach
 	return nil, err
 }
 
-func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) (*stefunny.DeployStateMachineOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine)
-	}
+func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine) (*stefunny.DeployStateMachineOutput, error) {
+	args := m.Called(ctx, stateMachine)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {
@@ -791,33 +766,18 @@ func (m *mockSFnService) DeployStateMachine(ctx context.Context, stateMachine *s
 	return nil, err
 }
 
-func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, optFns ...func(*sfn.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine)
-	}
+func (m *mockSFnService) DeleteStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine) error {
+	args := m.Called(ctx, stateMachine)
 	return args.Error(0)
 }
 
-func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersion bool, dryRun bool, optFns ...func(*sfn.Options)) error {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, keepVersion, dryRun, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine, keepVersion, dryRun)
-	}
+func (m *mockSFnService) RollbackStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, keepVersion bool, dryRun bool) error {
+	args := m.Called(ctx, stateMachine, keepVersion, dryRun)
 	return args.Error(0)
 }
 
-func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput, optFns ...func(*sfn.Options)) (*stefunny.StartExecutionOutput, error) {
-	var args mock.Arguments
-	if len(optFns) > 0 {
-		args = m.Called(ctx, stateMachine, params, optFns)
-	} else {
-		args = m.Called(ctx, stateMachine, params)
-	}
+func (m *mockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput) (*stefunny.StartExecutionOutput, error) {
+	args := m.Called(ctx, stateMachine, params)
 	output := args.Get(0)
 	err := args.Error(1)
 	if err == nil {

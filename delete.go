@@ -22,7 +22,9 @@ func (opt DeleteOption) DryRunString() string {
 
 func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	if err != nil {
 		return fmt.Errorf("failed to describe current state machine status: %w", err)
 	}

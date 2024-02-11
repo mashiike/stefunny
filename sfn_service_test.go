@@ -26,7 +26,9 @@ func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
 	}, nil).Once()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DescribeStateMachine(ctx, "Hello")
+	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	})
 	require.ErrorIs(t, err, stefunny.ErrStateMachineDoesNotExist)
 }
 
@@ -85,7 +87,9 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 	}, nil).Once()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	sm, err := svc.DescribeStateMachine(ctx, "Hello")
+	sm, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	})
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
@@ -192,7 +196,9 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 	}, nil).Once()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	sm, err := svc.DescribeStateMachine(ctx, "Hello")
+	sm, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	})
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
@@ -232,7 +238,9 @@ func TestSFnService_DescribeStateMachine_FailedOnListStateMachine(t *testing.T) 
 	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DescribeStateMachine(ctx, "Hello")
+	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	})
 	require.ErrorIs(t, err, expectedErr)
 }
 
@@ -257,7 +265,9 @@ func TestSFnService_DescribeStateMachine_FailedOnDescribeStateMachine(t *testing
 	}).Return(nil, expectedErr).Once()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DescribeStateMachine(ctx, "Hello")
+	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	})
 	require.ErrorIs(t, err, expectedErr)
 }
 
@@ -300,7 +310,9 @@ func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.
 	}).Return(nil, expectedErr)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DescribeStateMachine(ctx, "Hello")
+	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	})
 	require.ErrorIs(t, err, expectedErr)
 }
 

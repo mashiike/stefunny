@@ -100,7 +100,9 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
 	log.Println("[debug] deploy state machine")
 	newStateMachine := app.cfg.NewStateMachine()
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	if err != nil {
 		log.Printf("[debug] describe state machine error %#v", err)
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
@@ -132,7 +134,9 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) error {
-	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	isStateMachineFound := true
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
@@ -175,7 +179,9 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 }
 
 func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
-	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, app.cfg.StateMachineName())
+	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	isStateMachineFound := true
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {

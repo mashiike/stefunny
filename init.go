@@ -23,7 +23,9 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	cfg := NewDefaultConfig()
 	cfg.RequiredVersion = ">=" + Version
 	cfg.AWSRegion = opt.AWSRegion
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, opt.StateMachineName)
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: opt.StateMachineName,
+	})
 	if err != nil {
 		return fmt.Errorf("failed describe state machine: %w", err)
 	}

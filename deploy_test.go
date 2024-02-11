@@ -32,7 +32,9 @@ func TestDeploy(t *testing.T) {
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Hello",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Hello"),
@@ -45,19 +47,17 @@ func TestDeploy(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
+				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+					Name: "Hello",
+				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
-				).Once()
+				).Times(2)
 				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					RuleNames:                []string{},
 				}).Return(
 					stefunny.EventBridgeRules{},
-					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
-					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Once()
 				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
@@ -75,7 +75,9 @@ func TestDeploy(t *testing.T) {
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Hello",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Hello"),
@@ -100,20 +102,18 @@ func TestDeploy(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
+				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+					Name: "Hello",
+				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
-				).Once()
+				).Times(2)
 				m.eventBridge.On("DeployRules",
 					mock.Anything,
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					stefunny.EventBridgeRules{},
 					true,
 				).Return(
-					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
-					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Once()
 				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, false).Return(
@@ -127,7 +127,9 @@ func TestDeploy(t *testing.T) {
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Hello",
+				}).Return(
 					nil,
 					stefunny.ErrStateMachineDoesNotExist,
 				).Once()
@@ -144,20 +146,18 @@ func TestDeploy(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
+				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+					Name: "Hello",
+				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
-				).Once()
+				).Times(2)
 				m.eventBridge.On("DeployRules",
 					mock.Anything,
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					stefunny.EventBridgeRules{},
 					true,
 				).Return(
-					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Hello").Return(
-					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Once()
 				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, false).Return(
@@ -171,7 +171,9 @@ func TestDeploy(t *testing.T) {
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Scheduled",
+				}).Return(
 					nil,
 					stefunny.ErrStateMachineDoesNotExist,
 				).Once()
@@ -189,10 +191,12 @@ func TestDeploy(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
+				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+					Name: "Scheduled",
+				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
-				).Once()
+				).Times(2)
 				m.eventBridge.On("DeployRules",
 					mock.Anything,
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
@@ -224,10 +228,6 @@ func TestDeploy(t *testing.T) {
 					), true).Return(
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
-					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
-					nil,
-				).Once()
 				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, false).Return(
 					nil,
 				).Once()
@@ -239,7 +239,9 @@ func TestDeploy(t *testing.T) {
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Scheduled",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Scheduled"),
@@ -265,10 +267,12 @@ func TestDeploy(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
+				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+					Name: "Scheduled",
+				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
-				).Once()
+				).Times(2)
 				m.eventBridge.On("DeployRules",
 					mock.Anything,
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
@@ -300,10 +304,6 @@ func TestDeploy(t *testing.T) {
 					), true).Return(
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
-					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
-					nil,
-				).Once()
 				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, false).Return(
 					nil,
 				).Once()
@@ -315,7 +315,9 @@ func TestDeploy(t *testing.T) {
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
 				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Scheduled",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Scheduled"),
@@ -338,20 +340,18 @@ func TestDeploy(t *testing.T) {
 					},
 					nil,
 				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
+				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+					Name: "Scheduled",
+				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
-				).Once()
+				).Times(2)
 				m.eventBridge.On("DeployRules",
 					mock.Anything,
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
 					stefunny.EventBridgeRules{},
 					true,
 				).Return(
-					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, "Scheduled").Return(
-					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
 				).Once()
 				m.scheduler.On(

@@ -84,7 +84,9 @@ func (f OutputFormatter) String() string {
 }
 
 func (app *App) Versions(ctx context.Context, opt VersionsOption) error {
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	if err != nil {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
 			return fmt.Errorf("failed to describe current state machine status: %w", err)

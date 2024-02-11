@@ -20,7 +20,9 @@ func (opt RollbackOption) DryRunString() string {
 }
 
 func (app *App) Rollback(ctx context.Context, opt RollbackOption) error {
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, app.cfg.StateMachineName())
+	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+		Name: app.cfg.StateMachineName(),
+	})
 	if err != nil {
 		if errors.Is(err, ErrStateMachineDoesNotExist) {
 			return fmt.Errorf("state machine `%s` is not found", app.cfg.StateMachineName())

@@ -29,7 +29,9 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Hello",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:    aws.String("Hello"),
@@ -60,7 +62,9 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Hello").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Hello",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Hello"),
@@ -99,7 +103,9 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/event.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Scheduled",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Hello"),
@@ -148,7 +154,9 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, "Scheduled").Return(
+				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+					Name: "Scheduled",
+				}).Return(
 					&stefunny.StateMachine{
 						CreateStateMachineInput: sfn.CreateStateMachineInput{
 							Name:       aws.String("Hello"),
