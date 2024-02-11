@@ -24,5 +24,7 @@
     "format": "table",
     "keep_versions": 5
   },
-  "diff": {}
+  "diff": {
+    "unified": true
+  }
 }

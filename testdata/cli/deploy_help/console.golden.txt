@@ -24,4 +24,4 @@ Flags:
                                 default 0)
       --trigger-enabled         Enable trigger
       --trigger-disabled        Disable trigger
-      --unified                 when dry run, output unified diff
+      --[no-]unified            when dry run, output unified diff
