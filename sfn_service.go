@@ -108,7 +108,7 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *Des
 	if params.Qualifier != "" {
 		if _, err := strconv.Atoi(params.Qualifier); err != nil {
 			log.Println("[degbug] qualifier is not version number, try get version by alias")
-			alieasArn := qualifiedARN(arn, params.Qualifier)
+			alieasArn := addQualifierToArn(arn, params.Qualifier)
 			alias, err := svc.describeStateMachineAlias(ctx, alieasArn)
 			if err != nil {
 				return nil, fmt.Errorf("describe state machine alias failed: %w", err)
@@ -121,7 +121,7 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *Des
 				}
 			}
 		} else {
-			qualified = qualifiedARN(arn, params.Qualifier)
+			qualified = addQualifierToArn(arn, params.Qualifier)
 		}
 	}
 	output, err := svc.client.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{

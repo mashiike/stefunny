@@ -69,14 +69,14 @@ func extructVersion(versionARN string) (int, error) {
 	return version, nil
 }
 
-func qualifiedARN(arnStr string, name string) string {
+func addQualifierToArn(arnStr string, name string) string {
 	if name == "" {
 		return arnStr
 	}
 	return fmt.Sprintf("%s:%s", arnStr, name)
 }
 
-func unqualifyARN(arnStr string) string {
+func removeQualifierFromArn(arnStr string) string {
 	arnObj, err := arn.Parse(arnStr)
 	if err != nil {
 		return arnStr

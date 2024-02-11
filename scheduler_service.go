@@ -75,7 +75,7 @@ func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, par
 
 func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context, stateMachineArn string) ([]string, error) {
 	log.Printf("[debug] call searchRelatedScheduleNames(%s)", stateMachineArn)
-	unqualified := unqualifyARN(stateMachineArn)
+	unqualified := removeQualifierFromArn(stateMachineArn)
 	names, ok := svc.cacheNamesByStateMachineARN[stateMachineArn]
 	if ok {
 		if unqualified != stateMachineArn {

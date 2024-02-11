@@ -65,7 +65,7 @@ func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, param
 	if err != nil {
 		return nil, err
 	}
-	unqualified := unqualifyARN(stateMachineArn)
+	unqualified := removeQualifierFromArn(stateMachineArn)
 	if unqualified != stateMachineArn {
 		unqualifiedRelatedRuleNames, err := svc.searchRelatedRuleNames(ctx, unqualified)
 		if err != nil {
@@ -162,7 +162,7 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 	}
 	additional := make([]eventbridgetypes.Target, 0, len(listTargetsOutput.Targets))
 	var target *eventbridgetypes.Target
-	unqualified := unqualifyARN(stateMachineARN)
+	unqualified := removeQualifierFromArn(stateMachineARN)
 	log.Printf("[debug] state machine arn: %s", stateMachineARN)
 	log.Printf("[debug] unqualified arn: %s", unqualified)
 	for i, t := range listTargetsOutput.Targets {
@@ -187,7 +187,7 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 			target = &cloned
 			continue
 		}
-		if unqualifyARN(currentArn) == unqualified {
+		if removeQualifierFromArn(currentArn) == unqualified {
 			if target != nil {
 				additional = append(additional, t)
 				continue

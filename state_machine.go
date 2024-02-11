@@ -19,8 +19,8 @@ type StateMachine struct {
 }
 
 func (s *StateMachine) QualifiedARN(name string) string {
-	unqualified := unqualifyARN(coalesce(s.StateMachineArn))
-	return qualifiedARN(unqualified, name)
+	unqualified := removeQualifierFromArn(coalesce(s.StateMachineArn))
+	return addQualifierToArn(unqualified, name)
 }
 
 func (s *StateMachine) AppendTags(tags map[string]string) {

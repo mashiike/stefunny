@@ -146,7 +146,7 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		isStateMachineFound = false
 	}
 	newRules := app.cfg.NewEventBridgeRules()
-	targetARN := qualifiedARN(stateMachineARN, app.StateMachineAliasName())
+	targetARN := addQualifierToArn(stateMachineARN, app.StateMachineAliasName())
 	newRules.SetStateMachineQualifiedARN(targetARN)
 	keepState := true
 	if opt.ScheduleEnabled != nil {
@@ -192,7 +192,7 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 		isStateMachineFound = false
 	}
 	newSchedules := app.cfg.NewSchedules()
-	targetARN := qualifiedARN(stateMachineARN, app.StateMachineAliasName())
+	targetARN := addQualifierToArn(stateMachineARN, app.StateMachineAliasName())
 	newSchedules.SetStateMachineQualifiedARN(targetARN)
 	if opt.DryRun {
 		currentSchedules := Schedules{}
