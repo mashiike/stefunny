@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -296,7 +297,12 @@ func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config,
 		if tfstate.Location == "" {
 			return fmt.Errorf("tfstate[%d].location is required", i)
 		}
-		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, tfstate.Location); err != nil {
+		loc := tfstate.Location
+		u, err := url.Parse(loc)
+		if err != nil || (u != nil && u.Scheme == "") {
+			loc = filepath.Join(filepath.Dir(path), loc)
+		}
+		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
 			return fmt.Errorf("tfstate[%d] %w", i, err)
 		}
 	}
