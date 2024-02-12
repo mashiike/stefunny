@@ -27,3 +27,11 @@ func (m *OrderdMap[K, V]) Get(key K) (V, bool) {
 func (m *OrderdMap[K, V]) Keys() []K {
 	return m.keys
 }
+
+func (m *OrderdMap[K, V]) Values() []V {
+	result := make([]V, 0, len(m.keys))
+	for _, k := range m.keys {
+		result = append(result, m.values[k])
+	}
+	return result
+}
