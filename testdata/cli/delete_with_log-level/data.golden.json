@@ -23,5 +23,12 @@
   },
   "diff": {
     "unified": true
+  },
+  "pull": {
+    "Templatize": true,
+    "Qualifier": ""
+  },
+  "studio": {
+    "Open": false
   }
 }
