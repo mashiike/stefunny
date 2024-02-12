@@ -37,7 +37,7 @@ func newResourcesReverseMapFromTFState(s *tfstate.TFState, list []string) (map[s
 	resources := make(map[string]string) // resource value => lookup key
 	resourceValues := make([]string, 0)
 	for _, r := range list {
-		if !strings.HasPrefix(r, "aws_") {
+		if !strings.HasPrefix(r, "aws_") && strings.HasPrefix(r, "data.aws_") {
 			log.Printf("[debug] skip `%s`, this is not aws resource", r)
 			continue
 		}
@@ -80,9 +80,19 @@ var (
 		"aws_subnet":         {"id"},
 		"aws_s3_bucket":      {"bucket"},
 	}
+	ignoreResourceSuffix = []string{
+		"_policy",
+	}
 )
 
 func lookupResourceKey(resourcePrefix string, data map[string]any) (map[string]string, bool) {
+	parts := strings.Split(resourcePrefix, ".")
+	for _, suffix := range ignoreResourceSuffix {
+		if strings.HasSuffix(parts[0], suffix) {
+			log.Printf("[debug] ignore `%s` reason is has suffix `%s`", resourcePrefix, suffix)
+			return nil, false
+		}
+	}
 	if strings.HasPrefix("data.aws_caller_identity.", resourcePrefix) {
 		accountID, ok := data["account_id"].(string)
 		if !ok {

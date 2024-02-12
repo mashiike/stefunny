@@ -49,13 +49,13 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 
 	renderer := NewRenderer(cfg)
 	log.Printf("[notice] StateMachine/%s save config to %s", opt.StateMachineName, opt.ConfigPath)
-	if err := renderer.CreateConfigFile(opt.ConfigPath, templateize); err != nil {
+	if err := renderer.CreateConfigFile(ctx, opt.ConfigPath, templateize); err != nil {
 		return fmt.Errorf("failed create config file: %w", err)
 	}
 
 	defFullPath := filepath.Join(configDir, defPath)
 	log.Printf("[notice] StateMachine/%s save state machine definition to %s", opt.StateMachineName, defFullPath)
-	if err := renderer.CreateDefinitionFile(defFullPath, templateize); err != nil {
+	if err := renderer.CreateDefinitionFile(ctx, defFullPath, templateize); err != nil {
 		return fmt.Errorf("failed create state machine definition file: %w", err)
 	}
 	return nil

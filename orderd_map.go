@@ -35,3 +35,7 @@ func (m *OrderdMap[K, V]) Values() []V {
 	}
 	return result
 }
+
+func (m *OrderdMap[K, V]) Len() int {
+	return len(m.values)
+}
