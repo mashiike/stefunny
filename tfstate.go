@@ -37,7 +37,7 @@ func newResourcesReverseMapFromTFState(s *tfstate.TFState, list []string) (map[s
 	resources := make(map[string]string) // resource value => lookup key
 	resourceValues := make([]string, 0)
 	for _, r := range list {
-		if !strings.HasPrefix(r, "aws_") && strings.HasPrefix(r, "data.aws_") {
+		if !strings.HasPrefix(r, "aws_") && !strings.HasPrefix(r, "data.aws_") {
 			log.Printf("[debug] skip `%s`, this is not aws resource", r)
 			continue
 		}
@@ -93,7 +93,7 @@ func lookupResourceKey(resourcePrefix string, data map[string]any) (map[string]s
 			return nil, false
 		}
 	}
-	if strings.HasPrefix("data.aws_caller_identity.", resourcePrefix) {
+	if strings.HasPrefix(resourcePrefix, "data.aws_caller_identity.") {
 		accountID, ok := data["account_id"].(string)
 		if !ok {
 			log.Printf("[debug] `%s.account_id` is not found or not string: acutal `%T`", resourcePrefix, data["account_id"])
