@@ -225,7 +225,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	}
 	cfg.StateMachine.Strict = true
 	if err := l.load(path, true, true, cfg); err != nil {
-		return nil, fmt.Errorf("load config `%s`: %w", path, err)
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 	if err := l.migrationForDeprecatedFields(ctx, cfg); err != nil {
 		return nil, fmt.Errorf("migration for deprecated fields: %w", err)
@@ -291,7 +291,7 @@ func (l *ConfigLoader) setConfigPath(cfg *Config, path string) error {
 // pre load for tfstate path read
 func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config, path string) error {
 	if err := l.load(path, false, false, cfg); err != nil {
-		return fmt.Errorf("load config `%s`: %w", path, err)
+		return err
 	}
 	for i, tfstate := range cfg.TFState {
 		if tfstate.Location == "" {
