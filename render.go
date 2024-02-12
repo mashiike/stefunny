@@ -2,7 +2,9 @@ package stefunny
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,7 +32,7 @@ func (app *App) Render(_ context.Context, opt RenderOption) error {
 			if format == "" {
 				format = "yaml"
 			}
-			if err := renderer.RenderConfig(out, format); err != nil {
+			if err := renderer.RenderConfig(out, format, false); err != nil {
 				return err
 			}
 		case "definition", "def":
@@ -38,7 +40,7 @@ func (app *App) Render(_ context.Context, opt RenderOption) error {
 			if format == "" {
 				format = "json"
 			}
-			if err := renderer.RenderStateMachine(out, format); err != nil {
+			if err := renderer.RenderStateMachine(out, format, false); err != nil {
 				return err
 			}
 		default:
@@ -58,7 +60,7 @@ func NewRenderer(cfg *Config) *Renderer {
 	}
 }
 
-func (r *Renderer) RenderConfigFile(path string) error {
+func (r *Renderer) CreateConfigFile(path string, template bool) error {
 	fmt, err := r.detectFormat(path)
 	if err != nil {
 		return err
@@ -68,19 +70,26 @@ func (r *Renderer) RenderConfigFile(path string) error {
 		return err
 	}
 	defer f.Close()
-	return r.RenderConfig(f, fmt)
+	return r.RenderConfig(f, fmt, template)
 }
 
-func (r *Renderer) RenderConfig(w io.Writer, format string) error {
+func (r *Renderer) RenderConfig(w io.Writer, format string, template bool) error {
 	def := r.cfg.StateMachineDefinition()
 	r.cfg.StateMachine.SetDefinition(r.cfg.StateMachine.DefinitionPath)
 	defer func() {
 		r.cfg.StateMachine.SetDefinition(def)
 	}()
-	return r.render(w, format, r.cfg)
+	if !template {
+		return r.render(w, format, r.cfg)
+	}
+	var buf bytes.Buffer
+	if err := r.render(&buf, format, r.cfg); err != nil {
+		return err
+	}
+	return r.templateize(w, &buf)
 }
 
-func (r *Renderer) RenderDefinitionFile(path string) error {
+func (r *Renderer) CreateDefinitionFile(path string, template bool) error {
 	fmt, err := r.detectFormat(path)
 	if err != nil {
 		return err
@@ -90,12 +99,19 @@ func (r *Renderer) RenderDefinitionFile(path string) error {
 		return err
 	}
 	defer f.Close()
-	return r.RenderStateMachine(f, fmt)
+	return r.RenderStateMachine(f, fmt, template)
 }
 
-func (r *Renderer) RenderStateMachine(w io.Writer, format string) error {
+func (r *Renderer) RenderStateMachine(w io.Writer, format string, template bool) error {
 	def := JSONRawMessage(r.cfg.StateMachineDefinition())
-	return r.render(w, format, def)
+	if !template {
+		return r.render(w, format, def)
+	}
+	var buf bytes.Buffer
+	if err := r.render(&buf, format, def); err != nil {
+		return err
+	}
+	return r.templateize(w, &buf)
 }
 
 func (r *Renderer) detectFormat(path string) (string, error) {
@@ -138,4 +154,8 @@ func (r *Renderer) render(w io.Writer, format string, v any) error {
 	default:
 		return fmt.Errorf("unknown format: %s", format)
 	}
+}
+
+func (r *Renderer) templateize(writer io.Writer, reader io.Reader) error {
+	return errors.New("not implemented yet")
 }

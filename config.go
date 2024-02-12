@@ -876,7 +876,9 @@ func NewDefaultConfig() *Config {
 				},
 			}),
 		},
-		Tags: make(map[string]string),
+		Tags:     make(map[string]string),
+		Envs:     NewOrderdMap[string, string](),
+		MustEnvs: NewOrderdMap[string, string](),
 	}
 }
 

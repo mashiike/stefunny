@@ -10,11 +10,13 @@ import (
 )
 
 type InitOption struct {
-	StateMachineName   string `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
-	DefinitionFilePath string `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
-
-	ConfigPath string `kong:"-" json:"-"`
-	AWSRegion  string `kong:"-" json:"-"`
+	StateMachineName   string   `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
+	DefinitionFilePath string   `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
+	TFState            string   `name:"tfstate" help:"Path to terraform state file, if set output is templateize" default:"terraform.tfstate" type:"path" env:"TF_STATE_FILE_PATH" json:"tf_state_file_path,omitempty"`
+	Envs               []string `name:"env" help:"templateize environment variables" json:"envs,omitempty"`
+	MustEnvs           []string `name:"must-env" help:"templateize must environment variables" json:"must_envs,omitempty"`
+	ConfigPath         string   `kong:"-" json:"-"`
+	AWSRegion          string   `kong:"-" json:"-"`
 }
 
 func (app *App) Init(ctx context.Context, opt InitOption) error {
@@ -84,6 +86,22 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 		}
 	}
 
+	var templateize bool
+	if opt.TFState != "" {
+		var tfstateCfg TFStateConfig
+		if isURL(opt.TFState) {
+			tfstateCfg = TFStateConfig{
+				URL: opt.TFState,
+			}
+		} else {
+			tfstateCfg = TFStateConfig{
+				Path: opt.TFState,
+			}
+		}
+		cfg.TFState = []*TFStateConfig{&tfstateCfg}
+		templateize = true
+	}
+
 	log.Println("[debug] definition path =", opt.DefinitionFilePath)
 	defPath := opt.DefinitionFilePath
 	defPath, err = filepath.Rel(configDir, defPath)
@@ -94,14 +112,14 @@ func (app *App) Init(ctx context.Context, opt InitOption) error {
 	cfg.StateMachine.SetDefinition(coalesce(stateMachine.Definition))
 	renderer := NewRenderer(cfg)
 	log.Printf("[notice] StateMachine/%s save config to %s", coalesce(stateMachine.Name), opt.ConfigPath)
-	if err := renderer.RenderConfigFile(opt.ConfigPath); err != nil {
-		return fmt.Errorf("failed render config file: %w", err)
+	if err := renderer.CreateConfigFile(opt.ConfigPath, templateize); err != nil {
+		return fmt.Errorf("failed create config file: %w", err)
 	}
 
 	defFullPath := filepath.Join(configDir, defPath)
 	log.Printf("[notice] StateMachine/%s save state machine definition to %s", coalesce(stateMachine.Name), defFullPath)
-	if err := renderer.RenderDefinitionFile(defFullPath); err != nil {
-		return fmt.Errorf("failed render state machine definition file: %w", err)
+	if err := renderer.CreateDefinitionFile(defFullPath, templateize); err != nil {
+		return fmt.Errorf("failed create state machine definition file: %w", err)
 	}
 	return nil
 }

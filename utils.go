@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"reflect"
 	"strconv"
 	"strings"
@@ -153,4 +154,9 @@ func sliceDiff[T any](this, other []T, fetchKey func(T) string) sliceDiffResult[
 		}
 	}
 	return result
+}
+
+func isURL(s string) bool {
+	u, err := url.Parse(s)
+	return err == nil && u.Scheme != "" && u.Host != ""
 }
