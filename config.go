@@ -177,8 +177,8 @@ func (l *ConfigLoader) renderTemplate(bs []byte) ([]byte, error) {
 	for k, v := range l.funcMap {
 		funcMap[k] = v
 	}
-	l.envs = make(map[string]string, 0)
-	l.mustEnvs = make(map[string]string, 0)
+	l.envs = NewOrderdMap[string, string]()
+	l.mustEnvs = NewOrderdMap[string, string]()
 	missingEnvs := make(map[string]struct{}, 0)
 	if _, ok := funcMap["env"]; !ok {
 		funcMap["env"] = newTemplateFuncEnv(l.envs)
