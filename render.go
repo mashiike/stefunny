@@ -80,11 +80,17 @@ func (r *Renderer) RenderConfig(w io.Writer, format string, template bool) error
 		r.cfg.StateMachine.SetDefinition(def)
 	}()
 	if !template {
-		return r.render(w, format, r.cfg)
+		if err := r.render(w, format, r.cfg); err != nil {
+			return fmt.Errorf("failed to render: %w", err)
+		}
+		return nil
 	}
 	var buf bytes.Buffer
 	if err := r.render(&buf, format, r.cfg); err != nil {
-		return err
+		return fmt.Errorf("failed to render: %w", err)
+	}
+	if err := r.templateize(w, &buf); err != nil {
+		return fmt.Errorf("failed to templateize: %w", err)
 	}
 	return r.templateize(w, &buf)
 }
@@ -105,11 +111,17 @@ func (r *Renderer) CreateDefinitionFile(path string, template bool) error {
 func (r *Renderer) RenderStateMachine(w io.Writer, format string, template bool) error {
 	def := JSONRawMessage(r.cfg.StateMachineDefinition())
 	if !template {
-		return r.render(w, format, def)
+		if err := r.render(w, format, def); err != nil {
+			return fmt.Errorf("failed to render: %w", err)
+		}
+		return nil
 	}
 	var buf bytes.Buffer
 	if err := r.render(&buf, format, def); err != nil {
-		return err
+		return fmt.Errorf("failed to render: %w", err)
+	}
+	if err := r.templateize(w, &buf); err != nil {
+		return fmt.Errorf("failed to templateize: %w", err)
 	}
 	return r.templateize(w, &buf)
 }
