@@ -33,6 +33,7 @@ type CLI struct {
 	Execute  ExecuteOption         `cmd:"" help:"Execute state machine" json:"execute,omitempty"`
 	Versions VersionsOption        `cmd:"" help:"Manage state machine versions" json:"versions,omitempty"`
 	Diff     DiffOption            `cmd:"" help:"Show diff of state machine definition and trigers" json:"diff,omitempty"`
+	Pull     PullOption            `cmd:"" help:"Pull state machine definition" json:"pull,omitempty"`
 
 	kctx           *kong.Context
 	exitFunc       func(int)
@@ -223,6 +224,8 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 	case "render":
 		cli.Render.Writer = cli.stdout
 		return app.Render(ctx, cli.Render)
+	case "pull":
+		return app.Pull(ctx, cli.Pull)
 	case "execute":
 		return app.Execute(ctx, cli.Execute)
 	default:
