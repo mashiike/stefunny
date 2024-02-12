@@ -230,6 +230,8 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	if err := l.migrationForDeprecatedFields(ctx, cfg); err != nil {
 		return nil, fmt.Errorf("migration for deprecated fields: %w", err)
 	}
+	cfg.Envs = l.envs
+	cfg.MustEnvs = l.mustEnvs
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -411,8 +413,10 @@ type Config struct {
 
 	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
 
-	ConfigDir      string `yaml:"-"`
-	ConfigFileName string `yaml:"-"`
+	ConfigDir      string            `yaml:"-" json:"-"`
+	ConfigFileName string            `yaml:"-" json:"-"`
+	Envs           map[string]string `yaml:"-" json:"-"`
+	MustEnvs       map[string]string `yaml:"-" json:"-"`
 	//private field
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`

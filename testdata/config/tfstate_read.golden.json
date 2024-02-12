@@ -26,7 +26,5 @@
       "func_prefix": "second_",
       "url": "./terraform.tfstate"
     }
-  ],
-  "ConfigDir": "testdata",
-  "ConfigFileName": "tfstate.yaml"
+  ]
 }

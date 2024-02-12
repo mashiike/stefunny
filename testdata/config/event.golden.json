@@ -27,7 +27,5 @@
         "target": {}
       }
     ]
-  },
-  "ConfigDir": "testdata",
-  "ConfigFileName": "event.yaml"
+  }
 }

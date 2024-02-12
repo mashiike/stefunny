@@ -29,7 +29,5 @@
         }
       }
     ]
-  },
-  "ConfigDir": "testdata",
-  "ConfigFileName": "schedule.yaml"
+  }
 }

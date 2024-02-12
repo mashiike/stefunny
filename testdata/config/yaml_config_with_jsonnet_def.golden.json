@@ -17,7 +17,5 @@
     "role_arn": "arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role",
     "tracing_configuration": {},
     "type": "STANDARD"
-  },
-  "ConfigDir": "testdata",
-  "ConfigFileName": "jsonnet_def.yaml"
+  }
 }
