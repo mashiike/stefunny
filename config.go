@@ -43,8 +43,8 @@ type CloudWatchLogsClient interface {
 }
 type ConfigLoader struct {
 	funcMap      template.FuncMap
-	envs         map[string]string
-	mustEnvs     map[string]string
+	envs         *OrderdMap[string, string]
+	mustEnvs     *OrderdMap[string, string]
 	vm           *jsonnet.VM
 	cwLogsClient CloudWatchLogsClient
 }
@@ -133,7 +133,7 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	}
 }
 
-func newTemplateFuncEnv(envs map[string]string) func(string, ...string) string {
+func newTemplateFuncEnv(envs *OrderdMap[string, string]) func(string, ...string) string {
 	return func(key string, args ...string) string {
 		keys := make([]string, 1, len(args))
 		keys[0] = key
@@ -146,25 +146,25 @@ func newTemplateFuncEnv(envs map[string]string) func(string, ...string) string {
 		envArgs := key + "," + strings.Join(args, ",")
 		for _, k := range keys {
 			if v := os.Getenv(k); v != "" {
-				envs[envArgs] = v
+				envs.Set(envArgs, v)
 				return v
 			}
 		}
-		envs[envArgs] = defaultValue
+		envs.Set(envArgs, defaultValue)
 		return defaultValue
 	}
 }
 
-func newTemplatefuncMustEnv(mustEnvs map[string]string, missingEnvs map[string]struct{}) func(string) string {
+func newTemplatefuncMustEnv(mustEnvs *OrderdMap[string, string], missingEnvs map[string]struct{}) func(string) string {
 	if mustEnvs == nil {
-		mustEnvs = make(map[string]string)
+		mustEnvs = NewOrderdMap[string, string]()
 	}
 	if missingEnvs == nil {
 		missingEnvs = make(map[string]struct{})
 	}
 	return func(key string) string {
 		if v, ok := os.LookupEnv(key); ok {
-			mustEnvs[key] = v
+			mustEnvs.Set(key, v)
 			return v
 		}
 		missingEnvs[key] = struct{}{}
@@ -413,10 +413,10 @@ type Config struct {
 
 	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
 
-	ConfigDir      string            `yaml:"-" json:"-"`
-	ConfigFileName string            `yaml:"-" json:"-"`
-	Envs           map[string]string `yaml:"-" json:"-"`
-	MustEnvs       map[string]string `yaml:"-" json:"-"`
+	ConfigDir      string                     `yaml:"-" json:"-"`
+	ConfigFileName string                     `yaml:"-" json:"-"`
+	Envs           *OrderdMap[string, string] `yaml:"-" json:"-"`
+	MustEnvs       *OrderdMap[string, string] `yaml:"-" json:"-"`
 	//private field
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
