@@ -197,6 +197,7 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
+		cli.Init.TFState = cli.TFState
 		return app.Init(ctx, cli.Init)
 	}
 	log.Println("[debug] create new app")
