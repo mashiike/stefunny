@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -294,26 +293,10 @@ func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config,
 		return fmt.Errorf("load config `%s`: %w", path, err)
 	}
 	for i, tfstate := range cfg.TFState {
-		var loc string
-		if tfstate.URL != "" {
-			u, err := url.Parse(tfstate.URL)
-			if err != nil {
-				return fmt.Errorf("tfstate[%d].url parse error: %w", i, err)
-			}
-			if u.Scheme == "" {
-				tfstate.Path = tfstate.URL
-			}
+		if tfstate.Location == "" {
+			return fmt.Errorf("tfstate[%d].location is required", i)
 		}
-		if tfstate.Path != "" {
-			loc = tfstate.Path
-			if !filepath.IsAbs(loc) {
-				loc = filepath.Join(filepath.Dir(path), loc)
-			}
-		}
-		if loc == "" {
-			return fmt.Errorf("tfstate[%d].path or tfstate[%d].url is required", i, i)
-		}
-		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
+		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, tfstate.Location); err != nil {
 			return fmt.Errorf("tfstate[%d] %w", i, err)
 		}
 	}
@@ -425,8 +408,7 @@ type Config struct {
 
 type TFStateConfig struct {
 	FuncPrefix string `yaml:"func_prefix,omitempty" json:"func_prefix,omitempty"`
-	Path       string `yaml:"path,omitempty" json:"path,omitempty"`
-	URL        string `yaml:"url,omitempty" json:"url,omitempty"`
+	Location   string `yaml:"location,omitempty" json:"location,omitempty"`
 }
 
 type StateMachineConfig struct {

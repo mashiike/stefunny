@@ -134,7 +134,7 @@ func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine
 	return trigger, nil
 }
 
-func prepareForTamplatize(cfg *Config, tfstatePath string, envs []string, mustEnvs []string) (bool, error) {
+func prepareForTamplatize(cfg *Config, tfstateLoc string, envs []string, mustEnvs []string) (bool, error) {
 	var templateize bool
 	if len(envs) > 0 {
 		envsMap := NewOrderdMap[string, string]()
@@ -161,18 +161,12 @@ func prepareForTamplatize(cfg *Config, tfstatePath string, envs []string, mustEn
 		cfg.MustEnvs = mustEnvsMap
 		templateize = true
 	}
-	if tfstatePath != "" {
-		var tfstateCfg TFStateConfig
-		if isURL(tfstatePath) {
-			tfstateCfg = TFStateConfig{
-				URL: tfstatePath,
-			}
-		} else {
-			tfstateCfg = TFStateConfig{
-				Path: tfstatePath,
-			}
+	if tfstateLoc != "" {
+		cfg.TFState = []*TFStateConfig{
+			{
+				Location: tfstateLoc,
+			},
 		}
-		cfg.TFState = []*TFStateConfig{&tfstateCfg}
 		templateize = true
 	}
 	return templateize, nil
