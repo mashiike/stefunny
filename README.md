@@ -175,7 +175,7 @@ schedule:
   role_arn: "{{ tfstae `aws_iam_role.eventbridge.arn` }}"
 ```
 
-Configuration files and definition files are read by go-config. go-config has template functions env, must_env and json_escape.
+Configuration files and definition files are read with `text/template`, stefunny has template functions env, must_env, json_escape and tfstate.
 
 
 ### Template syntax

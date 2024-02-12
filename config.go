@@ -28,7 +28,6 @@ import (
 	"github.com/fujiwara/tfstate-lookup/tfstate"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
-	gc "github.com/kayac/go-config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -43,8 +42,9 @@ type CloudWatchLogsClient interface {
 	cloudwatchlogs.DescribeLogGroupsAPIClient
 }
 type ConfigLoader struct {
-	loader       *gc.Loader
 	funcMap      template.FuncMap
+	envs         map[string]string
+	mustEnvs     map[string]string
 	vm           *jsonnet.VM
 	cwLogsClient CloudWatchLogsClient
 }
@@ -58,7 +58,6 @@ func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 		vm.ExtCode(k, v)
 	}
 	return &ConfigLoader{
-		loader:  gc.New(),
 		funcMap: make(template.FuncMap),
 		vm:      vm,
 	}
@@ -77,16 +76,13 @@ func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState
 }
 
 func (l *ConfigLoader) AppendFuncMap(prefix string, funcMap template.FuncMap) error {
-	appendTarget := make(template.FuncMap, len(funcMap))
 	for k, v := range funcMap {
 		modifiedKey := prefix + k
 		if _, ok := l.funcMap[modifiedKey]; ok {
 			return fmt.Errorf("funcMap key %s already exists", modifiedKey)
 		}
 		l.funcMap[modifiedKey] = v
-		appendTarget[modifiedKey] = v
 	}
-	l.loader.Funcs(appendTarget)
 	return nil
 }
 
@@ -94,17 +90,16 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	ext := filepath.Ext(path)
 	switch ext {
 	case yamlExt, ymlExt:
-		var b []byte
-		var err error
-		if withEnv {
-			b, err = l.loader.ReadWithEnv(path)
-		} else {
-			b, err = os.ReadFile(path)
-		}
+		b, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read file: %w", err)
 		}
-
+		if withEnv {
+			b, err = l.renderTemplate(b)
+			if err != nil {
+				return fmt.Errorf("failed to render template: %w", err)
+			}
+		}
 		dec := yaml.NewDecoder(bytes.NewReader(b))
 		if strict {
 			dec.KnownFields(true)
@@ -120,9 +115,9 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 		}
 		b := []byte(jsonStr)
 		if withEnv {
-			b, err = l.loader.ReadWithEnvBytes([]byte(jsonStr))
+			b, err = l.renderTemplate(b)
 			if err != nil {
-				return fmt.Errorf("failed to read template file: %w", err)
+				return fmt.Errorf("failed to render template: %w", err)
 			}
 		}
 		dec := json.NewDecoder(bytes.NewReader(b))
@@ -136,6 +131,85 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	default:
 		return fmt.Errorf("unsupported file extension: %s", ext)
 	}
+}
+
+func newTemplateFuncEnv(envs map[string]string) func(string, ...string) string {
+	return func(key string, args ...string) string {
+		keys := make([]string, 1, len(args))
+		keys[0] = key
+		var defaultValue string
+		if len(args) > 0 {
+			// last is default value
+			keys = append(keys, args[:len(args)-1]...)
+			defaultValue = args[len(args)-1]
+		}
+		envArgs := key + "," + strings.Join(args, ",")
+		for _, k := range keys {
+			if v := os.Getenv(k); v != "" {
+				envs[envArgs] = v
+				return v
+			}
+		}
+		envs[envArgs] = defaultValue
+		return defaultValue
+	}
+}
+
+func newTemplatefuncMustEnv(mustEnvs map[string]string, missingEnvs map[string]struct{}) func(string) string {
+	if mustEnvs == nil {
+		mustEnvs = make(map[string]string)
+	}
+	if missingEnvs == nil {
+		missingEnvs = make(map[string]struct{})
+	}
+	return func(key string) string {
+		if v, ok := os.LookupEnv(key); ok {
+			mustEnvs[key] = v
+			return v
+		}
+		missingEnvs[key] = struct{}{}
+		return ""
+	}
+}
+
+func (l *ConfigLoader) renderTemplate(bs []byte) ([]byte, error) {
+	funcMap := make(template.FuncMap, len(l.funcMap))
+	for k, v := range l.funcMap {
+		funcMap[k] = v
+	}
+	l.envs = make(map[string]string, 0)
+	l.mustEnvs = make(map[string]string, 0)
+	missingEnvs := make(map[string]struct{}, 0)
+	if _, ok := funcMap["env"]; !ok {
+		funcMap["env"] = newTemplateFuncEnv(l.envs)
+	}
+	if _, ok := funcMap["must_env"]; !ok {
+		funcMap["must_env"] = newTemplatefuncMustEnv(l.mustEnvs, missingEnvs)
+	}
+	if _, ok := funcMap["json_escape"]; !ok {
+		funcMap["json_escape"] = func(v string) (string, error) {
+			bs, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			return string(bs[1 : len(bs)-1]), nil
+		}
+	}
+	tmpl, err := template.New("config").Funcs(funcMap).Parse(string(bs))
+	if err != nil {
+		return nil, fmt.Errorf("template parse error: %w", err)
+	}
+	buf := new(bytes.Buffer)
+	if err := tmpl.Execute(buf, nil); err != nil {
+		return nil, fmt.Errorf("template execute error: %w", err)
+	}
+	if len(missingEnvs) > 0 {
+		for k := range missingEnvs {
+			log.Printf("[warn] environment variable `%s` is not defined", k)
+		}
+		return nil, fmt.Errorf("missing %d environment variables", len(missingEnvs))
+	}
+	return buf.Bytes(), nil
 }
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
