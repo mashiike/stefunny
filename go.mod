@@ -7,7 +7,7 @@ require (
 	github.com/alecthomas/kong v0.8.1
 	github.com/aws/aws-sdk-go-v2 v1.24.1
 	github.com/aws/aws-sdk-go-v2/config v1.26.6
-	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.31.0
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.6.6
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.24.7

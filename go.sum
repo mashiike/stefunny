@@ -72,8 +72,8 @@ github.com/aws/aws-sdk-go-v2/internal/ini v1.7.3 h1:n3GDfwqF2tzEkXlv5cuy4iy7LpKD
 github.com/aws/aws-sdk-go-v2/internal/ini v1.7.3/go.mod h1:6fQQgfuGmw8Al/3M2IgIllycxV7ZW7WCdVSqfBeUiCY=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.10 h1:5oE2WzJE56/mVveuDZPJESKlg/00AaS2pY2QZcnxg4M=
 github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.10/go.mod h1:FHbKWQtRBYUz4vO5WBWjzMD2by126ny5y/1EoaWoLfI=
-github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.31.0 h1:Rk+Ft0Mu/eiNt2iJ2oS8Gf1h5m6q5crwS8cmlTylnvM=
-github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.31.0/go.mod h1:jZNaJEtn9TLi3pfxycLz79HVkKxP8ZdYm92iaNFgBsA=
+github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0 h1:VdKYfVPIDzmfSQk5gOQ5uueKiuKMkJuB/KOXmQ9Ytag=
+github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0/go.mod h1:jZNaJEtn9TLi3pfxycLz79HVkKxP8ZdYm92iaNFgBsA=
 github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1 h1:QuaDYFCaTBbyoD1mkAwPOt5igmKdpXZzFRKXoX7jgys=
 github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1/go.mod h1:fUy8DLlKtIvkd4+fRQ187edZJnscgAmtOaaai4xRsAM=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4 h1:/b31bi3YVNlkzkBrm9LfpaKoaYZUxIAj4sHfOTmLfqw=
