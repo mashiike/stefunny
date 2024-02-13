@@ -134,7 +134,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) error {
-	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	isStateMachineFound := true
@@ -142,12 +142,12 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
 			return fmt.Errorf("failed to get state machine arn: %w", err)
 		}
-		stateMachineARN = "[known after deploy]"
+		stateMachineArn = "[known after deploy]"
 		isStateMachineFound = false
 	}
 	newRules := app.cfg.NewEventBridgeRules()
-	targetARN := addQualifierToArn(stateMachineARN, app.StateMachineAliasName())
-	newRules.SetStateMachineQualifiedARN(targetARN)
+	targetArn := addQualifierToArn(stateMachineArn, app.StateMachineAliasName())
+	newRules.SetStateMachineQualifiedArn(targetArn)
 	keepState := true
 	if opt.ScheduleEnabled != nil {
 		newRules.SetEnabled(*opt.ScheduleEnabled)
@@ -157,7 +157,7 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		currentRules := EventBridgeRules{}
 		if isStateMachineFound {
 			currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-				StateMachineQualifiedARN: targetARN,
+				StateMachineQualifiedArn: targetArn,
 				RuleNames:                newRules.Names(),
 			})
 			if err != nil {
@@ -172,14 +172,14 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		fmt.Println(diffString)
 		return nil
 	}
-	if err := app.eventbridgeSvc.DeployRules(ctx, targetARN, newRules, keepState); err != nil {
+	if err := app.eventbridgeSvc.DeployRules(ctx, targetArn, newRules, keepState); err != nil {
 		return fmt.Errorf("failed to deploy rules: %w", err)
 	}
 	return nil
 }
 
 func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
-	stateMachineARN, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	isStateMachineFound := true
@@ -188,17 +188,17 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 
 			return fmt.Errorf("failed to get state machine arn: %w", err)
 		}
-		stateMachineARN = "[known after deploy]"
+		stateMachineArn = "[known after deploy]"
 		isStateMachineFound = false
 	}
 	newSchedules := app.cfg.NewSchedules()
-	targetARN := addQualifierToArn(stateMachineARN, app.StateMachineAliasName())
-	newSchedules.SetStateMachineQualifiedARN(targetARN)
+	targetArn := addQualifierToArn(stateMachineArn, app.StateMachineAliasName())
+	newSchedules.SetStateMachineQualifiedArn(targetArn)
 	if opt.DryRun {
 		currentSchedules := Schedules{}
 		if isStateMachineFound {
 			currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-				StateMachineQualifiedARN: targetARN,
+				StateMachineQualifiedArn: targetArn,
 				ScheduleNames:            newSchedules.Names(),
 			})
 			if err != nil {
@@ -210,7 +210,7 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 		fmt.Println(diffString)
 		return nil
 	}
-	if err := app.schedulerSvc.DeploySchedules(ctx, targetARN, newSchedules, opt.KeepVersions > 0); err != nil {
+	if err := app.schedulerSvc.DeploySchedules(ctx, targetArn, newSchedules, opt.KeepVersions > 0); err != nil {
 		return fmt.Errorf("failed to deploy schedules: %w", err)
 	}
 	return nil

@@ -31,7 +31,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
 	currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
+		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to search related rules: %w", err)
@@ -40,7 +40,7 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 		log.Printf("[notice] delete related rules is %s\n%s", opt.DryRunString(), currentRules)
 	}
 	currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
+		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to search related schedules: %w", err)
@@ -67,13 +67,13 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 		return fmt.Errorf("failed to delete state machine status: %w", err)
 	}
 	if len(currentRules) > 0 {
-		err := app.eventbridgeSvc.DeployRules(ctx, stateMachine.QualifiedARN(app.StateMachineAliasName()), EventBridgeRules{}, false)
+		err := app.eventbridgeSvc.DeployRules(ctx, stateMachine.QualifiedArn(app.StateMachineAliasName()), EventBridgeRules{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to delete rules: %w", err)
 		}
 	}
 	if len(currentSchedules) > 0 {
-		err := app.schedulerSvc.DeploySchedules(ctx, stateMachine.QualifiedARN(app.StateMachineAliasName()), Schedules{}, false)
+		err := app.schedulerSvc.DeploySchedules(ctx, stateMachine.QualifiedArn(app.StateMachineAliasName()), Schedules{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to delete schedules: %w", err)
 		}

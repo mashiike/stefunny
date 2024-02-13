@@ -50,17 +50,17 @@ func ptr[T any](v T) *T {
 	return &v
 }
 
-func extructVersion(versionARN string) (int, error) {
-	arnObj, err := arn.Parse(versionARN)
+func extructVersion(versionArn string) (int, error) {
+	arnObj, err := arn.Parse(versionArn)
 	if err != nil {
 		return 0, fmt.Errorf("parse arn failed: %w", err)
 	}
 	parts := strings.Split(arnObj.Resource, ":")
 	if parts[0] != "stateMachine" {
-		return 0, fmt.Errorf("`%s` is not state machine version arn", versionARN)
+		return 0, fmt.Errorf("`%s` is not state machine version arn", versionArn)
 	}
 	if len(parts) < 2 {
-		return 0, fmt.Errorf("invalid arn format: %s", versionARN)
+		return 0, fmt.Errorf("invalid arn format: %s", versionArn)
 	}
 	version, err := strconv.Atoi(parts[2])
 	if err != nil {

@@ -120,7 +120,7 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 	ctx := context.Background()
 	svc := stefunny.NewEventBridgeService(m)
 	rules, err := svc.SearchRelatedRules(ctx, &stefunny.SearchRelatedRulesInput{
-		StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
+		StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
 		RuleNames:                []string{"Scheduled"},
 	})
 	require.NoError(t, err)

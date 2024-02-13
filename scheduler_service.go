@@ -30,27 +30,27 @@ var _ SchedulerService = (*SchedulerServiceImpl)(nil)
 
 type SchedulerServiceImpl struct {
 	client                      SchedulerClient
-	cacheNamesByStateMachineARN map[string][]string
+	cacheNamesByStateMachineArn map[string][]string
 	cacheScheduleByName         map[string]*scheduler.GetScheduleOutput
 }
 
 func NewSchedulerService(client SchedulerClient) *SchedulerServiceImpl {
 	return &SchedulerServiceImpl{
 		client:                      client,
-		cacheNamesByStateMachineARN: make(map[string][]string),
+		cacheNamesByStateMachineArn: make(map[string][]string),
 		cacheScheduleByName:         make(map[string]*scheduler.GetScheduleOutput),
 	}
 }
 
 type SearchRelatedSchedulesInput struct {
-	StateMachineQualifiedARN string
+	StateMachineQualifiedArn string
 	ScheduleNames            []string
 }
 
 func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, params *SearchRelatedSchedulesInput) (Schedules, error) {
 
 	log.Printf("[debug] call SearchRelatedSchedules(%#v)", params)
-	stateMachineArn := params.StateMachineQualifiedARN
+	stateMachineArn := params.StateMachineQualifiedArn
 	scheduleNames, err := svc.searchRelatedScheduleNames(ctx, stateMachineArn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search related schedule names: %w", err)
@@ -76,12 +76,12 @@ func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, par
 func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context, stateMachineArn string) ([]string, error) {
 	log.Printf("[debug] call searchRelatedScheduleNames(%s)", stateMachineArn)
 	unqualified := removeQualifierFromArn(stateMachineArn)
-	names, ok := svc.cacheNamesByStateMachineARN[stateMachineArn]
+	names, ok := svc.cacheNamesByStateMachineArn[stateMachineArn]
 	if ok {
 		if unqualified != stateMachineArn {
-			unqualifiedNames, ok := svc.cacheNamesByStateMachineARN[unqualified]
+			unqualifiedNames, ok := svc.cacheNamesByStateMachineArn[unqualified]
 			if !ok {
-				log.Println("[warn] unqualified state machine ARN is not found in cache")
+				log.Println("[warn] unqualified state machine Arn is not found in cache")
 			}
 			names = append(names, unqualifiedNames...)
 			names = unique(names)
@@ -98,22 +98,22 @@ func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context,
 			return nil, fmt.Errorf("failed to list schedules: %w", err)
 		}
 		for _, schedule := range page.Schedules {
-			targetARN := coalesce(schedule.Target.Arn)
-			log.Printf("[debug] schedule `%s` target ARN is `%s`", coalesce(schedule.Name), targetARN)
-			if targetARN == stateMachineArn {
+			targetArn := coalesce(schedule.Target.Arn)
+			log.Printf("[debug] schedule `%s` target Arn is `%s`", coalesce(schedule.Name), targetArn)
+			if targetArn == stateMachineArn {
 				names = append(names, coalesce(schedule.Name))
 			}
-			if targetARN == unqualified {
+			if targetArn == unqualified {
 				unqualifiedNames = append(unqualifiedNames, coalesce(schedule.Name))
 			}
 		}
 	}
 	names = unique(names)
-	svc.cacheNamesByStateMachineARN[stateMachineArn] = names
+	svc.cacheNamesByStateMachineArn[stateMachineArn] = names
 	if unqualified == stateMachineArn {
 		return names, nil
 	}
-	svc.cacheNamesByStateMachineARN[unqualified] = unqualifiedNames
+	svc.cacheNamesByStateMachineArn[unqualified] = unqualifiedNames
 	result := make([]string, 0, len(names)+len(unqualifiedNames))
 	result = append(result, names...)
 	result = append(result, unqualifiedNames...)
@@ -163,7 +163,7 @@ func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachi
 		log.Printf("[warn] schedule `%s` has passed, skip deploy or delete", coalesce(schedule.Name))
 	}
 	currentSchedules, err := svc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-		StateMachineQualifiedARN: stateMachineArn,
+		StateMachineQualifiedArn: stateMachineArn,
 		ScheduleNames:            newSchedules.Names(),
 	})
 	if err != nil {
@@ -172,7 +172,7 @@ func (svc *SchedulerServiceImpl) DeploySchedules(ctx context.Context, stateMachi
 	if keepState {
 		schedules.SyncState(currentSchedules)
 	}
-	newSchedules.SetStateMachineQualifiedARN(stateMachineArn)
+	newSchedules.SetStateMachineQualifiedArn(stateMachineArn)
 	plan := sliceDiff(currentSchedules, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})

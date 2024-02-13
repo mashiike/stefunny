@@ -162,7 +162,7 @@ state_machine:
     level: ALL
     destinations:
       - cloudwatch_log_group:
-          log_group_arn: "{{ must_env `LOG_GROUP_ARN` }}"
+          log_group_arn: "{{ must_env `LOG_GROUP_Arn` }}"
 
 tags:
   env: "{{ must_env `ENV` }}" 

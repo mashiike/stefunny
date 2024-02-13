@@ -18,7 +18,7 @@ type StateMachine struct {
 	DefinitionPath  *string
 }
 
-func (s *StateMachine) QualifiedARN(name string) string {
+func (s *StateMachine) QualifiedArn(name string) string {
 	unqualified := removeQualifierFromArn(coalesce(s.StateMachineArn))
 	return addQualifierToArn(unqualified, name)
 }

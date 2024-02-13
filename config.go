@@ -740,15 +740,15 @@ func (cfg *StateMachineConfig) Restrict() error {
 		if dest.CloudWatchLogsLogGroup.LogGroupArn == nil || *dest.CloudWatchLogsLogGroup.LogGroupArn == "" {
 			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is required", i)
 		}
-		logGroupARN, err := arn.Parse(*dest.CloudWatchLogsLogGroup.LogGroupArn)
+		logGroupArn, err := arn.Parse(*dest.CloudWatchLogsLogGroup.LogGroupArn)
 		if err != nil {
 			return fmt.Errorf(
 				"logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn = `%s` is invalid: %w",
 				i, *dest.CloudWatchLogsLogGroup.LogGroupArn, err,
 			)
 		}
-		if logGroupARN.Service != "logs" {
-			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is not CloudWatch Logs ARN", i)
+		if logGroupArn.Service != "logs" {
+			return fmt.Errorf("logging_configuration.destinations[%d].cloudwatch_logs_log_group.log_group_arn is not CloudWatch Logs Arn", i)
 		}
 	}
 	if cfg.Value.TracingConfiguration == nil {

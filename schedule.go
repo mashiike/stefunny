@@ -16,7 +16,7 @@ type Schedule struct {
 	ConfigFilePath *string
 }
 
-func (s *Schedule) SetStateMachineQualifiedARN(stateMachineArn string) {
+func (s *Schedule) SetStateMachineQualifiedArn(stateMachineArn string) {
 	if s.Target == nil {
 		s.Target = &schedulertypes.Target{}
 	}
@@ -104,9 +104,9 @@ func (s *Schedule) SetEnabled(enabled bool) {
 
 type Schedules []*Schedule
 
-func (s Schedules) SetStateMachineQualifiedARN(stateMachineArn string) {
+func (s Schedules) SetStateMachineQualifiedArn(stateMachineArn string) {
 	for _, schedule := range s {
-		schedule.SetStateMachineQualifiedARN(stateMachineArn)
+		schedule.SetStateMachineQualifiedArn(stateMachineArn)
 	}
 }
 
