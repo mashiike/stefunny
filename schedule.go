@@ -177,6 +177,15 @@ func (s Schedules) Names() []string {
 	return names
 }
 
+func (s Schedules) FindByName(name string) (*Schedule, bool) {
+	for _, schedule := range s {
+		if coalesce(schedule.Name) == name {
+			return schedule, true
+		}
+	}
+	return nil, false
+}
+
 func (s Schedules) Len() int {
 	return len(s)
 }
