@@ -1,6 +1,6 @@
 {
   "log_level": "warn",
-  "config": "config.yaml",
+  "config": "stefunny.yaml",
   "region": "us-east-1",
   "alias": "current",
   "version": {},

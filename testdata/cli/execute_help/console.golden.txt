@@ -3,19 +3,19 @@ Usage: stefunny execute
 Execute state machine
 
 Flags:
-  -h, --help                    Show context-sensitive help.
-      --log-level="info"        Set log level (debug, info, notice, warn,
-                                error) ($STEFUNNY_LOG_LEVEL)
-  -c, --config="config.yaml"    Path to config file ($STEFUNNY_CONFIG)
-      --tfstate=STRING          URL to terraform.tfstate referenced in config
-                                ($STEFUNNY_TFSTATE)
-      --ext-str=,...            external string values for Jsonnet
-      --ext-code=,...           external code values for Jsonnet
-      --region=""               AWS region ($AWS_REGION)
-      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn,
+                                  error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config
+                                  ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
 
-      --input="-"               input JSON string
-      --name=""                 execution name
-      --async                   start execution and return immediately
-      --dump-history            dump execution history
-      --qualifier=QUALIFIER     state machine version qualifier
+      --input="-"                 input JSON string
+      --name=""                   execution name
+      --async                     start execution and return immediately
+      --dump-history              dump execution history
+      --qualifier=QUALIFIER       state machine version qualifier

@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
@@ -16,7 +17,7 @@ const dryRunStr = "DRY RUN"
 
 type CLI struct {
 	LogLevel  string   `name:"log-level" help:"Set log level (debug, info, notice, warn, error)" default:"info" env:"STEFUNNY_LOG_LEVEL" json:"log_level,omitempty"`
-	Config    string   `name:"config" short:"c" help:"Path to config file" default:"config.yaml" env:"STEFUNNY_CONFIG" type:"path" json:"config,omitempty"`
+	Config    string   `name:"config" short:"c" help:"Path to config file" default:"stefunny.yaml" env:"STEFUNNY_CONFIG" type:"path" json:"config,omitempty"`
 	TFState   string   `name:"tfstate" help:"URL to terraform.tfstate referenced in config" env:"STEFUNNY_TFSTATE" json:"tfstate,omitempty"`
 	ExtStr    []string `name:"ext-str" help:"external string values for Jsonnet" default:"" json:"ext_str,omitempty"`
 	ExtCode   []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
@@ -145,9 +146,30 @@ func (cli *CLI) Parse(args []string) (string, error) {
 	return cmd, nil
 }
 
+var defaultConfigNames = []string{
+	"stefunny.yaml",
+	"stefunny.yml",
+	"stefunny.json",
+	"stefunny.jsonnet",
+}
+
 // NewApp creates a new App instance from the CLI configuration
 func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 	log.Println("[debug] config flag", cli.Config)
+	if filepath.Base(cli.Config) == "stefunny.yaml" {
+		dir := filepath.Dir(cli.Config)
+		log.Println("[debug] default config name is used, check other ext")
+		for _, name := range defaultConfigNames {
+			if _, err := os.Stat(name); err == nil {
+				log.Println("[debug] found config file: ", name)
+				cli.Config = filepath.Join(dir, name)
+				break
+			}
+		}
+		if filepath.Base(cli.Config) == "stefunny.yaml" {
+			return nil, fmt.Errorf("cannot found default config files [%s]", strings.Join(defaultConfigNames, ", "))
+		}
+	}
 	extStr := make(map[string]string)
 	for _, s := range cli.ExtStr {
 		kv := strings.SplitN(s, "=", 2)

@@ -3,27 +3,27 @@ Usage: stefunny deploy
 Deploy state machine and schedule rules
 
 Flags:
-  -h, --help                    Show context-sensitive help.
-      --log-level="info"        Set log level (debug, info, notice, warn,
-                                error) ($STEFUNNY_LOG_LEVEL)
-  -c, --config="config.yaml"    Path to config file ($STEFUNNY_CONFIG)
-      --tfstate=STRING          URL to terraform.tfstate referenced in config
-                                ($STEFUNNY_TFSTATE)
-      --ext-str=,...            external string values for Jsonnet
-      --ext-code=,...           external code values for Jsonnet
-      --region=""               AWS region ($AWS_REGION)
-      --alias="current"         Alias name for state machine ($STEFUNNY_ALIAS)
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn,
+                                  error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config
+                                  ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
 
-      --dry-run                 Dry run
-      --skip-state-machine      Skip deploy state machine
-      --skip-trigger            Skip deploy trigger
+      --dry-run                   Dry run
+      --skip-state-machine        Skip deploy state machine
+      --skip-trigger              Skip deploy trigger
       --version-description=STRING
-                                Version description
-      --keep-versions=0         Number of latest versions to keep. Older
-                                versions will be deleted. (Optional value:
-                                default 0)
-      --trigger-enabled         Enable trigger
-      --trigger-disabled        Disable trigger
-      --[no-]unified            when dry run, output unified diff
+                                  Version description
+      --keep-versions=0           Number of latest versions to keep. Older
+                                  versions will be deleted. (Optional value:
+                                  default 0)
+      --trigger-enabled           Enable trigger
+      --trigger-disabled          Disable trigger
+      --[no-]unified              when dry run, output unified diff
 
 stefunny: error: --trigger-enabled and --trigger-disabled can't be used together

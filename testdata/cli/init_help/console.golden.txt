@@ -3,22 +3,22 @@ Usage: stefunny init --state-machine=STRING
 Initialize stefunny configuration
 
 Flags:
-  -h, --help                     Show context-sensitive help.
-      --log-level="info"         Set log level (debug, info, notice, warn,
-                                 error) ($STEFUNNY_LOG_LEVEL)
-  -c, --config="config.yaml"     Path to config file ($STEFUNNY_CONFIG)
-      --tfstate=STRING           URL to terraform.tfstate referenced in config
-                                 ($STEFUNNY_TFSTATE)
-      --ext-str=,...             external string values for Jsonnet
-      --ext-code=,...            external code values for Jsonnet
-      --region=""                AWS region ($AWS_REGION)
-      --alias="current"          Alias name for state machine ($STEFUNNY_ALIAS)
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn,
+                                  error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config
+                                  ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
 
-      --state-machine=STRING     AWS StepFunctions state machine name
-                                 ($STATE_MACHINE_NAME)
+      --state-machine=STRING      AWS StepFunctions state machine name
+                                  ($STATE_MACHINE_NAME)
   -d, --definition="definition.asl.json"
-                                 Path to state machine definition file
-                                 ($DEFINITION_FILE_PATH)
-      --env=ENV,...              templateize environment variables
-      --must-env=MUST-ENV,...    templateize must environment variables
-      --skip-trigger             Skip trigger
+                                  Path to state machine definition file
+                                  ($DEFINITION_FILE_PATH)
+      --env=ENV,...               templateize environment variables
+      --must-env=MUST-ENV,...     templateize must environment variables
+      --skip-trigger              Skip trigger
