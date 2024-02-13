@@ -1,6 +1,6 @@
 {
   "log_level": "info",
-  "config": "config.yaml",
+  "config": "stefunny.yaml",
   "region": "ap-northeast-1",
   "alias": "current",
   "version": {},
