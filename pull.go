@@ -8,8 +8,8 @@ import (
 )
 
 type PullOption struct {
-	Templatize bool   `name:"templaitze" default:"true" negatable:"" help:"templaitze output"`
-	Qualifier  string `name:"qualifier" help:"qualifier for the version"`
+	Templateize bool   `name:"templateize" default:"true" negatable:"" help:"templateize output"`
+	Qualifier   string `name:"qualifier" help:"qualifier for the version"`
 }
 
 func (app *App) Pull(ctx context.Context, opt PullOption) error {
@@ -25,7 +25,7 @@ func (app *App) Pull(ctx context.Context, opt PullOption) error {
 	cfg.MustEnvs = app.cfg.MustEnvs
 	cfg.TFState = app.cfg.TFState
 	renderer := NewRenderer(cfg)
-	if err := renderer.CreateDefinitionFile(ctx, defPath, opt.Templatize); err != nil {
+	if err := renderer.CreateDefinitionFile(ctx, defPath, opt.Templateize); err != nil {
 		return fmt.Errorf("failed create state machine definition file: %w", err)
 	}
 	log.Printf("[notice] StateMachine/%s save state machine definition to %s", app.cfg.StateMachineName(), defPath)

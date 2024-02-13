@@ -189,7 +189,7 @@ func (r *Renderer) templateize(ctx context.Context, v any) (any, error) {
 	if r.cfg.Envs.Len() > 0 {
 		data, err = r.templateizeEnvs(data, r.cfg.Envs)
 		if err != nil {
-			return nil, fmt.Errorf("faield to templatize for env: %w", err)
+			return nil, fmt.Errorf("faield to templateize for env: %w", err)
 		}
 	}
 	return data, nil
