@@ -27,9 +27,14 @@ func (app *App) Status(ctx context.Context, opt StatusOption) error {
 	if err != nil {
 		return fmt.Errorf("failed to get rule status: %w", err)
 	}
+	scheduleStatus, err := app.newScheduleStatus(ctx, stateMachineStatus.Arn)
+	if err != nil {
+		return fmt.Errorf("failed to get schedule status: %w", err)
+	}
 	status := &StatusOutput{
-		StateMachine: stateMachineStatus,
-		EventBridge:  rulesStatus,
+		StateMachine:         stateMachineStatus,
+		EventBridge:          rulesStatus,
+		EventBridgeScheduler: scheduleStatus,
 	}
 	switch opt.Format {
 	case "json":
