@@ -54,14 +54,14 @@ func TestDeploy(t *testing.T) {
 					nil,
 				).Times(2)
 				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
-					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
+					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					RuleNames:                []string{},
 				}).Return(
 					stefunny.EventBridgeRules{},
 					nil,
 				).Once()
 				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
-					StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
+					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					ScheduleNames:            []string{},
 				}).Return(
 					stefunny.Schedules{},

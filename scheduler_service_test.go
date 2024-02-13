@@ -78,7 +78,7 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 	svc := stefunny.NewSchedulerService(m)
 	ctx := context.Background()
 	schedules, err := svc.SearchRelatedSchedules(ctx, &stefunny.SearchRelatedSchedulesInput{
-		StateMachineQualifiedARN: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
+		StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
 	})
 	require.NoError(t, err)
 	require.EqualValues(t,

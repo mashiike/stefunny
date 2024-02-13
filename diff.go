@@ -31,9 +31,9 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	var currentRules EventBridgeRules
 	newRules := app.cfg.NewEventBridgeRules()
 	if currentStateMachine != nil {
-		qualified = currentStateMachine.QualifiedARN(app.StateMachineAliasName())
+		qualified = currentStateMachine.QualifiedArn(app.StateMachineAliasName())
 		currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-			StateMachineQualifiedARN: qualified,
+			StateMachineQualifiedArn: qualified,
 			RuleNames:                newRules.Names(),
 		})
 		if err != nil {
@@ -42,7 +42,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	} else {
 		qualified = "[known after deploy]:" + app.StateMachineAliasName()
 	}
-	newRules.SetStateMachineQualifiedARN(qualified)
+	newRules.SetStateMachineQualifiedArn(qualified)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)
@@ -51,14 +51,14 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	newSchedules := app.cfg.NewSchedules()
 	if currentStateMachine != nil {
 		currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-			StateMachineQualifiedARN: qualified,
+			StateMachineQualifiedArn: qualified,
 			ScheduleNames:            newSchedules.Names(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to search related schedules: %w", err)
 		}
 	}
-	newSchedules.SetStateMachineQualifiedARN(qualified)
+	newSchedules.SetStateMachineQualifiedArn(qualified)
 	ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)

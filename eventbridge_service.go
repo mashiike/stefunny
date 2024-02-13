@@ -54,12 +54,12 @@ func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
 }
 
 type SearchRelatedRulesInput struct {
-	StateMachineQualifiedARN string
+	StateMachineQualifiedArn string
 	RuleNames                []string
 }
 
 func (svc *EventBridgeServiceImpl) SearchRelatedRules(ctx context.Context, params *SearchRelatedRulesInput) (EventBridgeRules, error) {
-	stateMachineArn := params.StateMachineQualifiedARN
+	stateMachineArn := params.StateMachineQualifiedArn
 	log.Printf("[debug] call SearchRelatedRules(ctx,%#v)", params)
 	ruleNames, err := svc.searchRelatedRuleNames(ctx, stateMachineArn)
 	if err != nil {
@@ -110,7 +110,7 @@ func (svc *EventBridgeServiceImpl) searchRelatedRuleNames(ctx context.Context, s
 	return ruleNames, nil
 }
 
-func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName string, stateMachineARN string) (*EventBridgeRule, error) {
+func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName string, stateMachineArn string) (*EventBridgeRule, error) {
 	var describeOutput *eventbridge.DescribeRuleOutput
 	var ok bool
 	var err error
@@ -162,13 +162,13 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 	}
 	additional := make([]eventbridgetypes.Target, 0, len(listTargetsOutput.Targets))
 	var target *eventbridgetypes.Target
-	unqualified := removeQualifierFromArn(stateMachineARN)
-	log.Printf("[debug] state machine arn: %s", stateMachineARN)
+	unqualified := removeQualifierFromArn(stateMachineArn)
+	log.Printf("[debug] state machine arn: %s", stateMachineArn)
 	log.Printf("[debug] unqualified arn: %s", unqualified)
 	for i, t := range listTargetsOutput.Targets {
 		currentArn := coalesce(t.Arn)
 		log.Printf("[debug] current target arn: %s", currentArn)
-		if currentArn == stateMachineARN {
+		if currentArn == stateMachineArn {
 			if target != nil {
 				additional = append(additional, t)
 			}
@@ -209,7 +209,7 @@ func (svc *EventBridgeServiceImpl) describeRule(ctx context.Context, ruleName st
 
 func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error {
 	currentRules, err := svc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-		StateMachineQualifiedARN: stateMachineArn,
+		StateMachineQualifiedArn: stateMachineArn,
 		RuleNames:                rules.Names(),
 	})
 	if err != nil {
@@ -218,7 +218,7 @@ func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachine
 	if keepState {
 		rules.SyncState(currentRules)
 	}
-	rules.SetStateMachineQualifiedARN(stateMachineArn)
+	rules.SetStateMachineQualifiedArn(stateMachineArn)
 	plan := sliceDiff(currentRules, rules, func(rule *EventBridgeRule) string {
 		return coalesce(rule.Name)
 	})

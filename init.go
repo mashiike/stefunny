@@ -86,13 +86,13 @@ func (app *App) makeConfig(ctx context.Context, defPath string, skipTrigger bool
 
 func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine) (*TriggerConfig, error) {
 	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
+		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed search related rules: %w", err)
 	}
 	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-		StateMachineQualifiedARN: stateMachine.QualifiedARN(app.StateMachineAliasName()),
+		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed search related schedules: %w", err)

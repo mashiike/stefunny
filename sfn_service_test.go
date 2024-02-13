@@ -1964,7 +1964,7 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 		StateMachineArn: *stateMachine.StateMachineArn,
 		Versions: []stefunny.StateMachineVersionListItem{
 			{
-				StateMachineVersionARN: "arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5",
+				StateMachineVersionArn: "arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5",
 				Version:                5,
 				CreationDate:           time.Date(2021, 1, 5, 0, 0, 0, 0, time.UTC),
 				Aliases:                []string{"current"},
@@ -1972,7 +1972,7 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 				Description:            "test",
 			},
 			{
-				StateMachineVersionARN: "arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4",
+				StateMachineVersionArn: "arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4",
 				Version:                4,
 				CreationDate:           time.Date(2021, 1, 4, 0, 0, 0, 0, time.UTC),
 				RevisionID:             "2",

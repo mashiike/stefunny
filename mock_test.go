@@ -832,8 +832,8 @@ func (m *mockEventBridgeService) SearchRelatedRules(ctx context.Context, params 
 	return nil, err
 }
 
-func (m *mockEventBridgeService) DeployRules(ctx context.Context, stateMachineARN string, rules stefunny.EventBridgeRules, keepState bool) error {
-	args := m.Called(ctx, stateMachineARN, rules, keepState)
+func (m *mockEventBridgeService) DeployRules(ctx context.Context, stateMachineArn string, rules stefunny.EventBridgeRules, keepState bool) error {
+	args := m.Called(ctx, stateMachineArn, rules, keepState)
 	return args.Error(0)
 }
 
@@ -865,8 +865,8 @@ func (m *mockSchedulerService) SearchRelatedSchedules(ctx context.Context, param
 	return nil, err
 }
 
-func (m *mockSchedulerService) DeploySchedules(ctx context.Context, stateMachineARN string, schedules stefunny.Schedules, keepState bool) error {
-	args := m.Called(ctx, stateMachineARN, schedules, keepState)
+func (m *mockSchedulerService) DeploySchedules(ctx context.Context, stateMachineArn string, schedules stefunny.Schedules, keepState bool) error {
+	args := m.Called(ctx, stateMachineArn, schedules, keepState)
 	return args.Error(0)
 }
 

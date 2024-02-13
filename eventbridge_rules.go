@@ -18,7 +18,7 @@ type EventBridgeRule struct {
 	ConfigFilePath    *string                   `yaml:"ConfigFilePath,omitempty" json:"ConfigFilePath,omitempty"`
 }
 
-func (rule *EventBridgeRule) SetStateMachineQualifiedARN(stateMachineArn string) {
+func (rule *EventBridgeRule) SetStateMachineQualifiedArn(stateMachineArn string) {
 	rule.Target.Arn = aws.String(stateMachineArn)
 	if rule.Target.Id == nil {
 		rule.Target.Id = aws.String(fmt.Sprintf("%s-managed-state-machine", appName))
@@ -116,9 +116,9 @@ func (rule *EventBridgeRule) SetEnabled(enabled bool) {
 
 type EventBridgeRules []*EventBridgeRule
 
-func (rules EventBridgeRules) SetStateMachineQualifiedARN(stateMachineArn string) {
+func (rules EventBridgeRules) SetStateMachineQualifiedArn(stateMachineArn string) {
 	for _, rule := range rules {
-		rule.SetStateMachineQualifiedARN(stateMachineArn)
+		rule.SetStateMachineQualifiedArn(stateMachineArn)
 	}
 }
 
