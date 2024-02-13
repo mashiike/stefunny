@@ -25,7 +25,7 @@
     "unified": true
   },
   "pull": {
-    "Templatize": true,
+    "Templateize": true,
     "Qualifier": ""
   },
   "studio": {
