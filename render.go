@@ -50,7 +50,8 @@ func (app *App) Render(ctx context.Context, opt RenderOption) error {
 }
 
 type Renderer struct {
-	cfg *Config
+	cfg                    *Config
+	cachedTFstateResources *OrderdMap[string, string]
 }
 
 func NewRenderer(cfg *Config) *Renderer {
@@ -84,11 +85,11 @@ func (r *Renderer) RenderConfig(ctx context.Context, w io.Writer, format string,
 		}
 		return nil
 	}
-	var buf bytes.Buffer
-	if err := r.render(&buf, format, r.cfg); err != nil {
+	buf := new(bytes.Buffer)
+	if err := r.render(buf, format, r.cfg); err != nil {
 		return fmt.Errorf("failed to render: %w", err)
 	}
-	if err := r.templateize(ctx, w, &buf); err != nil {
+	if err := r.templateize(ctx, w, buf); err != nil {
 		return fmt.Errorf("failed to templateize: %w", err)
 	}
 	return nil
@@ -200,9 +201,14 @@ func (r *Renderer) templateize(ctx context.Context, writer io.Writer, reader io.
 }
 
 func (r *Renderer) templateizeTFState(ctx context.Context, bs []byte, cfg *TFStateConfig) ([]byte, error) {
-	resources, err := ListResourcesFromTFState(ctx, cfg.Location)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list resources from tfstate `%s`: %w", cfg.Location, err)
+	resources := r.cachedTFstateResources
+	if resources == nil {
+		var err error
+		resources, err = ListResourcesFromTFState(ctx, cfg.Location)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list resources from tfstate `%s`: %w", cfg.Location, err)
+		}
+		r.cachedTFstateResources = resources
 	}
 	keys := resources.Keys()
 	for i := len(keys) - 1; i >= 0; i-- {
