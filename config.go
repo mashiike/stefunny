@@ -95,7 +95,7 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 			return fmt.Errorf("failed to read file: %w", err)
 		}
 		if withEnv {
-			b, err = l.renderTemplate(b)
+			b, err = l.renderTemplate(b, filepath.Dir(path))
 			if err != nil {
 				return fmt.Errorf("failed to render template: %w", err)
 			}
@@ -118,7 +118,7 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 		}
 		b := []byte(jsonStr)
 		if withEnv {
-			b, err = l.renderTemplate(b)
+			b, err = l.renderTemplate(b, filepath.Dir(path))
 			if err != nil {
 				return fmt.Errorf("failed to render template: %w", err)
 			}
@@ -175,7 +175,7 @@ func newTemplatefuncMustEnv(mustEnvs *OrderdMap[string, string], missingEnvs map
 	}
 }
 
-func (l *ConfigLoader) renderTemplate(bs []byte) ([]byte, error) {
+func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, error) {
 	funcMap := make(template.FuncMap, len(l.funcMap))
 	for k, v := range l.funcMap {
 		funcMap[k] = v
@@ -196,6 +196,18 @@ func (l *ConfigLoader) renderTemplate(bs []byte) ([]byte, error) {
 				return "", err
 			}
 			return string(bs[1 : len(bs)-1]), nil
+		}
+	}
+	if _, ok := funcMap["file"]; !ok {
+		funcMap["file"] = func(path string) (string, error) {
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(loadingDir, path)
+			}
+			bs, err := os.ReadFile(path)
+			if err != nil {
+				return "", err
+			}
+			return string(bs), nil
 		}
 	}
 	tmpl, err := template.New("config").Funcs(funcMap).Parse(string(bs))
