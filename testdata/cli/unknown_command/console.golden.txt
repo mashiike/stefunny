@@ -31,7 +31,7 @@ Commands:
     Rollback state machine
 
   schedule --enabled --disabled
-    Enable or disable schedule rules
+    Enable or disable schedule rules (deprecated)
 
   render <targets> ...
     Render state machine definition

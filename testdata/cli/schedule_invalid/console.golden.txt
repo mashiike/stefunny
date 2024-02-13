@@ -1,6 +1,6 @@
 Usage: stefunny schedule --enabled --disabled
 
-Enable or disable schedule rules
+Enable or disable schedule rules (deprecated)
 
 Flags:
   -h, --help                      Show context-sensitive help.
