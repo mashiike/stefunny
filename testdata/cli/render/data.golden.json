@@ -34,5 +34,8 @@
   },
   "studio": {
     "Open": false
+  },
+  "status": {
+    "format": "text"
   }
 }

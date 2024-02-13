@@ -183,6 +183,15 @@ func (rules EventBridgeRules) Names() []string {
 	return names
 }
 
+func (rules EventBridgeRules) FindByName(name string) (*EventBridgeRule, bool) {
+	for _, rule := range rules {
+		if coalesce(rule.Name) == name {
+			return rule, true
+		}
+	}
+	return nil, false
+}
+
 // sort.Interfaces
 func (rules EventBridgeRules) Len() int {
 	return len(rules)

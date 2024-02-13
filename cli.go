@@ -36,6 +36,7 @@ type CLI struct {
 	Diff     DiffOption            `cmd:"" help:"Show diff of state machine definition and trigers" json:"diff,omitempty"`
 	Pull     PullOption            `cmd:"" help:"Pull state machine definition" json:"pull,omitempty"`
 	Studio   StudioOption          `cmd:"" help:"Show Step Functions workflow studio URL" json:"studio,omitempty"`
+	Status   StatusOption          `cmd:"" help:"Show status of state machine" json:"status,omitempty"`
 
 	kctx           *kong.Context
 	exitFunc       func(int)
@@ -253,6 +254,8 @@ func (cli *CLI) Run(ctx context.Context, args []string) error {
 		return app.Execute(ctx, cli.Execute)
 	case "studio":
 		return app.Studio(ctx, cli.Studio)
+	case "status":
+		return app.Status(ctx, cli.Status)
 	default:
 		return fmt.Errorf("unknown command: %s", cmd)
 	}

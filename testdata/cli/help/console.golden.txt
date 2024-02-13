@@ -51,4 +51,7 @@ Commands:
   studio
     Show Step Functions workflow studio URL
 
+  status
+    Show status of state machine
+
 Run "stefunny <command> --help" for more information on a command.

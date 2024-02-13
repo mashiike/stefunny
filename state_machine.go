@@ -12,6 +12,7 @@ import (
 type StateMachine struct {
 	sfn.CreateStateMachineInput
 	CreationDate    *time.Time
+	LastUpdateDate  *time.Time
 	StateMachineArn *string
 	Status          sfntypes.StateMachineStatus
 	ConfigFilePath  *string
