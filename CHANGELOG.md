@@ -1,5 +1,24 @@
 # Changelog
 
+## [v0.6.0](https://github.com/mashiike/stefunny/compare/v0.5.0...v0.6.0) - 2024-02-13
+- Feature/fix actionlit by @mashiike in https://github.com/mashiike/stefunny/pull/176
+- change to github.com/alecthomas/kong by @mashiike in https://github.com/mashiike/stefunny/pull/178
+- [Breaking Changes] Configure `state_machine` structure by @mashiike in https://github.com/mashiike/stefunny/pull/179
+- [Bracking Changes] Remake Render command, and allow jsonnet config by @mashiike in https://github.com/mashiike/stefunny/pull/180
+- Feature/refactor aws service by @mashiike in https://github.com/mashiike/stefunny/pull/181
+- v0.6.0 is bridge version for configration format. output warning message by @mashiike in https://github.com/mashiike/stefunny/pull/182
+- Feature: On Deploy, publish version and create/update alias. implement Rollback by @mashiike in https://github.com/mashiike/stefunny/pull/183
+- refactor aws code by @mashiike in https://github.com/mashiike/stefunny/pull/184
+- implement EventBridge Sceduler by @mashiike in https://github.com/mashiike/stefunny/pull/185
+- add `diff` sub command by @mashiike in https://github.com/mashiike/stefunny/pull/186
+- new subcommands `studio` and `pull` by @mashiike in https://github.com/mashiike/stefunny/pull/187
+- Bump github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs from 1.31.0 to 1.32.0 by @dependabot in https://github.com/mashiike/stefunny/pull/189
+- ARN -> Arn by @mashiike in https://github.com/mashiike/stefunny/pull/190
+- Yoshina default config names by @mashiike in https://github.com/mashiike/stefunny/pull/191
+- Bump golang.org/x/term from 0.16.0 to 0.17.0 by @dependabot in https://github.com/mashiike/stefunny/pull/188
+- new subcommand `status`  by @mashiike in https://github.com/mashiike/stefunny/pull/192
+- misc for v0.6.0 Release by @mashiike in https://github.com/mashiike/stefunny/pull/193
+
 ## [v0.5.0](https://github.com/mashiike/stefunny/compare/v0.4.3...v0.5.0) - 2024-02-01
 - refactoring, Render DOT and YAML is deprecated, create Command deprecated by @mashiike in https://github.com/mashiike/stefunny/pull/167
 - delete release actions by @mashiike in https://github.com/mashiike/stefunny/pull/173
