@@ -111,6 +111,11 @@ func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine
 					Strict: true,
 				},
 			}
+			eventsRule.Value.State = ""
+			if eventsRule.Value.Target.RoleArn != nil && eventsRule.Value.PutRuleInput.RoleArn == nil {
+				eventsRule.Value.PutRuleInput.RoleArn = eventsRule.Value.Target.RoleArn
+				eventsRule.Value.Target.RoleArn = nil
+			}
 			if len(rule.AdditionalTargets) > 0 {
 				log.Printf("[debug] StateMachine/%s has additional targets, skip non related target", coalesce(stateMachine.Name))
 			}
@@ -128,6 +133,7 @@ func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine
 					Strict: true,
 				},
 			}
+			scheduleRule.Value.State = ""
 			trigger.Schedule = append(trigger.Schedule, scheduleRule)
 		}
 	}

@@ -159,15 +159,17 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 	log.Println("[debug] config flag", cli.Config)
 	if filepath.Base(cli.Config) == "stefunny.yaml" {
 		dir := filepath.Dir(cli.Config)
-		log.Println("[debug] default config name is used, check other ext")
+		cli.Config = ""
+		log.Println("[debug] default config name is used, check other ext in", dir)
 		for _, name := range defaultConfigNames {
-			if _, err := os.Stat(name); err == nil {
+			path := filepath.Join(dir, name)
+			if _, err := os.Stat(path); err == nil {
 				log.Println("[debug] found config file: ", name)
 				cli.Config = filepath.Join(dir, name)
 				break
 			}
 		}
-		if filepath.Base(cli.Config) == "stefunny.yaml" {
+		if cli.Config == "" {
 			return nil, fmt.Errorf("cannot found default config files [%s]", strings.Join(defaultConfigNames, ", "))
 		}
 	}
