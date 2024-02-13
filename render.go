@@ -2,8 +2,8 @@ package stefunny
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -79,18 +79,16 @@ func (r *Renderer) RenderConfig(ctx context.Context, w io.Writer, format string,
 	defer func() {
 		r.cfg.StateMachine.SetDefinition(def)
 	}()
-	if !template {
-		if err := r.render(w, format, r.cfg); err != nil {
-			return fmt.Errorf("failed to render: %w", err)
+	var v any = r.cfg
+	if template {
+		var err error
+		v, err = r.templateize(ctx, r.cfg)
+		if err != nil {
+			return fmt.Errorf("failed to templateize: %w", err)
 		}
-		return nil
 	}
-	buf := new(bytes.Buffer)
-	if err := r.render(buf, format, r.cfg); err != nil {
+	if err := r.render(w, format, v); err != nil {
 		return fmt.Errorf("failed to render: %w", err)
-	}
-	if err := r.templateize(ctx, w, buf); err != nil {
-		return fmt.Errorf("failed to templateize: %w", err)
 	}
 	return nil
 }
@@ -110,18 +108,16 @@ func (r *Renderer) CreateDefinitionFile(ctx context.Context, path string, templa
 
 func (r *Renderer) RenderStateMachine(ctx context.Context, w io.Writer, format string, template bool) error {
 	def := JSONRawMessage(r.cfg.StateMachineDefinition())
-	if !template {
-		if err := r.render(w, format, def); err != nil {
-			return fmt.Errorf("failed to render: %w", err)
+	var v any = def
+	if template {
+		var err error
+		v, err = r.templateize(ctx, def)
+		if err != nil {
+			return fmt.Errorf("failed to templateize: %w", err)
 		}
-		return nil
 	}
-	var buf bytes.Buffer
-	if err := r.render(&buf, format, def); err != nil {
+	if err := r.render(w, format, v); err != nil {
 		return fmt.Errorf("failed to render: %w", err)
-	}
-	if err := r.templateize(ctx, w, &buf); err != nil {
-		return fmt.Errorf("failed to templateize: %w", err)
 	}
 	return nil
 }
@@ -168,39 +164,37 @@ func (r *Renderer) render(w io.Writer, format string, v any) error {
 	}
 }
 
-func (r *Renderer) templateize(ctx context.Context, writer io.Writer, reader io.Reader) error {
-	bs, err := io.ReadAll(reader)
+func (r *Renderer) templateize(ctx context.Context, v any) (any, error) {
+	bs, err := json.Marshal(v)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to marshal: %w", err)
+	}
+	var data any
+	if err := json.Unmarshal(bs, &data); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal: %w", err)
 	}
 	for _, tfstateCfg := range r.cfg.TFState {
-		bs, err = r.templateizeTFState(ctx, bs, tfstateCfg)
+		data, err = r.templateizeTFState(ctx, data, tfstateCfg)
 		if err != nil {
-			return fmt.Errorf("failed to templateize for tfstate `%s`: %w", tfstateCfg.Location, err)
+			return nil, fmt.Errorf("failed to templateize for tfstate `%s`: %w", tfstateCfg.Location, err)
 		}
 	}
 	if r.cfg.MustEnvs.Len() > 0 {
-		bs, err = r.templateizeMustEnvs(bs, r.cfg.MustEnvs)
+		data, err = r.templateizeMustEnvs(data, r.cfg.MustEnvs)
 		if err != nil {
-			return fmt.Errorf("failed to templateize for must_env: %w", err)
+			return nil, fmt.Errorf("failed to templateize for must_env: %w", err)
 		}
 	}
 	if r.cfg.Envs.Len() > 0 {
-		bs, err = r.templateizeEnvs(bs, r.cfg.Envs)
+		data, err = r.templateizeEnvs(data, r.cfg.Envs)
 		if err != nil {
-			return fmt.Errorf("faield to templatize for env: %w", err)
+			return nil, fmt.Errorf("faield to templatize for env: %w", err)
 		}
 	}
-	_, err = writer.Write(bs)
-	if err != nil {
-		return fmt.Errorf("failed to write: %w", err)
-	}
-	io.WriteString(writer, "\n")
-
-	return nil
+	return data, nil
 }
 
-func (r *Renderer) templateizeTFState(ctx context.Context, bs []byte, cfg *TFStateConfig) ([]byte, error) {
+func (r *Renderer) templateizeTFState(ctx context.Context, data any, cfg *TFStateConfig) (any, error) {
 	resources := r.cachedTFstateResources
 	if resources == nil {
 		var err error
@@ -217,12 +211,12 @@ func (r *Renderer) templateizeTFState(ctx context.Context, bs []byte, cfg *TFSta
 		if !ok {
 			continue
 		}
-		bs = bytes.ReplaceAll(bs, []byte(value), []byte(fmt.Sprintf("{{ %stfstate `%s` }}", cfg.FuncPrefix, key)))
+		data = walkStringReplaceAll(data, value, fmt.Sprintf("{{ tfstate `%s` }}", key))
 	}
-	return bs, nil
+	return data, nil
 }
 
-func (r *Renderer) templateizeMustEnvs(bs []byte, envs *OrderdMap[string, string]) ([]byte, error) {
+func (r *Renderer) templateizeMustEnvs(data any, envs *OrderdMap[string, string]) (any, error) {
 	keys := envs.Keys()
 	for i := len(keys) - 1; i >= 0; i-- {
 		key := keys[i]
@@ -230,12 +224,12 @@ func (r *Renderer) templateizeMustEnvs(bs []byte, envs *OrderdMap[string, string
 		if !ok {
 			continue
 		}
-		bs = bytes.ReplaceAll(bs, []byte(value), []byte(fmt.Sprintf("{{ must_env `%s` }}", key)))
+		data = walkStringReplaceAll(data, value, fmt.Sprintf("{{ must_env `%s` }}", key))
 	}
-	return bs, nil
+	return data, nil
 }
 
-func (r *Renderer) templateizeEnvs(bs []byte, envs *OrderdMap[string, string]) ([]byte, error) {
+func (r *Renderer) templateizeEnvs(data any, envs *OrderdMap[string, string]) (any, error) {
 	keys := envs.Keys()
 	for i := len(keys) - 1; i >= 0; i-- {
 		key := keys[i]
@@ -251,7 +245,26 @@ func (r *Renderer) templateizeEnvs(bs []byte, envs *OrderdMap[string, string]) (
 		for i, arg := range args {
 			fields[i] = "`" + arg + "`"
 		}
-		bs = bytes.ReplaceAll(bs, []byte(value), []byte(fmt.Sprintf("{{ env %s }}", strings.Join(fields, " "))))
+		data = walkStringReplaceAll(data, value, fmt.Sprintf("{{ env %s }}", strings.Join(fields, " ")))
 	}
-	return bs, nil
+	return data, nil
+}
+
+func walkStringReplaceAll(v any, from, to string) any {
+	switch x := v.(type) {
+	case string:
+		return strings.ReplaceAll(x, from, to)
+	case map[string]interface{}:
+		for k, vv := range x {
+			x[k] = walkStringReplaceAll(vv, from, to)
+		}
+		return x
+	case []interface{}:
+		for i, vv := range x {
+			x[i] = walkStringReplaceAll(vv, from, to)
+		}
+		return x
+	default:
+		return v
+	}
 }
