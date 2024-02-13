@@ -155,7 +155,7 @@ func (r *Renderer) render(w io.Writer, format string, v any) error {
 		_, err = w.Write(bs)
 		return err
 	case "yaml":
-		enc := yaml.NewEncoder(w, yaml.UseJSONMarshaler())
+		enc := yaml.NewEncoder(w, yaml.UseJSONMarshaler(), yaml.IndentSequence(true))
 		if err := enc.Encode(v); err != nil {
 			return err
 		}
