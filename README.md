@@ -5,14 +5,16 @@
 [![Go Report Card](https://goreportcard.com/badge/mashiike/stefunny)](https://goreportcard.com/report/mashiike/stefunny)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/mashiike/stefunny/blob/master/LICENSE)
 
-stefunny is a deployment tool for [AWS StepFunctions](https://aws.amazon.com/step-functions/) state machine and the accompanying [AWS EventBridge](https://aws.amazon.com/eventbridge/) rule.
+stefunny is a deployment tool for [AWS StepFunctions](https://aws.amazon.com/step-functions/) state machine and the accompanying [AWS EventBridge](https://aws.amazon.com/eventbridge/) rule and scheudle.
 
 stefunny does,
 
 - Create a state machine.
-- Create a scheduled rule.
-- Update state machine definition / configuration / tags 
-- Update a scheduled rule.
+- Create a EventBridge rule and EventBridge Scheduler schedule.
+- Deploy state machine/ EventBridge rule / EventBridge Scheduler schedule/ StateMachine Alias.
+- Rollback to the previous version of the state machine.
+- Manage state machine versions.
+- Show status of the state machine.
 
 That's all for now.
 
@@ -38,69 +40,203 @@ If you hope to manage these resources **partially individually**, we recommend t
 $ brew install mashiike/tap/stefunny
 ```
 
+### aqua
+
+[aqua](https://aquaproj.github.io/) is a declarative CLI Version Manager.
+
+```console
+$ aqua g -i mashiike/stefunny
+```
+
 ### Binary packages
 
 [Releases](https://github.com/mashiike/stefunny/releases)
 
+### GitHub Actions
+
+Action mashiike/stefunny@v0 installs stefunny binary for Linux into /usr/local/bin. This action runs install only.
+
+```yml
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mashiike/stefunny@v0
+        with:
+          version: v0.6.0 
+      - run: |
+          stefunny deploy
+```
+ 
+## QuickStart 
+Try migrate your existing StepFunctions StateMachine to stefunny.
+
+```console
+$ mkdir hello
+$ cd hello
+$ stefunny init --state-machine Hello     
+2024/02/13 16:07:53 [notice] StateMachine/Hello save config to /home/user/hello/stefunny.yaml
+2024/02/13 16:07:53 [notice] StateMachine/Hello save state machine definition to /home/user/hello/definition.asl.json
+```
+
+Edit the definition.asl.json and stefunny.yaml.
+
+Now you can deploy state machine `Hello` using `stefunny deploy`.
+
+```console
+$ stefunny deploy
+2024/02/13 16:18:42 [info] Starting deploy 
+2024/02/13 16:18:42 [info] update state machine `arn:aws:states:ap-northeast-1:123456789012:stateMachine:Hello:2`
+2024/02/13 16:18:42 [info] update current alias `arn:aws:states:ap-northeast-1:123456789012:stateMachine:Hello:current`
+2024/02/13 16:18:42 [info] deploy state machine `Hello`(at `2024-02-13 07:17:48.178 +0000 UTC`)
+2024/02/13 16:18:43 [info] finish deploy 
+```
+
 ## Usage
 
 ```console
-NAME:
-   stefunny - A command line tool for deployment StepFunctions and EventBridge
+Usage: stefunny <command>
 
-USAGE:
-   stefunny [global options] command [command options] [arguments...]
+stefunny is a deployment tool for AWS StepFunctions state machine
 
-COMMANDS:
-   create    create StepFunctions StateMachine.
-   delete    delete StepFunctions StateMachine.
-   deploy    deploy StepFunctions StateMachine and Event Bridge Rule.
-   execute   execute state machine
-   init      Initialize stefunny from an existing StateMachine
-   render    render state machine definition(the Amazon States Language) as a dot file
-   schedule  schedule Bridge Rule without deploy StepFunctions StateMachine.
-   version   show version info.
-   help, h   Shows a list of commands or help for one command
+Flags:
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
 
-GLOBAL OPTIONS:
-   --config FILE, -c FILE  Load configuration from FILE (default: config.yaml) [$STEFUNNY_CONFIG]
-   --log-level value       Set log level (debug, info, notice, warn, error) (default: info) [$STEFUNNY_LOG_LEVEL]
-   --tfstate value         URL to terraform.tfstate referenced in config [$STEFUNNY_TFSTATE]
-   --help, -h              show help (default: false)
+Commands:
+  version
+    Show version
+
+  init --state-machine=STRING
+    Initialize stefunny configuration
+
+  delete
+    Delete state machine and schedule rules
+
+  deploy
+    Deploy state machine and schedule rules
+
+  rollback
+    Rollback state machine
+
+  schedule --enabled --disabled
+    Enable or disable schedule rules (deprecated)
+
+  render <targets> ...
+    Render state machine definition
+
+  execute
+    Execute state machine
+
+  versions
+    Manage state machine versions
+
+  diff
+    Show diff of state machine definition and trigers
+
+  pull
+    Pull state machine definition
+
+  studio
+    Show Step Functions workflow studio URL
+
+  status
+    Show status of state machine
+
+Run "stefunny <command> --help" for more information on a command.
 ```
 
-## Quick Start
+### Init 
 
-stefunny can easily manage for your existing StepFunctions StateMachine by codes.
-
-Try `stefunny init` for your StepFunctions StateMachine with option `--state-machine`.
+`stepfunny init` initialize stefunny.yaml and definition file by existing state machine.
 
 ```console
-stefunny init --region ap-northeast-1 --config config.yaml --state-machine HelloWorld 
-2021/11/23 18:08:00 [notice] StateMachine/HelloWorld save state machine definition to definition.jsonnet
-2021/11/23 18:08:00 [notice] StateMachine/HelloWorld save config to config.yaml
+Usage: stefunny init --state-machine=STRING
+
+Initialize stefunny configuration
+
+Flags:
+  -h, --help                                Show context-sensitive help.
+      --log-level="info"                    Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"              Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING                      URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...                        external string values for Jsonnet
+      --ext-code=,...                       external code values for Jsonnet
+      --region=""                           AWS region ($AWS_REGION)
+      --alias="current"                     Alias name for state machine ($STEFUNNY_ALIAS)
+
+      --state-machine=STRING                AWS StepFunctions state machine name ($STATE_MACHINE_NAME)
+  -d, --definition="definition.asl.json"    Path to state machine definition file ($DEFINITION_FILE_PATH)
+      --env=ENV,...                         templateize environment variables
+      --must-env=MUST-ENV,...               templateize must environment variables
+      --skip-trigger                        Skip trigger
 ```
-**If you want to manage StateMachine definition in other formats**, use the `--definition` option and specify the definition file. The default is jsonnet format, but you can use json format (.json) and yaml format (.yaml, .yml)
 
-Let me see the generated files config.yaml, and definition.jsonnet.
+created file foramt are checked file extension. `.json` saved as json, `.jsonnet` saved as jsonnet, `.yaml` or `.yml` saved as yaml.
 
-And then, you already can deploy the service by stefunny!
+If you manage the aws resources by terraform, you can use `--tfstate` flag with `stefunny init` command.
 
 ```console
-$ stefunny deploy --config config.yaml
+$ export ENV=dev
+$ stefunny init --state-machine dev-Hello --tfstate s3://my-bucket/terraform.tfstate --must-env ENV
+```
+in this case, saved config and definition file are templatized by `text/template` 
+
+for example, the saved config file is like this.
+
+```yaml
+aws_region: ap-northeast-1
+required_version: ">=v0.6.0"
+state_machine:
+  definition: definition.asl.json
+  logging_configuration:
+    destinations:
+    - cloudwatch_logs_log_group:
+        log_group_arn: "{{ tfstate `aws_cloudwatch_log_group.state_machine.arn` }}:*"
+    include_execution_data: true
+    level: ALL
+  name: "{{ must_env `ENV` }}-Hello"
+  role_arn: "{{ tfstate `aws_iam_role.state_machine.arn` }}"
+  tags:
+  - key: Name
+    value: "{{ must_env `ENV` }}-Hello"
+  tracing_configuration:
+    enabled: true
+  type: STANDARD
 ```
 
 ### Deploy
 
 ```console
-NAME:
-   stefunny deploy - deploy StepFunctions StateMachine and Event Bridge Rule.
+Usage: stefunny deploy
 
-USAGE:
-   stefunny deploy [command options] [arguments...]
+Deploy state machine and schedule rules
 
-OPTIONS:
-   --dry-run  dry run (default: false)
+Flags:
+  -h, --help                          Show context-sensitive help.
+      --log-level="info"              Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"        Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING                URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...                  external string values for Jsonnet
+      --ext-code=,...                 external code values for Jsonnet
+      --region=""                     AWS region ($AWS_REGION)
+      --alias="current"               Alias name for state machine ($STEFUNNY_ALIAS)
+
+      --dry-run                       Dry run
+      --skip-state-machine            Skip deploy state machine
+      --skip-trigger                  Skip deploy trigger
+      --version-description=STRING    Version description
+      --keep-versions=0               Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)
+      --trigger-enabled               Enable trigger
+      --trigger-disabled              Disable trigger
+      --[no-]unified                  when dry run, output unified diff
 ```
 stefunny deploy works as below.
 
@@ -109,73 +245,135 @@ stefunny deploy works as below.
     If "FOO" is not defined, replaced by "bar"
   - Replace {{ must_env `FOO` }} syntax in the config file and definition file to environment variable "FOO".
     If "FOO" is not defined, abort immediately.
-  - If a terraform state is given in --tfstate, replace the {{tfstate `<tf resource name>`}} syntax in the config file and definition file with reference to the state content.
+  - If a terraform state is given in config, replace the {{tfstate `<tf resource name>`}} syntax in the config file and definition file with reference to the state content.
+- Publish new version of the state machine.
+- Update the alias to the new version.
 - Create/ Update EventBridge rule.
+- Create/ Update EventBridge Scheduler schedule.
 
-### Schedule Enabled/Disabled
-
-```console
-NAME:
-   stefunny schedule - schedule Bridge Rule without deploy StepFunctions StateMachine.
-
-USAGE:
-   stefunny schedule [command options] [arguments...]
-
-OPTIONS:
-   --dry-run   dry run (default: false)
-   --enabled   set schedule rule enabled (default: false)
-   --disabled  set schedule rule disabled (default: false)
-```
+### Rollback 
 
 ```console
-$ stefunny -config config.yaml schedule --disabled
+Usage: stefunny rollback
+
+Rollback state machine
+
+Flags:
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+
+      --dry-run                   Dry run
+      --keep-version              Keep current version, no delete
 ```
 
-Update the rules in EventBridge to disable the state. This is done without updating the state machine.
+`stefunny deploy` create/update alias `current` to the published state machine version on deploy.
 
-### Render 
+`stefunny rollback` works as below.
+
+1. Find previous one version of state machine.
+2. Update alias `current` to the previous version.
+3. default delete old version of state machine. (when `--keep-version` specified, not delete old version of state machine)
+
+### Studio and Pull 
+
+If you use AWS Step Functions Workflow Studio, you can open the studio URL with `stefunny studio` command.
 
 ```console
-NAME:
-   stefunny render - render state machine definition(the Amazon States Language) as a dot file
+Usage: stefunny studio
 
-USAGE:
-   stefunny render [arguments...]
+Show Step Functions workflow studio URL
+
+Flags:
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+
+      --open                      open workflow studio
 ```
+
+`stefunny studio` command shows the studio URL. If `--open` flag is specified, open the studio URL in the browser.
+Edit state machine on Workflow Studio, and pull the definition file with `stefunny pull` command.
 
 ```console
-$ stefunny -config config.yaml render hello_world.dot
+Usage: stefunny pull
+
+Pull state machine definition
+
+Flags:
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+
+      --[no-]templateize          templateize output
+      --qualifier=STRING          qualifier for the version
 ```
 
-The Render command reads the definition file, interprets the ASL and renders the State relationship into a DOT file.
+`stefunny pull` command pull the definition file from the state machine and save it to the file.
 
 ### config file (yaml)
 
 ```yaml
-required_version: ">v0.0.0"
+required_version: ">=v0.6.0"
+aws_region: "{{ env `AWS_REGION` `ap-northeast-1` }}"
 
 state_machine:
-  name: hello_world
-  definition: hello_world.asl.jsonnet
-  role_arn: "{{ tfstae `aws_iam_role.stepfunctions.arn` }}"
+  name: "{{ must_env `ENV` }}-Hello"
+  definition: definition.asl.json
   logging_configuration:
-    level: ALL
     destinations:
-      - cloudwatch_log_group:
-          log_group_arn: "{{ must_env `LOG_GROUP_ARN` }}"
+      - cloudwatch_logs_log_group:
+          log_group_arn: "{{ tfstate `aws_cloudwatch_log_group.state_machine.arn` }}:*"
+    include_execution_data: true
+    level: ALL
 
-tags:
-  env: "{{ must_env `ENV` }}" 
+  role_arn: "{{ tfstate `aws_iam_role.state_machine.arn` }}"
+  tracing_configuration:
+    enabled: true
+  type: STANDARD
 
 tfstate:
-  - path: "./terraform.tfstate"
+  - location: s3://my-tfstate-bucket/terraform.tfstate
 
-schedule:
-  expression: rate(1 hour)
-  role_arn: "{{ tfstae `aws_iam_role.eventbridge.arn` }}"
+trigger:
+  schedule:
+    - name: "{{ must_env `ENV` }}-stefunny-test"
+      group_name: default
+      action_after_completion: DELETE
+      flexible_time_window:
+        maximum_window_in_minutes: 240.0
+        mode: FLEXIBLE
+      schedule_expression: at(2024-02-29T00:01:00)
+      target:
+        retry_policy:
+          maximum_event_age_in_seconds: 86400.0
+          maximum_retry_attempts: 185.0
+        role_arn: "{{ tfstate `aws_iam_role.event_bridge_scheduler.arn` }}"
+
+  event:
+    - name: "{{ must_env `ENV` }}-stefunny-test"
+      event_bus_name: default
+      event_pattern: "{{ file `event_pattern.json` | json_escape }}"
+      role_arn: "{{ tfstate `aws_iam_role.event_bridge.arn` }}"
+
 ```
 
-Configuration files and definition files are read with `text/template`, stefunny has template functions env, must_env, json_escape and tfstate.
+Configuration files and definition files are read with `text/template`, stefunny has template functions env, must_env, file, json_escape and tfstate.
 
 
 ### Template syntax
@@ -207,6 +405,12 @@ By defining values that can cause issues when running without meaningful values 
 ```
 
 It escapes values as JSON strings. Use it when you want to escape values that need to be embedded as strings and require escaping, like quotes.
+
+#### `file`
+
+```
+"{{ file `path/to/file` }}"
+```
 
 #### `tfstate`
 
