@@ -7,25 +7,25 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
+	"github.com/goccy/go-yaml"
 	"github.com/mashiike/stefunny"
 	"github.com/sebdah/goldie/v2"
 	"github.com/stretchr/testify/require"
-	"gopkg.in/yaml.v3"
 )
 
-func TestYAML2JSON(t *testing.T) {
+func TestYAMLToJSON(t *testing.T) {
 	LoggerSetup(t, "debug")
 	yamlASL := LoadString(t, "testdata/hello_world.asl.yaml")
 	jsonASL := LoadString(t, "testdata/hello_world.asl.json")
-	bs, err := stefunny.YAML2JSON([]byte(yamlASL))
+	bs, err := yaml.YAMLToJSON([]byte(yamlASL))
 	require.NoError(t, err)
 	require.JSONEq(t, jsonASL, string(bs))
 }
 
-func TestJSON2YAML(t *testing.T) {
+func TestJSONToYAML(t *testing.T) {
 	yamlASL := LoadString(t, "testdata/hello_world.asl.yaml")
 	jsonASL := LoadString(t, "testdata/hello_world.asl.json")
-	bs, err := stefunny.JSON2YAML([]byte(jsonASL))
+	bs, err := yaml.JSONToYAML([]byte(jsonASL))
 	require.NoError(t, err)
 	require.YAMLEq(t, yamlASL, string(bs))
 }
@@ -56,7 +56,7 @@ logging_configuration:
         log_group_arn: "arn:aws:logs:ap-northeast-1:123456789012:log-group:test:*"
 `
 	var obj stefunny.KeysToSnakeCase[sfn.CreateStateMachineInput]
-	err := yaml.Unmarshal([]byte(yamlStr), &obj)
+	err := yaml.UnmarshalWithOptions([]byte(yamlStr), &obj, yaml.UseJSONUnmarshaler())
 	require.NoError(t, err)
 	expected := sfn.CreateStateMachineInput{
 		Name:       aws.String("test"),
@@ -79,12 +79,12 @@ logging_configuration:
 		expected,
 		obj.Value,
 	)
-	actualYAML, err := yaml.Marshal(stefunny.NewKeysToSnakeCase(expected))
+	actualYAML, err := yaml.MarshalWithOptions(stefunny.NewKeysToSnakeCase(expected), yaml.UseJSONMarshaler())
 	require.NoError(t, err)
 	t.Log(string(actualYAML))
 	require.YAMLEq(t, yamlStr, string(actualYAML))
 
-	jsonBs, err := stefunny.YAML2JSON([]byte(yamlStr))
+	jsonBs, err := yaml.YAMLToJSON([]byte(yamlStr))
 	require.NoError(t, err)
 	t.Log(string(jsonBs))
 	var obj2 stefunny.KeysToSnakeCase[sfn.CreateStateMachineInput]

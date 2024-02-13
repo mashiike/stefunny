@@ -3,7 +3,6 @@ package stefunny
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -15,32 +14,7 @@ import (
 	"github.com/hexops/gotextdiff/span"
 	"github.com/kylelemons/godebug/diff"
 	"github.com/serenize/snaker"
-	"gopkg.in/yaml.v3"
 )
-
-func YAML2JSON(data []byte) ([]byte, error) {
-	var temp map[string]interface{}
-	if err := yaml.Unmarshal(data, &temp); err != nil {
-		return nil, err
-	}
-	m, err := convertKeyString(temp)
-	if err != nil {
-		return nil, err
-	}
-	bs, err := json.Marshal(m)
-	if err != nil {
-		return nil, err
-	}
-	return bs, nil
-}
-
-func JSON2YAML(data []byte) ([]byte, error) {
-	var temp map[string]interface{}
-	if err := json.Unmarshal(data, &temp); err != nil {
-		return nil, err
-	}
-	return yaml.Marshal(temp)
-}
 
 func JSON2Jsonnet(filename string, data []byte) ([]byte, error) {
 	formattted, err := formatter.Format(filename, string(data), formatter.DefaultOptions())
@@ -48,36 +22,6 @@ func JSON2Jsonnet(filename string, data []byte) ([]byte, error) {
 		return data, err
 	}
 	return []byte(formattted), nil
-}
-
-func convertKeyString(v interface{}) (interface{}, error) {
-	switch cv := v.(type) {
-	case map[string]interface{}:
-		ret := make(map[string]interface{}, len(cv))
-		for key, value := range cv {
-			var err error
-			ret[key], err = convertKeyString(value)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return ret, nil
-	case map[interface{}]interface{}:
-		ret := make(map[string]interface{}, len(cv))
-		for key, value := range cv {
-			skey, ok := key.(string)
-			if !ok {
-				return errors.New("can not convert key string"), nil
-			}
-			var err error
-			ret[skey], err = convertKeyString(value)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return ret, nil
-	}
-	return v, nil
 }
 
 func toDiffString(s1 string) string {
@@ -314,34 +258,6 @@ func CamelToSnake(s string) string {
 	return str
 }
 
-func (k *KeysToSnakeCase[T]) UnmarshalYAML(value *yaml.Node) error {
-	if value.Kind != yaml.MappingNode {
-		return fmt.Errorf("KeysToSnakeCase[T] must be mapping node")
-	}
-	var data map[string]any
-	if err := value.Decode(&data); err != nil {
-		return err
-	}
-	if data == nil {
-		data = map[string]any{}
-	}
-	if err := walkMap(data, SnakeToCamel); err != nil {
-		return fmt.Errorf("failed to moddify mapping node: %w", err)
-	}
-	bs, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	dec := json.NewDecoder(bytes.NewReader(bs))
-	if k.Strict {
-		dec.DisallowUnknownFields()
-	}
-	if err := dec.Decode(&k.Value); err != nil {
-		return fmt.Errorf("snake to camel decode failed: %w", err)
-	}
-	return nil
-}
-
 func (k *KeysToSnakeCase[T]) UnmarshalJSON(bs []byte) error {
 	var data map[string]any
 	if err := json.Unmarshal(bs, &data); err != nil {
@@ -433,45 +349,5 @@ func walkSlilce(data []any, keyModifier func(string) string) error {
 			continue
 		}
 	}
-	return nil
-}
-
-type JSONRawMessage json.RawMessage
-
-func (j *JSONRawMessage) UnmarshalYAML(value *yaml.Node) error {
-	var data any
-	if err := value.Decode(&data); err != nil {
-		return fmt.Errorf("failed to decode yaml node: %w", err)
-	}
-	m, err := convertKeyString(data)
-	if err != nil {
-		return fmt.Errorf("failed to convert key string: %w", err)
-	}
-	bs, err := json.Marshal(m)
-	if err != nil {
-		return fmt.Errorf("failed to marshal json: %w", err)
-	}
-	*j = JSONRawMessage(bs)
-	return nil
-}
-
-func (j JSONRawMessage) MarshalYAML() (interface{}, error) {
-	bs, err := JSON2YAML(j)
-	if err != nil {
-		return nil, err
-	}
-	return string(bs), nil
-}
-
-func (j JSONRawMessage) MarshalJSON() ([]byte, error) {
-	return j, nil
-}
-
-func (j *JSONRawMessage) UnmarshalJSON(bs []byte) error {
-	var raw json.RawMessage
-	if err := json.Unmarshal(bs, &raw); err != nil {
-		return fmt.Errorf("failed to unmarshal json: %w", err)
-	}
-	*j = JSONRawMessage(raw)
 	return nil
 }

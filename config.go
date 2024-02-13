@@ -26,9 +26,9 @@ import (
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/fujiwara/tfstate-lookup/tfstate"
+	"github.com/goccy/go-yaml"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -100,10 +100,13 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 				return fmt.Errorf("failed to render template: %w", err)
 			}
 		}
-		dec := yaml.NewDecoder(bytes.NewReader(b))
-		if strict {
-			dec.KnownFields(true)
+		decoderOpts := []yaml.DecodeOption{
+			yaml.UseJSONUnmarshaler(),
 		}
+		if strict {
+			decoderOpts = append(decoderOpts, yaml.DisallowUnknownField())
+		}
+		dec := yaml.NewDecoder(bytes.NewReader(b), decoderOpts...)
 		if err := dec.Decode(v); err != nil {
 			return err
 		}
@@ -245,7 +248,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 		return nil, errors.New("state_machine.definition is required")
 	}
 	// cfg.StateMachine.Definition written definition file path
-	var definition JSONRawMessage
+	var definition json.RawMessage
 	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.DefinitionPath))
 	log.Println("[debug] definition path =", definitionPath)
 	if err := l.load(definitionPath, false, true, &definition); err != nil {
@@ -435,21 +438,6 @@ type StateMachineLoggingDestination struct {
 	LogGroup string `yaml:"log_group,omitempty" json:"log_group,omitempty"`
 }
 
-func (cfg *StateMachineConfig) UnmarshalYAML(node *yaml.Node) error {
-	var data map[string]interface{}
-	if err := node.Decode(&data); err != nil {
-		return err
-	}
-	bs, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(bs, cfg); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (cfg *StateMachineConfig) UnmarshalJSON(b []byte) error {
 	var data map[string]json.RawMessage
 	if err := json.Unmarshal(b, &data); err != nil {
@@ -579,14 +567,6 @@ func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
 	return nil
 }
 
-func (cfg *TriggerEventConfig) UnmarshalYAML(node *yaml.Node) error {
-	cfg.Strict = true
-	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (cfg *TriggerEventConfig) UnmarshalJSON(b []byte) error {
 	cfg.Strict = true
 	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
@@ -608,14 +588,6 @@ func (cfg *TriggerScheduleConfig) Restrict(i int, stateMachineName string) error
 	}
 	if coalesce(cfg.Value.Target.Arn) != "" {
 		return errors.New("target.arn is not allowed")
-	}
-	return nil
-}
-
-func (cfg *TriggerScheduleConfig) UnmarshalYAML(node *yaml.Node) error {
-	cfg.Strict = true
-	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
-		return err
 	}
 	return nil
 }

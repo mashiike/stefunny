@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 type RenderOption struct {
@@ -45,6 +45,7 @@ func (app *App) Render(ctx context.Context, opt RenderOption) error {
 		default:
 			return fmt.Errorf("unknown target: %s", target)
 		}
+		out.WriteRune('\n')
 	}
 	return nil
 }
@@ -107,7 +108,7 @@ func (r *Renderer) CreateDefinitionFile(ctx context.Context, path string, templa
 }
 
 func (r *Renderer) RenderStateMachine(ctx context.Context, w io.Writer, format string, template bool) error {
-	def := JSONRawMessage(r.cfg.StateMachineDefinition())
+	def := json.RawMessage(r.cfg.StateMachineDefinition())
 	var v any = def
 	if template {
 		var err error
@@ -154,7 +155,7 @@ func (r *Renderer) render(w io.Writer, format string, v any) error {
 		_, err = w.Write(bs)
 		return err
 	case "yaml":
-		enc := yaml.NewEncoder(w)
+		enc := yaml.NewEncoder(w, yaml.UseJSONMarshaler())
 		if err := enc.Encode(v); err != nil {
 			return err
 		}
