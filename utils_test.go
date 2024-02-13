@@ -2,15 +2,15 @@ package stefunny_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
-	gc "github.com/kayac/go-config"
 	"github.com/mashiike/stefunny"
 )
 
 func LoadString(t *testing.T, path string) string {
 	t.Helper()
-	bs, err := gc.ReadWithEnv(path)
+	bs, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}

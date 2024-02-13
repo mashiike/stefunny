@@ -8,5 +8,12 @@
   "render": {},
   "execute": {},
   "versions": {},
-  "diff": {}
+  "diff": {},
+  "pull": {
+    "Templateize": false,
+    "Qualifier": ""
+  },
+  "studio": {
+    "Open": false
+  }
 }

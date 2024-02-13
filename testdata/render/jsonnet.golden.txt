@@ -1,6 +1,4 @@
 {
-  ConfigDir: 'testdata',
-  ConfigFileName: 'stefunny.yaml',
   aws_region: 'us-east-1',
   required_version: '>v0.0.0',
   state_machine: {
@@ -21,6 +19,7 @@
     type: 'STANDARD',
   },
 }
+
 {
   Comment: 'A Hello World example of the Amazon States Language using Pass states',
   StartAt: 'Hello',
@@ -36,3 +35,4 @@
     },
   },
 }
+

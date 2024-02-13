@@ -26,10 +26,9 @@ import (
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/fujiwara/tfstate-lookup/tfstate"
+	"github.com/goccy/go-yaml"
 	jsonnet "github.com/google/go-jsonnet"
 	gv "github.com/hashicorp/go-version"
-	gc "github.com/kayac/go-config"
-	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -43,8 +42,9 @@ type CloudWatchLogsClient interface {
 	cloudwatchlogs.DescribeLogGroupsAPIClient
 }
 type ConfigLoader struct {
-	loader       *gc.Loader
 	funcMap      template.FuncMap
+	envs         *OrderdMap[string, string]
+	mustEnvs     *OrderdMap[string, string]
 	vm           *jsonnet.VM
 	cwLogsClient CloudWatchLogsClient
 }
@@ -58,7 +58,6 @@ func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 		vm.ExtCode(k, v)
 	}
 	return &ConfigLoader{
-		loader:  gc.New(),
 		funcMap: make(template.FuncMap),
 		vm:      vm,
 	}
@@ -77,16 +76,13 @@ func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState
 }
 
 func (l *ConfigLoader) AppendFuncMap(prefix string, funcMap template.FuncMap) error {
-	appendTarget := make(template.FuncMap, len(funcMap))
 	for k, v := range funcMap {
 		modifiedKey := prefix + k
 		if _, ok := l.funcMap[modifiedKey]; ok {
 			return fmt.Errorf("funcMap key %s already exists", modifiedKey)
 		}
 		l.funcMap[modifiedKey] = v
-		appendTarget[modifiedKey] = v
 	}
-	l.loader.Funcs(appendTarget)
 	return nil
 }
 
@@ -94,21 +90,23 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	ext := filepath.Ext(path)
 	switch ext {
 	case yamlExt, ymlExt:
-		var b []byte
-		var err error
-		if withEnv {
-			b, err = l.loader.ReadWithEnv(path)
-		} else {
-			b, err = os.ReadFile(path)
-		}
+		b, err := os.ReadFile(path)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to read file: %w", err)
 		}
-
-		dec := yaml.NewDecoder(bytes.NewReader(b))
+		if withEnv {
+			b, err = l.renderTemplate(b)
+			if err != nil {
+				return fmt.Errorf("failed to render template: %w", err)
+			}
+		}
+		decoderOpts := []yaml.DecodeOption{
+			yaml.UseJSONUnmarshaler(),
+		}
 		if strict {
-			dec.KnownFields(true)
+			decoderOpts = append(decoderOpts, yaml.DisallowUnknownField())
 		}
+		dec := yaml.NewDecoder(bytes.NewReader(b), decoderOpts...)
 		if err := dec.Decode(v); err != nil {
 			return err
 		}
@@ -120,9 +118,9 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 		}
 		b := []byte(jsonStr)
 		if withEnv {
-			b, err = l.loader.ReadWithEnvBytes([]byte(jsonStr))
+			b, err = l.renderTemplate(b)
 			if err != nil {
-				return fmt.Errorf("failed to read template file: %w", err)
+				return fmt.Errorf("failed to render template: %w", err)
 			}
 		}
 		dec := json.NewDecoder(bytes.NewReader(b))
@@ -138,6 +136,85 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 	}
 }
 
+func newTemplateFuncEnv(envs *OrderdMap[string, string]) func(string, ...string) string {
+	return func(key string, args ...string) string {
+		keys := make([]string, 1, len(args))
+		keys[0] = key
+		var defaultValue string
+		if len(args) > 0 {
+			// last is default value
+			keys = append(keys, args[:len(args)-1]...)
+			defaultValue = args[len(args)-1]
+		}
+		envArgs := key + "," + strings.Join(args, ",")
+		for _, k := range keys {
+			if v := os.Getenv(k); v != "" {
+				envs.Set(envArgs, v)
+				return v
+			}
+		}
+		envs.Set(envArgs, defaultValue)
+		return defaultValue
+	}
+}
+
+func newTemplatefuncMustEnv(mustEnvs *OrderdMap[string, string], missingEnvs map[string]struct{}) func(string) string {
+	if mustEnvs == nil {
+		mustEnvs = NewOrderdMap[string, string]()
+	}
+	if missingEnvs == nil {
+		missingEnvs = make(map[string]struct{})
+	}
+	return func(key string) string {
+		if v, ok := os.LookupEnv(key); ok {
+			mustEnvs.Set(key, v)
+			return v
+		}
+		missingEnvs[key] = struct{}{}
+		return ""
+	}
+}
+
+func (l *ConfigLoader) renderTemplate(bs []byte) ([]byte, error) {
+	funcMap := make(template.FuncMap, len(l.funcMap))
+	for k, v := range l.funcMap {
+		funcMap[k] = v
+	}
+	l.envs = NewOrderdMap[string, string]()
+	l.mustEnvs = NewOrderdMap[string, string]()
+	missingEnvs := make(map[string]struct{}, 0)
+	if _, ok := funcMap["env"]; !ok {
+		funcMap["env"] = newTemplateFuncEnv(l.envs)
+	}
+	if _, ok := funcMap["must_env"]; !ok {
+		funcMap["must_env"] = newTemplatefuncMustEnv(l.mustEnvs, missingEnvs)
+	}
+	if _, ok := funcMap["json_escape"]; !ok {
+		funcMap["json_escape"] = func(v string) (string, error) {
+			bs, err := json.Marshal(v)
+			if err != nil {
+				return "", err
+			}
+			return string(bs[1 : len(bs)-1]), nil
+		}
+	}
+	tmpl, err := template.New("config").Funcs(funcMap).Parse(string(bs))
+	if err != nil {
+		return nil, fmt.Errorf("template parse error: %w", err)
+	}
+	buf := new(bytes.Buffer)
+	if err := tmpl.Execute(buf, nil); err != nil {
+		return nil, fmt.Errorf("template execute error: %w", err)
+	}
+	if len(missingEnvs) > 0 {
+		for k := range missingEnvs {
+			log.Printf("[warn] environment variable `%s` is not defined", k)
+		}
+		return nil, fmt.Errorf("missing %d environment variables", len(missingEnvs))
+	}
+	return buf.Bytes(), nil
+}
+
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
 	if err := l.setConfigPath(cfg, path); err != nil {
@@ -151,11 +228,13 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	}
 	cfg.StateMachine.Strict = true
 	if err := l.load(path, true, true, cfg); err != nil {
-		return nil, fmt.Errorf("load config `%s`: %w", path, err)
+		return nil, fmt.Errorf("load config: %w", err)
 	}
 	if err := l.migrationForDeprecatedFields(ctx, cfg); err != nil {
 		return nil, fmt.Errorf("migration for deprecated fields: %w", err)
 	}
+	cfg.Envs = l.envs
+	cfg.MustEnvs = l.mustEnvs
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -169,7 +248,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 		return nil, errors.New("state_machine.definition is required")
 	}
 	// cfg.StateMachine.Definition written definition file path
-	var definition JSONRawMessage
+	var definition json.RawMessage
 	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.DefinitionPath))
 	log.Println("[debug] definition path =", definitionPath)
 	if err := l.load(definitionPath, false, true, &definition); err != nil {
@@ -215,27 +294,16 @@ func (l *ConfigLoader) setConfigPath(cfg *Config, path string) error {
 // pre load for tfstate path read
 func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config, path string) error {
 	if err := l.load(path, false, false, cfg); err != nil {
-		return fmt.Errorf("load config `%s`: %w", path, err)
+		return err
 	}
 	for i, tfstate := range cfg.TFState {
-		var loc string
-		if tfstate.URL != "" {
-			u, err := url.Parse(tfstate.URL)
-			if err != nil {
-				return fmt.Errorf("tfstate[%d].url parse error: %w", i, err)
-			}
-			if u.Scheme == "" {
-				tfstate.Path = tfstate.URL
-			}
+		if tfstate.Location == "" {
+			return fmt.Errorf("tfstate[%d].location is required", i)
 		}
-		if tfstate.Path != "" {
-			loc = tfstate.Path
-			if !filepath.IsAbs(loc) {
-				loc = filepath.Join(filepath.Dir(path), loc)
-			}
-		}
-		if loc == "" {
-			return fmt.Errorf("tfstate[%d].path or tfstate[%d].url is required", i, i)
+		loc := tfstate.Location
+		u, err := url.Parse(loc)
+		if err != nil || (u != nil && u.Scheme == "") {
+			loc = filepath.Join(filepath.Dir(path), loc)
 		}
 		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
 			return fmt.Errorf("tfstate[%d] %w", i, err)
@@ -337,8 +405,10 @@ type Config struct {
 
 	TFState []*TFStateConfig `yaml:"tfstate,omitempty" json:"tfstate,omitempty"`
 
-	ConfigDir      string `yaml:"-"`
-	ConfigFileName string `yaml:"-"`
+	ConfigDir      string                     `yaml:"-" json:"-"`
+	ConfigFileName string                     `yaml:"-" json:"-"`
+	Envs           *OrderdMap[string, string] `yaml:"-" json:"-"`
+	MustEnvs       *OrderdMap[string, string] `yaml:"-" json:"-"`
 	//private field
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
@@ -347,8 +417,7 @@ type Config struct {
 
 type TFStateConfig struct {
 	FuncPrefix string `yaml:"func_prefix,omitempty" json:"func_prefix,omitempty"`
-	Path       string `yaml:"path,omitempty" json:"path,omitempty"`
-	URL        string `yaml:"url,omitempty" json:"url,omitempty"`
+	Location   string `yaml:"location,omitempty" json:"location,omitempty"`
 }
 
 type StateMachineConfig struct {
@@ -367,21 +436,6 @@ type StateMachineLogging struct {
 
 type StateMachineLoggingDestination struct {
 	LogGroup string `yaml:"log_group,omitempty" json:"log_group,omitempty"`
-}
-
-func (cfg *StateMachineConfig) UnmarshalYAML(node *yaml.Node) error {
-	var data map[string]interface{}
-	if err := node.Decode(&data); err != nil {
-		return err
-	}
-	bs, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-	if err := json.Unmarshal(bs, cfg); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (cfg *StateMachineConfig) UnmarshalJSON(b []byte) error {
@@ -513,14 +567,6 @@ func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
 	return nil
 }
 
-func (cfg *TriggerEventConfig) UnmarshalYAML(node *yaml.Node) error {
-	cfg.Strict = true
-	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (cfg *TriggerEventConfig) UnmarshalJSON(b []byte) error {
 	cfg.Strict = true
 	if err := json.Unmarshal(b, &cfg.KeysToSnakeCase); err != nil {
@@ -542,14 +588,6 @@ func (cfg *TriggerScheduleConfig) Restrict(i int, stateMachineName string) error
 	}
 	if coalesce(cfg.Value.Target.Arn) != "" {
 		return errors.New("target.arn is not allowed")
-	}
-	return nil
-}
-
-func (cfg *TriggerScheduleConfig) UnmarshalYAML(node *yaml.Node) error {
-	cfg.Strict = true
-	if err := node.Decode(&cfg.KeysToSnakeCase); err != nil {
-		return err
 	}
 	return nil
 }
@@ -798,7 +836,9 @@ func NewDefaultConfig() *Config {
 				},
 			}),
 		},
-		Tags: make(map[string]string),
+		Tags:     make(map[string]string),
+		Envs:     NewOrderdMap[string, string](),
+		MustEnvs: NewOrderdMap[string, string](),
 	}
 }
 

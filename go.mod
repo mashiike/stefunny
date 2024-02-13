@@ -16,11 +16,11 @@ require (
 	github.com/fatih/color v1.16.0
 	github.com/fujiwara/logutils v1.1.2
 	github.com/fujiwara/tfstate-lookup v1.1.6
+	github.com/goccy/go-yaml v1.11.3
 	github.com/google/go-jsonnet v0.20.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-version v1.6.0
 	github.com/hexops/gotextdiff v1.0.3
-	github.com/kayac/go-config v0.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/motemen/go-testutil v0.0.0-20231019055648-af6add1c10c8
 	github.com/olekukonko/tablewriter v0.0.5
@@ -29,7 +29,6 @@ require (
 	github.com/shogo82148/go-retry v1.2.0
 	github.com/stretchr/testify v1.8.4
 	golang.org/x/term v0.16.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -51,7 +50,6 @@ require (
 	github.com/Azure/go-autorest/logger v0.2.1 // indirect
 	github.com/Azure/go-autorest/tracing v0.6.0 // indirect
 	github.com/AzureAD/microsoft-authentication-library-for-go v1.2.1 // indirect
-	github.com/BurntSushi/toml v1.3.2 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.5.4 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.16.16 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.14.11 // indirect
@@ -113,6 +111,7 @@ require (
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
+	golang.org/x/xerrors v0.0.0-20231012003039-104605ab7028 // indirect
 	google.golang.org/api v0.161.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240125205218-1f4bbc51befe // indirect
@@ -121,6 +120,6 @@ require (
 	google.golang.org/grpc v1.61.0 // indirect
 	google.golang.org/protobuf v1.32.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )

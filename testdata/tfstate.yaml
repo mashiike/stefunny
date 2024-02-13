@@ -12,6 +12,6 @@ state_machine:
 
 
 tfstate:
-  - path: ./terraform.tfstate
-  - url: ./terraform.tfstate
+  - location: ./terraform.tfstate
+  - location: ./terraform.tfstate
     func_prefix: second_

@@ -2,7 +2,7 @@
   "required_version": "\u003ev0.0.0",
   "aws_region": "us-east-1",
   "state_machine": {
-    "definition": "{\"Comment\":\"A Hello World example of the Amazon States Language using Pass states\",\"StartAt\":\"Hello\",\"States\":{\"Hello\":{\"Next\":\"World\",\"Type\":\"Pass\"},\"World\":{\"End\":true,\"Result\":\"World\",\"Type\":\"Pass\"}}}",
+    "definition": "{\"Comment\": \"A Hello World example of the Amazon States Language using Pass states\", \"StartAt\": \"Hello\", \"States\": {\"Hello\": {\"Type\": \"Pass\", \"Next\": \"World\"}, \"World\": {\"Type\": \"Pass\", \"Result\": \"World\", \"End\": true}}}",
     "logging_configuration": {
       "destinations": [
         {
@@ -17,7 +17,5 @@
     "role_arn": "arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role",
     "tracing_configuration": {},
     "type": "STANDARD"
-  },
-  "ConfigDir": "testdata",
-  "ConfigFileName": "yaml_def.yaml"
+  }
 }

@@ -29,7 +29,5 @@
         "target": {}
       }
     ]
-  },
-  "ConfigDir": "testdata",
-  "ConfigFileName": "old_config.yaml"
+  }
 }

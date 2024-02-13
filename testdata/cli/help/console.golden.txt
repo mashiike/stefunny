@@ -45,4 +45,10 @@ Commands:
   diff
     Show diff of state machine definition and trigers
 
+  pull
+    Pull state machine definition
+
+  studio
+    Show Step Functions workflow studio URL
+
 Run "stefunny <command> --help" for more information on a command.

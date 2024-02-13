@@ -20,13 +20,11 @@
   },
   "tfstate": [
     {
-      "path": "./terraform.tfstate"
+      "location": "./terraform.tfstate"
     },
     {
       "func_prefix": "second_",
-      "url": "./terraform.tfstate"
+      "location": "./terraform.tfstate"
     }
-  ],
-  "ConfigDir": "testdata",
-  "ConfigFileName": "tfstate.yaml"
+  ]
 }
