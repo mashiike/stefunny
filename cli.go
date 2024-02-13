@@ -29,7 +29,7 @@ type CLI struct {
 	Delete   DeleteOption          `cmd:"" help:"Delete state machine and schedule rules" json:"delete,omitempty"`
 	Deploy   DeployCommandOption   `cmd:"" help:"Deploy state machine and schedule rules" json:"deploy,omitempty"`
 	Rollback RollbackOption        `cmd:"" help:"Rollback state machine" json:"rollback,omitempty"`
-	Schedule ScheduleCommandOption `cmd:"" help:"Enable or disable schedule rules" json:"schedule,omitempty"`
+	Schedule ScheduleCommandOption `cmd:"" help:"Enable or disable schedule rules (deprecated)" json:"schedule,omitempty"`
 	Render   RenderOption          `cmd:"" help:"Render state machine definition" json:"render,omitempty"`
 	Execute  ExecuteOption         `cmd:"" help:"Execute state machine" json:"execute,omitempty"`
 	Versions VersionsOption        `cmd:"" help:"Manage state machine versions" json:"versions,omitempty"`
