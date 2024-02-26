@@ -308,6 +308,17 @@ func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config,
 	if err := l.load(path, false, false, cfg); err != nil {
 		return err
 	}
+	bs, err := json.Marshal(cfg.TFState)
+	if err != nil {
+		return fmt.Errorf("tfstate marshal:%w", err)
+	}
+	bs, err = l.renderTemplate(bs, filepath.Dir(path))
+	if err != nil {
+		return fmt.Errorf("render template:%w", err)
+	}
+	if err := json.Unmarshal(bs, &cfg.TFState); err != nil {
+		return fmt.Errorf("tfstate unmarshal:%w", err)
+	}
 	for i, tfstate := range cfg.TFState {
 		if tfstate.Location == "" {
 			return fmt.Errorf("tfstate[%d].location is required", i)
