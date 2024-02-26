@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.7.0
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.24.7
 	github.com/aws/aws-sdk-go-v2/service/sts v1.26.7
-	github.com/aws/smithy-go v1.20.0
+	github.com/aws/smithy-go v1.20.1
 	github.com/fatih/color v1.16.0
 	github.com/fujiwara/logutils v1.1.2
 	github.com/fujiwara/tfstate-lookup v1.1.6
