@@ -134,7 +134,7 @@ func (svc *SFnServiceImpl) DescribeStateMachine(ctx context.Context, params *Des
 		return nil, err
 	}
 	tagsOutput, err := svc.client.ListTagsForResource(ctx, &sfn.ListTagsForResourceInput{
-		ResourceArn: &qualified,
+		ResourceArn: aws.String(removeQualifierFromArn(qualified)),
 	})
 	if err != nil {
 		return nil, err
