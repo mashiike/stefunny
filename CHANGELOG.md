@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.7.4](https://github.com/mashiike/stefunny/compare/v0.7.3...v0.7.4) - 2024-03-07
+- state machine version no have tags by @mashiike in https://github.com/mashiike/stefunny/pull/217
+- if diff set --qualifier but current not exits latest exists, get arn … by @mashiike in https://github.com/mashiike/stefunny/pull/219
+- if empty string diff, no warn by @mashiike in https://github.com/mashiike/stefunny/pull/220
+
 ## [v0.7.3](https://github.com/mashiike/stefunny/compare/v0.7.2...v0.7.3) - 2024-03-07
 - no diff managed by tags by @mashiike in https://github.com/mashiike/stefunny/pull/214
 - if alias not exists return ErrStateMachineDooesNotExists by @mashiike in https://github.com/mashiike/stefunny/pull/216
