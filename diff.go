@@ -43,6 +43,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		qualified = "[known after deploy]:" + app.StateMachineAliasName()
 	}
 	newRules.SetStateMachineQualifiedArn(qualified)
+	newRules.SyncState(currentRules)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)
@@ -59,6 +60,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		}
 	}
 	newSchedules.SetStateMachineQualifiedArn(qualified)
+	newSchedules.SyncState(currentSchedules)
 	ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)
