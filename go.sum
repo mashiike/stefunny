@@ -68,12 +68,12 @@ github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.2 h1:EtOU5jsPdIQNP+6Q2C5
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.6.2/go.mod h1:tyF5sKccmDz0Bv4NrstEr+/9YkSPJHrcO7UsUKf7pWM=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.7.3 h1:n3GDfwqF2tzEkXlv5cuy4iy7LpKDtqDMcNLfZDu9rls=
 github.com/aws/aws-sdk-go-v2/internal/ini v1.7.3/go.mod h1:6fQQgfuGmw8Al/3M2IgIllycxV7ZW7WCdVSqfBeUiCY=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.10 h1:5oE2WzJE56/mVveuDZPJESKlg/00AaS2pY2QZcnxg4M=
-github.com/aws/aws-sdk-go-v2/internal/v4a v1.2.10/go.mod h1:FHbKWQtRBYUz4vO5WBWjzMD2by126ny5y/1EoaWoLfI=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.2 h1:en92G0Z7xlksoOylkUhuBSfJgijC7rHVLRdnIlHEs0E=
+github.com/aws/aws-sdk-go-v2/internal/v4a v1.3.2/go.mod h1:HgtQ/wN5G+8QSlK62lbOtNwQ3wTSByJ4wH2rCkPt+AE=
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0 h1:VdKYfVPIDzmfSQk5gOQ5uueKiuKMkJuB/KOXmQ9Ytag=
 github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0/go.mod h1:jZNaJEtn9TLi3pfxycLz79HVkKxP8ZdYm92iaNFgBsA=
-github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1 h1:QuaDYFCaTBbyoD1mkAwPOt5igmKdpXZzFRKXoX7jgys=
-github.com/aws/aws-sdk-go-v2/service/eventbridge v1.28.1/go.mod h1:fUy8DLlKtIvkd4+fRQ187edZJnscgAmtOaaai4xRsAM=
+github.com/aws/aws-sdk-go-v2/service/eventbridge v1.30.1 h1:X/6OGGXcTXxn3O2xF/ooH9AjXagY2hVx2SsoV2U8N90=
+github.com/aws/aws-sdk-go-v2/service/eventbridge v1.30.1/go.mod h1:n3zC4bEGdZFXVAtnonfOGPAQtJ8fTQeG2g/IuUEJKeU=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4 h1:/b31bi3YVNlkzkBrm9LfpaKoaYZUxIAj4sHfOTmLfqw=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.10.4/go.mod h1:2aGXHFmbInwgP9ZfpmdIfOELL79zhdNYNmReK8qDfdQ=
 github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.2.10 h1:L0ai8WICYHozIKK+OtPzVJBugL7culcuM4E4JOpIEm8=
