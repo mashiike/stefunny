@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.7.1](https://github.com/mashiike/stefunny/compare/v0.7.0...v0.7.1) - 2024-03-07
+- event bridge put rule RoleARN is duplicated info by @mashiike in https://github.com/mashiike/stefunny/pull/208
+
 ## [v0.7.0](https://github.com/mashiike/stefunny/compare/v0.6.0...v0.7.0) - 2024-03-07
 - template rendring with env, tfstate section by @mashiike in https://github.com/mashiike/stefunny/pull/199
 - Bump github.com/aws/aws-sdk-go-v2/service/scheduler from 1.6.6 to 1.7.0 by @dependabot in https://github.com/mashiike/stefunny/pull/198
