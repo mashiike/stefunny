@@ -14,6 +14,7 @@ type DiffOption struct {
 
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	newStateMachine := app.cfg.NewStateMachine()
+	var stateMachineArn string
 	currentStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name:      app.cfg.StateMachineName(),
 		Qualifier: opt.Qualifier,
@@ -22,6 +23,22 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
 			return fmt.Errorf("failed to describe current state machine status: %w", err)
 		}
+		if opt.Qualifier != "" {
+			latestStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+				Name: app.cfg.StateMachineName(),
+			})
+			if err != nil {
+				if !errors.Is(err, ErrStateMachineDoesNotExist) {
+					return fmt.Errorf("failed to describe latest state machine status: %w", err)
+				}
+			}
+			stateMachineArn = latestStateMachine.QualifiedArn(app.StateMachineAliasName())
+		}
+	} else {
+		stateMachineArn = currentStateMachine.QualifiedArn(app.StateMachineAliasName())
+	}
+	if stateMachineArn == "" {
+		stateMachineArn = "[known after deploy]:" + app.StateMachineAliasName()
 	}
 	newStateMachine.AppendTags(map[string]string{
 		tagManagedBy: appName,
@@ -30,25 +47,21 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	if ds != "" {
 		fmt.Println(ds)
 	}
-	var qualified string
 	var currentRules EventBridgeRules
 	newRules := app.cfg.NewEventBridgeRules()
 	if currentStateMachine != nil {
-		qualified = currentStateMachine.QualifiedArn(app.StateMachineAliasName())
 		currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-			StateMachineQualifiedArn: qualified,
+			StateMachineQualifiedArn: stateMachineArn,
 			RuleNames:                newRules.Names(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to search related rules: %w", err)
 		}
-	} else {
-		qualified = "[known after deploy]:" + app.StateMachineAliasName()
 	}
 	newRules.AppendTags(map[string]string{
 		tagManagedBy: appName,
 	})
-	newRules.SetStateMachineQualifiedArn(qualified)
+	newRules.SetStateMachineQualifiedArn(stateMachineArn)
 	newRules.SyncState(currentRules)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
 	if ds != "" {
@@ -58,14 +71,14 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	newSchedules := app.cfg.NewSchedules()
 	if currentStateMachine != nil {
 		currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-			StateMachineQualifiedArn: qualified,
+			StateMachineQualifiedArn: stateMachineArn,
 			ScheduleNames:            newSchedules.Names(),
 		})
 		if err != nil {
 			return fmt.Errorf("failed to search related schedules: %w", err)
 		}
 	}
-	newSchedules.SetStateMachineQualifiedArn(qualified)
+	newSchedules.SetStateMachineQualifiedArn(stateMachineArn)
 	newSchedules.SyncState(currentSchedules)
 	ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
 	if ds != "" {
