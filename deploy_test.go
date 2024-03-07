@@ -219,8 +219,9 @@ func TestDeploy(t *testing.T) {
 										},
 									},
 									Target: eventbridgetypes.Target{
-										Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test"),
-										Id:  aws.String("stefunny-managed-state-machine"),
+										Arn:     aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test"),
+										Id:      aws.String("stefunny-managed-state-machine"),
+										RoleArn: aws.String("arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role"),
 									},
 								},
 							}, input)
@@ -295,8 +296,9 @@ func TestDeploy(t *testing.T) {
 										},
 									},
 									Target: eventbridgetypes.Target{
-										Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test"),
-										Id:  aws.String("stefunny-managed-state-machine"),
+										Arn:     aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test"),
+										Id:      aws.String("stefunny-managed-state-machine"),
+										RoleArn: aws.String("arn:aws:iam::012345678901:role/service-role/Eventbridge-Hello-role"),
 									},
 								},
 							}, input)
