@@ -3,16 +3,12 @@ package stefunny_test
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
-	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
 	"github.com/aws/aws-sdk-go-v2/service/scheduler"
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
-	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -629,48 +625,6 @@ func (m *mockSchdulerClient) UpdateSchedule(ctx context.Context, params *schedul
 		return nil, errors.New("mock data is not *scheduler.UpdateScheduleOutput")
 	}
 	return nil, err
-}
-
-func newListStateMachinesOutput() *sfn.ListStateMachinesOutput {
-	return &sfn.ListStateMachinesOutput{
-		StateMachines: []sfntypes.StateMachineListItem{
-			newStateMachineListItem("Hello"),
-			newStateMachineListItem("Scheduled"),
-		},
-	}
-}
-
-func newDescribeStateMachineOutput(name string, deleting bool) *sfn.DescribeStateMachineOutput {
-	status := sfntypes.StateMachineStatusActive
-	if deleting {
-		status = sfntypes.StateMachineStatusDeleting
-	}
-	return &sfn.DescribeStateMachineOutput{
-		CreationDate:    aws.Time(time.Date(2021, 10, 1, 2, 3, 4, 5, time.UTC)),
-		StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:%s", name)),
-		Definition:      aws.String(""),
-		Status:          status,
-		Type:            sfntypes.StateMachineTypeStandard,
-		RoleArn:         aws.String(fmt.Sprintf("arn:aws:iam::123456789012:role/service-role/StepFunctions-%s-role", name)),
-		LoggingConfiguration: &sfntypes.LoggingConfiguration{
-			Level: sfntypes.LogLevelOff,
-		},
-		TracingConfiguration: &sfntypes.TracingConfiguration{
-			Enabled: false,
-		},
-	}
-}
-
-func newStateMachineListItem(name string) sfntypes.StateMachineListItem {
-	return sfntypes.StateMachineListItem{
-		CreationDate:    aws.Time(time.Date(2021, 10, 1, 2, 3, 4, 5, time.UTC)),
-		Name:            aws.String(name),
-		StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:%s", name)),
-	}
-}
-
-func newDescribeRuleOutput(name string) *eventbridge.DescribeRuleOutput {
-	return &eventbridge.DescribeRuleOutput{}
 }
 
 func NewMockSFnClient(t *testing.T) *mockSFnClient {
