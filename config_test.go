@@ -22,12 +22,22 @@ func TestConfigLoadValid(t *testing.T) {
 		expectedDef string
 		extStr      map[string]string
 		extCode     map[string]string
+		envs        map[string]string
 		setupLoader func(t *testing.T, l *stefunny.ConfigLoader)
 	}{
 		{
 			casename:    "default_config",
 			path:        "testdata/stefunny.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
+			casename:    "env_def",
+			path:        "testdata/env_def.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+			envs: map[string]string{
+				"START_AT": "Hello",
+				"MSG":      "Hello",
+			},
 		},
 		{
 			casename:    "yaml_config_with_jsonnet_def",
@@ -96,6 +106,9 @@ func TestConfigLoadValid(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
 			LoggerSetup(t, "debug")
+			for k, v := range c.envs {
+				t.Setenv(k, v)
+			}
 			t.Log("test location:", dataloc.L(c.casename))
 			l := stefunny.NewConfigLoader(c.extStr, c.extCode)
 			if c.setupLoader != nil {

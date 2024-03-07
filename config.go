@@ -138,7 +138,7 @@ func (l *ConfigLoader) load(path string, strict bool, withEnv bool, v any) error
 
 func newTemplateFuncEnv(envs *OrderdMap[string, string]) func(string, ...string) string {
 	return func(key string, args ...string) string {
-		keys := make([]string, 1, len(args))
+		keys := make([]string, 1, len(args)+1)
 		keys[0] = key
 		var defaultValue string
 		if len(args) > 0 {
