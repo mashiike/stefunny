@@ -77,15 +77,22 @@ func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
 	for _, opt := range opts {
 		opt(&params)
 	}
-	var fromBuf, toBuf bytes.Buffer
-	if err := json.Indent(&fromBuf, []byte(toDiffString(fromStr)), "", "  "); err != nil {
-		log.Println("[warn] failed to indent json", err)
+	fromStr = toDiffString(fromStr)
+	if fromStr != "" {
+		var fromBuf bytes.Buffer
+		if err := json.Indent(&fromBuf, []byte(fromStr), "", "  "); err != nil {
+			log.Println("[warn] failed to indent json", err)
+		}
+		fromStr = fromBuf.String()
 	}
-	if err := json.Indent(&toBuf, []byte(toDiffString(toStr)), "", "  "); err != nil {
-		log.Println("[warn] failed to indent json", err)
+	toStr = toDiffString(toStr)
+	if toStr != "" {
+		var toBuf bytes.Buffer
+		if err := json.Indent(&toBuf, []byte(toStr), "", "  "); err != nil {
+			log.Println("[warn] failed to indent json", err)
+		}
+		toStr = toBuf.String()
 	}
-	fromStr = fromBuf.String()
-	toStr = toBuf.String()
 	if strings.EqualFold(fromStr, "null") || strings.EqualFold(fromStr, "null\n") {
 		fromStr = ""
 	} else {
