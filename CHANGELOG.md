@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.7.0](https://github.com/mashiike/stefunny/compare/v0.6.0...v0.7.0) - 2024-03-07
+- template rendring with env, tfstate section by @mashiike in https://github.com/mashiike/stefunny/pull/199
+- Bump github.com/aws/aws-sdk-go-v2/service/scheduler from 1.6.6 to 1.7.0 by @dependabot in https://github.com/mashiike/stefunny/pull/198
+- Bump github.com/aws/smithy-go from 1.19.0 to 1.20.0 by @dependabot in https://github.com/mashiike/stefunny/pull/194
+- Bump github.com/aws/aws-sdk-go-v2/service/sfn from 1.24.7 to 1.26.1 by @dependabot in https://github.com/mashiike/stefunny/pull/201
+- Bump github.com/aws/aws-sdk-go-v2/service/eventbridge from 1.28.1 to 1.30.1 by @dependabot in https://github.com/mashiike/stefunny/pull/203
+- Bump github.com/aws/aws-sdk-go-v2 from 1.25.0 to 1.25.2 by @dependabot in https://github.com/mashiike/stefunny/pull/204
+- Bump github.com/aws/aws-sdk-go-v2/config from 1.26.6 to 1.27.6 by @dependabot in https://github.com/mashiike/stefunny/pull/207
+
 ## [v0.6.0](https://github.com/mashiike/stefunny/compare/v0.5.0...v0.6.0) - 2024-02-13
 - Feature/fix actionlit by @mashiike in https://github.com/mashiike/stefunny/pull/176
 - change to github.com/alecthomas/kong by @mashiike in https://github.com/mashiike/stefunny/pull/178
