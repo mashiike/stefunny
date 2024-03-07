@@ -571,7 +571,7 @@ func (cfg *TriggerConfig) Restrict(stateMachineName string) error {
 func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
 	cfg.Value.PutRuleInput.RoleArn = ptr(coalesce(cfg.Value.PutRuleInput.RoleArn, cfg.Value.Target.RoleArn))
 	cfg.Value.Target.RoleArn = nil
-	if coalesce(cfg.Value.PutRuleInput.RoleArn) == "" {
+	if coalesce(cfg.Value.PutRuleInput.RoleArn) == "" && coalesce(cfg.Value.Target.RoleArn) == "" {
 		return errors.New("role_arn is required")
 	}
 	if coalesce(cfg.Value.PutRuleInput.Name) == "" {
@@ -691,6 +691,12 @@ func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
 			PutRuleInput:   e.Value.PutRuleInput,
 			Target:         e.Value.Target,
 			ConfigFilePath: aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
+		}
+		if rule.Target.RoleArn == nil && e.Value.RoleArn != nil {
+			rule.Target.RoleArn = e.Value.RoleArn
+		}
+		if rule.RoleArn == nil && e.Value.Target.RoleArn != nil {
+			rule.RoleArn = e.Value.Target.RoleArn
 		}
 		rule.AppendTags(tags)
 		rules = append(rules, rule)

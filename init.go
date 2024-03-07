@@ -112,9 +112,12 @@ func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine
 				},
 			}
 			eventsRule.Value.State = ""
-			if eventsRule.Value.Target.RoleArn != nil && eventsRule.Value.PutRuleInput.RoleArn == nil {
-				eventsRule.Value.PutRuleInput.RoleArn = eventsRule.Value.Target.RoleArn
-				eventsRule.Value.Target.RoleArn = nil
+			if eventsRule.Value.Target.RoleArn == nil && eventsRule.Value.RoleArn != nil {
+				eventsRule.Value.Target.RoleArn = eventsRule.Value.RoleArn
+				eventsRule.Value.RoleArn = nil
+			}
+			if coalesce(eventsRule.Value.Target.RoleArn) == coalesce(eventsRule.Value.RoleArn) {
+				eventsRule.Value.RoleArn = nil
 			}
 			if len(rule.AdditionalTargets) > 0 {
 				log.Printf("[debug] StateMachine/%s has additional targets, skip non related target", coalesce(stateMachine.Name))
