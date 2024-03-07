@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.7.3](https://github.com/mashiike/stefunny/compare/v0.7.2...v0.7.3) - 2024-03-07
+- no diff managed by tags by @mashiike in https://github.com/mashiike/stefunny/pull/214
+- if alias not exists return ErrStateMachineDooesNotExists by @mashiike in https://github.com/mashiike/stefunny/pull/216
+
 ## [v0.7.2](https://github.com/mashiike/stefunny/compare/v0.7.1...v0.7.2) - 2024-03-07
 - fix test by @mashiike in https://github.com/mashiike/stefunny/pull/211
 - Feature/fix env template func by @mashiike in https://github.com/mashiike/stefunny/pull/213
