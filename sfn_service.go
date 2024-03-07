@@ -334,7 +334,7 @@ func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine 
 	return nil
 }
 
-func (svc *SFnServiceImpl) waitForLastUpdateStatusActive(ctx context.Context, stateMachine *StateMachine, optFns ...func(*sfn.Options)) error {
+func (svc *SFnServiceImpl) waitForLastUpdateStatusActive(ctx context.Context, stateMachine *StateMachine) error {
 	retrier := svc.retryPolicy.Start(ctx)
 	for retrier.Continue() {
 		output, err := svc.client.DescribeStateMachine(ctx, &sfn.DescribeStateMachineInput{
