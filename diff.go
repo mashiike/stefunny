@@ -23,6 +23,9 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 			return fmt.Errorf("failed to describe current state machine status: %w", err)
 		}
 	}
+	newStateMachine.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
 	ds := strings.TrimSpace(currentStateMachine.DiffString(newStateMachine, opt.Unified))
 	if ds != "" {
 		fmt.Println(ds)
@@ -42,6 +45,9 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	} else {
 		qualified = "[known after deploy]:" + app.StateMachineAliasName()
 	}
+	newRules.AppendTags(map[string]string{
+		tagManagedBy: appName,
+	})
 	newRules.SetStateMachineQualifiedArn(qualified)
 	newRules.SyncState(currentRules)
 	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))

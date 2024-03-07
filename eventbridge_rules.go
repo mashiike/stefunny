@@ -122,6 +122,12 @@ func (rules EventBridgeRules) SetStateMachineQualifiedArn(stateMachineArn string
 	}
 }
 
+func (rules EventBridgeRules) AppendTags(tags map[string]string) {
+	for _, rule := range rules {
+		rule.AppendTags(tags)
+	}
+}
+
 func (rules EventBridgeRules) String() string {
 	var builder strings.Builder
 	for _, rule := range rules {
