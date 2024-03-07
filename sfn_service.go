@@ -274,7 +274,11 @@ func (svc *SFnServiceImpl) describeStateMachineAlias(ctx context.Context, aliasA
 		StateMachineAliasArn: aws.String(aliasArn),
 	})
 	if err != nil {
-		return nil, err
+		var notExists *sfntypes.ResourceNotFound
+		if !errors.As(err, &notExists) {
+			return nil, err
+		}
+		return nil, ErrStateMachineDoesNotExist
 	}
 	svc.cacheStateMachineAliasByAliasArn[aliasArn] = alias
 	return alias, nil
@@ -299,7 +303,7 @@ func (svc *SFnServiceImpl) updateCurrentArias(ctx context.Context, stateMachine 
 	alias, err := svc.describeStateMachineAlias(ctx, aliasArn)
 	if err != nil {
 		var notExists *sfntypes.ResourceNotFound
-		if errors.As(err, &notExists) {
+		if errors.As(err, &notExists) || errors.Is(err, ErrStateMachineDoesNotExist) {
 			log.Println("[info] current alias does not exist, create it...")
 			output, err := svc.client.CreateStateMachineAlias(ctx, &sfn.CreateStateMachineAliasInput{
 				Name: aws.String(svc.aliasName),
