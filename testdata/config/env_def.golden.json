@@ -1,0 +1,21 @@
+{
+  "required_version": "\u003ev0.0.0",
+  "aws_region": "us-east-1",
+  "state_machine": {
+    "definition": "{\n   \"Comment\": \"A Hello World example of the Amazon States Language using Pass states\",\n   \"StartAt\": \"Hello\",\n   \"States\": {\n      \"World\": {\n         \"End\": true,\n         \"Result\": \"World\",\n         \"Type\": \"Pass\"\n      },\n      \"Hello\": {\n         \"Next\": \"World\",\n         \"Type\": \"Pass\"\n      }\n   }\n}",
+    "logging_configuration": {
+      "destinations": [
+        {
+          "cloudwatch_logs_log_group": {
+            "log_group_arn": "arn:aws:logs:us-east-1:012345678901:log-group:/steps/hello"
+          }
+        }
+      ],
+      "level": "FATAL"
+    },
+    "name": "Hello",
+    "role_arn": "arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role",
+    "tracing_configuration": {},
+    "type": "STANDARD"
+  }
+}
