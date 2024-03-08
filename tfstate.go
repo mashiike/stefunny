@@ -83,10 +83,19 @@ var (
 	ignoreResourceSuffix = []string{
 		"_policy",
 	}
+	ignoreResourcePrefix = []string{
+		"aws_cloudwatch_event_target",
+	}
 )
 
 func lookupResourceKey(resourcePrefix string, data map[string]any) (map[string]string, bool) {
 	parts := strings.Split(resourcePrefix, ".")
+	for _, prefix := range ignoreResourcePrefix {
+		if strings.HasPrefix(parts[0], prefix) {
+			log.Printf("[debug] ignore `%s` reason is has prefix `%s`", resourcePrefix, prefix)
+			return nil, false
+		}
+	}
 	for _, suffix := range ignoreResourceSuffix {
 		if strings.HasSuffix(parts[0], suffix) {
 			log.Printf("[debug] ignore `%s` reason is has suffix `%s`", resourcePrefix, suffix)
