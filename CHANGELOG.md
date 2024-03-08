@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.8.2](https://github.com/mashiike/stefunny/compare/v0.8.1...v0.8.2) - 2024-03-08
+- json escape target is not escape HTML by @mashiike in https://github.com/mashiike/stefunny/pull/227
+
 ## [v0.8.1](https://github.com/mashiike/stefunny/compare/v0.8.0...v0.8.1) - 2024-03-08
 - fix if tfstate location is not local path by @mashiike in https://github.com/mashiike/stefunny/pull/225
 
