@@ -62,7 +62,27 @@ func newResourcesReverseMapFromTFState(s *tfstate.TFState, list []string) (map[s
 			continue
 		}
 		for value, key := range reverseMap {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
 			if duplicated, ok := resources[value]; ok {
+				switch {
+				case strings.HasPrefix(duplicated, "data."):
+					dataResource := strings.Split(strings.TrimPrefix(duplicated, "data."), ".")[0]
+					if strings.HasPrefix(key, dataResource) {
+						// case example duplicated=data.aws_hoge.*.arn and key=aws_hoge.*.arn
+						// delete duplicated and set key
+						resources[value] = key
+						continue
+					}
+				case strings.HasPrefix(key, "data."):
+					dataResource := strings.Split(strings.TrimPrefix(key, "data."), ".")[0]
+					if strings.HasPrefix(duplicated, dataResource) {
+						// case example duplicated=aws_hoge.*.arn and key=data.aws_hoge.*.arn
+						// skip after key
+						continue
+					}
+				}
 				log.Printf("[warn] `%s` is duplicated (`%s` and `%s`), skip after key", value, duplicated, key)
 				continue
 			}
@@ -83,10 +103,19 @@ var (
 	ignoreResourceSuffix = []string{
 		"_policy",
 	}
+	ignoreResourcePrefix = []string{
+		"aws_cloudwatch_event_target",
+	}
 )
 
 func lookupResourceKey(resourcePrefix string, data map[string]any) (map[string]string, bool) {
 	parts := strings.Split(resourcePrefix, ".")
+	for _, prefix := range ignoreResourcePrefix {
+		if strings.HasPrefix(parts[0], prefix) {
+			log.Printf("[debug] ignore `%s` reason is has prefix `%s`", resourcePrefix, prefix)
+			return nil, false
+		}
+	}
 	for _, suffix := range ignoreResourceSuffix {
 		if strings.HasSuffix(parts[0], suffix) {
 			log.Printf("[debug] ignore `%s` reason is has suffix `%s`", resourcePrefix, suffix)
