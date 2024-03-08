@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.8.3](https://github.com/mashiike/stefunny/compare/v0.8.2...v0.8.3) - 2024-03-08
+- no deployed stats not error by @mashiike in https://github.com/mashiike/stefunny/pull/229
+- fix panic: care no version arn by @mashiike in https://github.com/mashiike/stefunny/pull/231
+
 ## [v0.8.2](https://github.com/mashiike/stefunny/compare/v0.8.1...v0.8.2) - 2024-03-08
 - json escape target is not escape HTML by @mashiike in https://github.com/mashiike/stefunny/pull/227
 
