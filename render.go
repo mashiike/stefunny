@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -209,8 +210,17 @@ func (r *Renderer) templateize(ctx context.Context, v any) (any, error) {
 func (r *Renderer) templateizeTFState(ctx context.Context, data any, base string, cfg *TFStateConfig) (any, error) {
 	resources := r.cachedTFstateResources
 	if resources == nil {
+		loc := cfg.Location
 		var err error
-		resources, err = ListResourcesFromTFState(ctx, filepath.Join(base, cfg.Location))
+		if base != "" {
+			u, err := url.Parse(cfg.Location)
+			if err != nil || u.Scheme == "" || u.Scheme == "file" {
+				if !filepath.IsAbs(loc) {
+					loc = filepath.Join(base, loc)
+				}
+			}
+		}
+		resources, err = ListResourcesFromTFState(ctx, loc)
 		if err != nil {
 			return nil, fmt.Errorf("failed to list resources from tfstate `%s`: %w", cfg.Location, err)
 		}
