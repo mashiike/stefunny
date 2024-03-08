@@ -69,7 +69,7 @@ func (app *App) newStateMachineStatus(ctx context.Context, qualifier string) (*S
 		if !errors.Is(err, ErrStateMachineDoesNotExist) {
 			return nil, fmt.Errorf("failed to describe state machine: %w", err)
 		}
-		arn := knownknownAfterDeployArn + ":" + app.StateMachineAliasName()
+		arn := knownAfterDeployArn + ":" + app.StateMachineAliasName()
 		if qualifier != "" {
 			latestArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 				Name: app.cfg.StateMachineName(),
