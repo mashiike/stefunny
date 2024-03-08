@@ -64,6 +64,9 @@ func extructVersion(versionArn string) (int, error) {
 	if len(parts) < 2 {
 		return 0, fmt.Errorf("invalid arn format: %s", versionArn)
 	}
+	if len(parts) == 2 {
+		return 0, nil
+	}
 	version, err := strconv.Atoi(parts[2])
 	if err != nil {
 		return 0, fmt.Errorf("parse version number failed: %w", err)
@@ -72,7 +75,7 @@ func extructVersion(versionArn string) (int, error) {
 }
 
 func addQualifierToArn(arnStr string, name string) string {
-	if name == "" {
+	if name == "" || name == "0" {
 		return arnStr
 	}
 	return fmt.Sprintf("%s:%s", arnStr, name)
