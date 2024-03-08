@@ -1,0 +1,56 @@
+## config
+{
+  aws_region: 'us-east-1',
+  required_version: '>v0.0.0',
+  state_machine: {
+    definition: 'tfstate.asl.jsonnet',
+    logging_configuration: {
+      destinations: [
+        {
+          cloudwatch_logs_log_group: {
+            log_group_arn: '{{ tfstate `aws_cloudwatch_log_group.test.arn` }}',
+          },
+        },
+      ],
+      level: 'FATAL',
+    },
+    name: 'Hello',
+    role_arn: '{{ tfstate `aws_iam_role.test.arn` }}',
+    tracing_configuration: {},
+    type: 'STANDARD',
+  },
+  tfstate: [
+    {
+      location: './terraform.tfstate',
+    },
+    {
+      func_prefix: 'second_',
+      location: './terraform.tfstate',
+    },
+  ],
+}
+## definition
+{
+  Comment: 'A Hello World example of the Amazon States Language using Pass states',
+  StartAt: 'Hello',
+  States: {
+    Hello: {
+      Next: 'New',
+      Type: 'Pass',
+    },
+    New: {
+      Next: 'World',
+      Seconds: 120,
+      Type: 'Wait',
+    },
+    World: {
+      Comment: 'great!!!',
+      End: true,
+      Parameters: {
+        Bucket: '{{ tfstate `aws_s3_bucket.hoge.bucket` }}',
+      },
+      Resource: 'arn:aws:states:::aws-sdk:s3:listObjects',
+      Type: 'Task',
+    },
+  },
+}

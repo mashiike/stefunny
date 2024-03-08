@@ -42,11 +42,14 @@ type CloudWatchLogsClient interface {
 	cloudwatchlogs.DescribeLogGroupsAPIClient
 }
 type ConfigLoader struct {
-	funcMap      template.FuncMap
-	envs         *OrderdMap[string, string]
-	mustEnvs     *OrderdMap[string, string]
-	vm           *jsonnet.VM
-	cwLogsClient CloudWatchLogsClient
+	funcMap           template.FuncMap
+	nestedRednerFiles []string
+	envs              *OrderdMap[string, string]
+	mustEnvs          *OrderdMap[string, string]
+	files             *OrderdMap[string, string]
+	templateFiles     *OrderdMap[string, string]
+	vm                *jsonnet.VM
+	cwLogsClient      CloudWatchLogsClient
 }
 
 func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
@@ -175,13 +178,72 @@ func newTemplatefuncMustEnv(mustEnvs *OrderdMap[string, string], missingEnvs map
 	}
 }
 
+func (l *ConfigLoader) newTemplateFuncFile(base string, files *OrderdMap[string, string], missingFiles map[string]struct{}) func(string) (string, error) {
+	return func(path string) (string, error) {
+		target := path
+		if !filepath.IsAbs(path) {
+			target = filepath.Join(base, path)
+		}
+		bs, err := os.ReadFile(target)
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				missingFiles[target] = struct{}{}
+				return "", nil
+			}
+			return "", err
+		}
+		files.Set(path, string(bs))
+		return string(bs), nil
+	}
+}
+
+func (l *ConfigLoader) newTemplateFuncTemplateFile(base string, files *OrderdMap[string, string], missingFiles map[string]struct{}) func(string) (string, error) {
+	f := l.newTemplateFuncFile(base, files, missingFiles)
+	return func(path string) (string, error) {
+		str, err := f(path)
+		if err != nil {
+			return "", err
+		}
+		target := path
+		if !filepath.IsAbs(path) {
+			target = filepath.Join(base, path)
+		}
+		for _, nested := range l.nestedRednerFiles {
+			if strings.EqualFold(nested, target) {
+				return "", fmt.Errorf("cycle template_file detected: %s", strings.Join(append(l.nestedRednerFiles, target), " -> "))
+			}
+		}
+		l.nestedRednerFiles = append(l.nestedRednerFiles, target)
+		defer func() {
+			l.nestedRednerFiles = l.nestedRednerFiles[:len(l.nestedRednerFiles)-1]
+		}()
+		bs, err := l.renderTemplate([]byte(str), filepath.Dir(target))
+		if err != nil {
+			return "", err
+		}
+		files.Set(path, string(bs))
+		return string(bs), nil
+	}
+}
+
 func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, error) {
 	funcMap := make(template.FuncMap, len(l.funcMap))
 	for k, v := range l.funcMap {
 		funcMap[k] = v
 	}
-	l.envs = NewOrderdMap[string, string]()
-	l.mustEnvs = NewOrderdMap[string, string]()
+	if l.envs == nil {
+		l.envs = NewOrderdMap[string, string]()
+	}
+	if l.mustEnvs == nil {
+		l.mustEnvs = NewOrderdMap[string, string]()
+	}
+	if l.files == nil {
+		l.files = NewOrderdMap[string, string]()
+	}
+	if l.templateFiles == nil {
+		l.templateFiles = NewOrderdMap[string, string]()
+	}
+	missingFiles := make(map[string]struct{})
 	missingEnvs := make(map[string]struct{}, 0)
 	if _, ok := funcMap["env"]; !ok {
 		funcMap["env"] = newTemplateFuncEnv(l.envs)
@@ -190,25 +252,27 @@ func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, err
 		funcMap["must_env"] = newTemplatefuncMustEnv(l.mustEnvs, missingEnvs)
 	}
 	if _, ok := funcMap["json_escape"]; !ok {
-		funcMap["json_escape"] = func(v string) (string, error) {
-			bs, err := json.Marshal(v)
-			if err != nil {
-				return "", err
+		funcMap["json_escape"] = jsonEscape
+	}
+	if _, ok := funcMap["trim"]; !ok {
+		funcMap["trim"] = func(str string, args ...string) (string, error) {
+			if len(args) > 1 {
+				return "", fmt.Errorf("too many number of arguments: %d", len(args))
 			}
-			return string(bs[1 : len(bs)-1]), nil
+			if len(args) == 0 {
+				str = strings.TrimSpace(str)
+				str = strings.Trim(str, "\n")
+				return str, nil
+			}
+			str = strings.Trim(str, args[0])
+			return str, nil
 		}
 	}
 	if _, ok := funcMap["file"]; !ok {
-		funcMap["file"] = func(path string) (string, error) {
-			if !filepath.IsAbs(path) {
-				path = filepath.Join(loadingDir, path)
-			}
-			bs, err := os.ReadFile(path)
-			if err != nil {
-				return "", err
-			}
-			return string(bs), nil
-		}
+		funcMap["file"] = l.newTemplateFuncFile(loadingDir, l.files, missingFiles)
+	}
+	if _, ok := funcMap["template_file"]; !ok {
+		funcMap["template_file"] = l.newTemplateFuncTemplateFile(loadingDir, l.templateFiles, missingFiles)
 	}
 	tmpl, err := template.New("config").Funcs(funcMap).Parse(string(bs))
 	if err != nil {
@@ -223,6 +287,12 @@ func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, err
 			log.Printf("[warn] environment variable `%s` is not defined", k)
 		}
 		return nil, fmt.Errorf("missing %d environment variables", len(missingEnvs))
+	}
+	if len(missingFiles) > 0 {
+		for k := range missingFiles {
+			log.Printf("[warn] file `%s` is not found", k)
+		}
+		return nil, fmt.Errorf("missing %d files", len(missingFiles))
 	}
 	return buf.Bytes(), nil
 }
@@ -245,8 +315,6 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	if err := l.migrationForDeprecatedFields(ctx, cfg); err != nil {
 		return nil, fmt.Errorf("migration for deprecated fields: %w", err)
 	}
-	cfg.Envs = l.envs
-	cfg.MustEnvs = l.mustEnvs
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -267,6 +335,10 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
 	}
 	cfg.StateMachine.Value.Definition = aws.String(string(definition))
+	cfg.Envs = l.envs
+	cfg.MustEnvs = l.mustEnvs
+	cfg.Files = l.files
+	cfg.TemplateFiles = l.templateFiles
 	return cfg, nil
 }
 
@@ -432,6 +504,8 @@ type Config struct {
 	ConfigFileName string                     `yaml:"-" json:"-"`
 	Envs           *OrderdMap[string, string] `yaml:"-" json:"-"`
 	MustEnvs       *OrderdMap[string, string] `yaml:"-" json:"-"`
+	Files          *OrderdMap[string, string] `yaml:"-" json:"-"`
+	TemplateFiles  *OrderdMap[string, string] `yaml:"-" json:"-"`
 	//private field
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
@@ -865,9 +939,11 @@ func NewDefaultConfig() *Config {
 				},
 			}),
 		},
-		Tags:     make(map[string]string),
-		Envs:     NewOrderdMap[string, string](),
-		MustEnvs: NewOrderdMap[string, string](),
+		Tags:          make(map[string]string),
+		Envs:          NewOrderdMap[string, string](),
+		MustEnvs:      NewOrderdMap[string, string](),
+		Files:         NewOrderdMap[string, string](),
+		TemplateFiles: NewOrderdMap[string, string](),
 	}
 }
 

@@ -40,6 +40,11 @@ func TestConfigLoadValid(t *testing.T) {
 			},
 		},
 		{
+			casename:    "file_func",
+			path:        "testdata/file_func.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
 			casename:    "yaml_config_with_jsonnet_def",
 			path:        "testdata/jsonnet_def.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
@@ -144,6 +149,11 @@ func TestConfigLoadInValid(t *testing.T) {
 			casename: "type_invalid",
 			path:     "testdata/hoge_type.yaml",
 			expected: "state_machine.type is invalid type: please STANDARD, EXPRESS",
+		},
+		{
+			casename: "cycle_template_func",
+			path:     "testdata/cycle_template_func.yaml",
+			expected: "cycle template_file detected",
 		},
 	}
 

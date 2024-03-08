@@ -173,8 +173,20 @@ func (r *Renderer) templateize(ctx context.Context, v any) (any, error) {
 	if err := json.Unmarshal(bs, &data); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal: %w", err)
 	}
+	if r.cfg.TemplateFiles.Len() > 0 {
+		data, err = templatizeTemplateFiles(data, r.cfg.TemplateFiles)
+		if err != nil {
+			return nil, fmt.Errorf("failed to templateize for template_file: %w", err)
+		}
+	}
+	if r.cfg.Files.Len() > 0 {
+		data, err = templateizeFiles(data, r.cfg.Files)
+		if err != nil {
+			return nil, fmt.Errorf("failed to templateize for file: %w", err)
+		}
+	}
 	for _, tfstateCfg := range r.cfg.TFState {
-		data, err = r.templateizeTFState(ctx, data, tfstateCfg)
+		data, err = r.templateizeTFState(ctx, data, r.cfg.ConfigDir, tfstateCfg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to templateize for tfstate `%s`: %w", tfstateCfg.Location, err)
 		}
@@ -194,11 +206,11 @@ func (r *Renderer) templateize(ctx context.Context, v any) (any, error) {
 	return data, nil
 }
 
-func (r *Renderer) templateizeTFState(ctx context.Context, data any, cfg *TFStateConfig) (any, error) {
+func (r *Renderer) templateizeTFState(ctx context.Context, data any, base string, cfg *TFStateConfig) (any, error) {
 	resources := r.cachedTFstateResources
 	if resources == nil {
 		var err error
-		resources, err = ListResourcesFromTFState(ctx, cfg.Location)
+		resources, err = ListResourcesFromTFState(ctx, filepath.Join(base, cfg.Location))
 		if err != nil {
 			return nil, fmt.Errorf("failed to list resources from tfstate `%s`: %w", cfg.Location, err)
 		}
@@ -246,6 +258,52 @@ func (r *Renderer) templateizeEnvs(data any, envs *OrderdMap[string, string]) (a
 			fields[i] = "`" + arg + "`"
 		}
 		data = walkStringReplaceAll(data, value, fmt.Sprintf("{{ env %s }}", strings.Join(fields, " ")))
+	}
+	return data, nil
+}
+
+func templateizeFiles(data any, files *OrderdMap[string, string]) (any, error) {
+	keys := files.Keys()
+	for i := len(keys) - 1; i >= 0; i-- {
+		key := keys[i]
+		value, ok := files.Get(key)
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		value = strings.Trim(value, "\n")
+		if value == "" {
+			continue
+		}
+		var err error
+		value, err = jsonEscape(value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to escape: %w", err)
+		}
+		data = walkStringReplaceAll(data, value, fmt.Sprintf("{{ file `%s` | trim | json_escape }}", key))
+	}
+	return data, nil
+}
+
+func templatizeTemplateFiles(data any, files *OrderdMap[string, string]) (any, error) {
+	keys := files.Keys()
+	for i := len(keys) - 1; i >= 0; i-- {
+		key := keys[i]
+		value, ok := files.Get(key)
+		if !ok {
+			continue
+		}
+		value = strings.TrimSpace(value)
+		value = strings.Trim(value, "\n")
+		if value == "" {
+			continue
+		}
+		var err error
+		value, err = jsonEscape(value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to escape: %w", err)
+		}
+		data = walkStringReplaceAll(data, value, fmt.Sprintf("{{ template_file `%s` | trim | json_escape }}", key))
 	}
 	return data, nil
 }
