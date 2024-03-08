@@ -63,6 +63,23 @@ func newResourcesReverseMapFromTFState(s *tfstate.TFState, list []string) (map[s
 		}
 		for value, key := range reverseMap {
 			if duplicated, ok := resources[value]; ok {
+				switch {
+				case strings.HasPrefix(duplicated, "data."):
+					dataResource := strings.Split(strings.TrimPrefix(duplicated, "data."), ".")[0]
+					if strings.HasPrefix(key, dataResource) {
+						// case example duplicated=data.aws_hoge.*.arn and key=aws_hoge.*.arn
+						// delete duplicated and set key
+						resources[value] = key
+						continue
+					}
+				case strings.HasPrefix(key, "data."):
+					dataResource := strings.Split(strings.TrimPrefix(key, "data."), ".")[0]
+					if strings.HasPrefix(duplicated, dataResource) {
+						// case example duplicated=aws_hoge.*.arn and key=data.aws_hoge.*.arn
+						// skip after key
+						continue
+					}
+				}
 				log.Printf("[warn] `%s` is duplicated (`%s` and `%s`), skip after key", value, duplicated, key)
 				continue
 			}
