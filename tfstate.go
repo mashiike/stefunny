@@ -62,6 +62,9 @@ func newResourcesReverseMapFromTFState(s *tfstate.TFState, list []string) (map[s
 			continue
 		}
 		for value, key := range reverseMap {
+			if strings.TrimSpace(value) == "" {
+				continue
+			}
 			if duplicated, ok := resources[value]; ok {
 				switch {
 				case strings.HasPrefix(duplicated, "data."):
