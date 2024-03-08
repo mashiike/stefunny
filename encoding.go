@@ -358,3 +358,11 @@ func walkSlilce(data []any, keyModifier func(string) string) error {
 	}
 	return nil
 }
+
+func jsonEscape(v string) (string, error) {
+	bs, err := json.Marshal(v)
+	if err != nil {
+		return "", err
+	}
+	return string(bs[1 : len(bs)-1]), nil
+}

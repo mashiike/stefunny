@@ -204,22 +204,24 @@ func (l *ConfigLoader) newTemplateFuncTemplateFile(base string, files *OrderdMap
 		if err != nil {
 			return "", err
 		}
+		target := path
 		if !filepath.IsAbs(path) {
-			path = filepath.Join(base, path)
+			target = filepath.Join(base, path)
 		}
 		for _, nested := range l.nestedRednerFiles {
-			if strings.EqualFold(nested, path) {
-				return "", fmt.Errorf("cycle template_file detected: %s", strings.Join(append(l.nestedRednerFiles, path), " -> "))
+			if strings.EqualFold(nested, target) {
+				return "", fmt.Errorf("cycle template_file detected: %s", strings.Join(append(l.nestedRednerFiles, target), " -> "))
 			}
 		}
-		l.nestedRednerFiles = append(l.nestedRednerFiles, path)
+		l.nestedRednerFiles = append(l.nestedRednerFiles, target)
 		defer func() {
 			l.nestedRednerFiles = l.nestedRednerFiles[:len(l.nestedRednerFiles)-1]
 		}()
-		bs, err := l.renderTemplate([]byte(str), filepath.Dir(path))
+		bs, err := l.renderTemplate([]byte(str), filepath.Dir(target))
 		if err != nil {
 			return "", err
 		}
+		files.Set(path, string(bs))
 		return string(bs), nil
 	}
 }
@@ -250,13 +252,7 @@ func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, err
 		funcMap["must_env"] = newTemplatefuncMustEnv(l.mustEnvs, missingEnvs)
 	}
 	if _, ok := funcMap["json_escape"]; !ok {
-		funcMap["json_escape"] = func(v string) (string, error) {
-			bs, err := json.Marshal(v)
-			if err != nil {
-				return "", err
-			}
-			return string(bs[1 : len(bs)-1]), nil
-		}
+		funcMap["json_escape"] = jsonEscape
 	}
 	if _, ok := funcMap["trim"]; !ok {
 		funcMap["trim"] = func(str string, args ...string) (string, error) {
@@ -319,8 +315,6 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	if err := l.migrationForDeprecatedFields(ctx, cfg); err != nil {
 		return nil, fmt.Errorf("migration for deprecated fields: %w", err)
 	}
-	cfg.Envs = l.envs
-	cfg.MustEnvs = l.mustEnvs
 	if err := cfg.Restrict(); err != nil {
 		return nil, fmt.Errorf("config restrict:%w", err)
 	}
@@ -341,6 +335,10 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
 	}
 	cfg.StateMachine.Value.Definition = aws.String(string(definition))
+	cfg.Envs = l.envs
+	cfg.MustEnvs = l.mustEnvs
+	cfg.Files = l.files
+	cfg.TemplateFiles = l.templateFiles
 	return cfg, nil
 }
 
@@ -506,6 +504,8 @@ type Config struct {
 	ConfigFileName string                     `yaml:"-" json:"-"`
 	Envs           *OrderdMap[string, string] `yaml:"-" json:"-"`
 	MustEnvs       *OrderdMap[string, string] `yaml:"-" json:"-"`
+	Files          *OrderdMap[string, string] `yaml:"-" json:"-"`
+	TemplateFiles  *OrderdMap[string, string] `yaml:"-" json:"-"`
 	//private field
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
@@ -939,9 +939,11 @@ func NewDefaultConfig() *Config {
 				},
 			}),
 		},
-		Tags:     make(map[string]string),
-		Envs:     NewOrderdMap[string, string](),
-		MustEnvs: NewOrderdMap[string, string](),
+		Tags:          make(map[string]string),
+		Envs:          NewOrderdMap[string, string](),
+		MustEnvs:      NewOrderdMap[string, string](),
+		Files:         NewOrderdMap[string, string](),
+		TemplateFiles: NewOrderdMap[string, string](),
 	}
 }
 

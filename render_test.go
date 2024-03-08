@@ -3,6 +3,7 @@ package stefunny_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/mashiike/stefunny"
@@ -83,4 +84,63 @@ func TestAppRender(t *testing.T) {
 		})
 	}
 
+}
+
+func TestRendererTemplateize(t *testing.T) {
+	t.Setenv("START_AT", "Hello")
+	t.Setenv("AWS_REGION", "us-east-1")
+	g := goldie.New(
+		t,
+		goldie.WithFixtureDir("testdata/render_templateize"),
+		goldie.WithNameSuffix(".golden.txt"),
+	)
+	cases := []struct {
+		casename string
+		path     string
+		format   string
+		extStr   map[string]string
+		extCode  map[string]string
+	}{
+		{
+			casename: "env_config",
+			path:     "testdata/env_def.yaml",
+			format:   "jsonnet",
+		},
+		{
+			casename: "tfstate",
+			path:     "testdata/tfstate.yaml",
+			format:   "jsonnet",
+			extStr: map[string]string{
+				"Comment": "great!!!",
+			},
+			extCode: map[string]string{
+				"WaitSeconds": "60*2",
+			},
+		},
+		{
+			casename: "file_func",
+			path:     "testdata/file_func.yaml",
+			format:   "jsonnet",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.casename, func(t *testing.T) {
+			loc := dataloc.L(c.casename)
+			t.Log("case location:", loc)
+			LoggerSetup(t, "debug")
+			l := stefunny.NewConfigLoader(c.extStr, c.extCode)
+			ctx := context.Background()
+			cfg, err := l.Load(ctx, c.path)
+			require.NoError(t, err)
+			r := stefunny.NewRenderer(cfg)
+			var buf bytes.Buffer
+			fmt.Fprintln(&buf, "## config")
+			err = r.RenderConfig(ctx, &buf, c.format, true)
+			require.NoError(t, err)
+			fmt.Fprintln(&buf, "## definition")
+			err = r.RenderStateMachine(ctx, &buf, c.format, true)
+			require.NoError(t, err)
+			g.Assert(t, c.casename, buf.Bytes())
+		})
+	}
 }
