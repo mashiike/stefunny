@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.8.0](https://github.com/mashiike/stefunny/compare/v0.7.4...v0.8.0) - 2024-03-08
+- suppression TFState Lookup Listup warn by @mashiike in https://github.com/mashiike/stefunny/pull/221
+- Feature/create file as mkdir p by @mashiike in https://github.com/mashiike/stefunny/pull/223
+- Add `template_file` template function by @mashiike in https://github.com/mashiike/stefunny/pull/224
+
 ## [v0.7.4](https://github.com/mashiike/stefunny/compare/v0.7.3...v0.7.4) - 2024-03-07
 - state machine version no have tags by @mashiike in https://github.com/mashiike/stefunny/pull/217
 - if diff set --qualifier but current not exits latest exists, get arn … by @mashiike in https://github.com/mashiike/stefunny/pull/219
