@@ -11,7 +11,7 @@ import (
 
 type InitOption struct {
 	StateMachineName   string   `name:"state-machine" help:"AWS StepFunctions state machine name" required:"" env:"STATE_MACHINE_NAME" json:"state_machine_name,omitempty"`
-	DefinitionFilePath string   `name:"definition" short:"d" help:"Path to state machine definition file" default:"definition.asl.json" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
+	DefinitionFilePath string   `name:"definition" short:"d" help:"Path to state machine definition file" type:"path" env:"DEFINITION_FILE_PATH" json:"definition_file_path,omitempty"`
 	TFState            string   `kong:"-" help:"Path to terraform state file" type:"path" json:"tfstate,omitempty"` // TODO: if removed global flag, not ignore this flag for kong
 	Envs               []string `name:"env" help:"templateize environment variables" json:"envs,omitempty"`
 	MustEnvs           []string `name:"must-env" help:"templateize must environment variables" json:"must_envs,omitempty"`
@@ -23,8 +23,10 @@ type InitOption struct {
 func (app *App) Init(ctx context.Context, opt InitOption) error {
 	log.Println("[debug] config path =", opt.ConfigPath)
 	log.Println("[debug] definition path =", opt.DefinitionFilePath)
-
 	configDir := filepath.Dir(opt.ConfigPath)
+	if opt.DefinitionFilePath == "" {
+		opt.DefinitionFilePath = filepath.Join(configDir, "definition.asl.json")
+	}
 	defPath := opt.DefinitionFilePath
 	var err error
 	defPath, err = filepath.Rel(configDir, defPath)
