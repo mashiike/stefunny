@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.8.1](https://github.com/mashiike/stefunny/compare/v0.8.0...v0.8.1) - 2024-03-08
+- fix if tfstate location is not local path by @mashiike in https://github.com/mashiike/stefunny/pull/225
+
 ## [v0.8.0](https://github.com/mashiike/stefunny/compare/v0.7.4...v0.8.0) - 2024-03-08
 - suppression TFState Lookup Listup warn by @mashiike in https://github.com/mashiike/stefunny/pull/221
 - Feature/create file as mkdir p by @mashiike in https://github.com/mashiike/stefunny/pull/223
