@@ -1,0 +1,38 @@
+## config
+{
+  aws_region: 'us-east-1',
+  required_version: '>v0.0.0',
+  state_machine: {
+    definition: 'file_func.asl.json',
+    logging_configuration: {
+      destinations: [
+        {
+          cloudwatch_logs_log_group: {
+            log_group_arn: 'arn:aws:logs:us-east-1:012345678901:log-group:/steps/hello',
+          },
+        },
+      ],
+      level: 'ALL',
+    },
+    name: 'Hello',
+    role_arn: 'arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role',
+    tracing_configuration: {},
+    type: 'STANDARD',
+  },
+}
+## definition
+{
+  Comment: '{{ template_file `comment.txt` | trim | json_escape }}',
+  StartAt: 'Hello',
+  States: {
+    Hello: {
+      Next: 'World',
+      Type: 'Pass',
+    },
+    World: {
+      End: true,
+      Result: 'World',
+      Type: 'Pass',
+    },
+  },
+}

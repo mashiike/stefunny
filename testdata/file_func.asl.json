@@ -1,5 +1,5 @@
 {
-  "Comment": "{{ template_file `comment.txt` | json_escape }}",
+  "Comment": "{{ template_file `comment.txt` | trim | json_escape }}",
   "StartAt": "Hello",
   "States": {
     "Hello": {

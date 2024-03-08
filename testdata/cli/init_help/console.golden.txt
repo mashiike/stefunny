@@ -16,8 +16,7 @@ Flags:
 
       --state-machine=STRING      AWS StepFunctions state machine name
                                   ($STATE_MACHINE_NAME)
-  -d, --definition="definition.asl.json"
-                                  Path to state machine definition file
+  -d, --definition=STRING         Path to state machine definition file
                                   ($DEFINITION_FILE_PATH)
       --env=ENV,...               templateize environment variables
       --must-env=MUST-ENV,...     templateize must environment variables

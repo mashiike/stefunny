@@ -1,0 +1,38 @@
+## config
+{
+  aws_region: '{{ must_env `AWS_REGION` }}',
+  required_version: '>v0.0.0',
+  state_machine: {
+    definition: 'hello_world_env.asl.jsonnet',
+    logging_configuration: {
+      destinations: [
+        {
+          cloudwatch_logs_log_group: {
+            log_group_arn: 'arn:aws:logs:{{ must_env `AWS_REGION` }}:{{ env `ACCOUNT_ID` `012345678901` }}:log-group:/steps/hello',
+          },
+        },
+      ],
+      level: 'FATAL',
+    },
+    name: '{{ must_env `START_AT` }}',
+    role_arn: 'arn:aws:iam::{{ env `ACCOUNT_ID` `012345678901` }}:role/service-role/StepFunctions-{{ must_env `START_AT` }}-role',
+    tracing_configuration: {},
+    type: 'STANDARD',
+  },
+}
+## definition
+{
+  Comment: 'A {{ must_env `START_AT` }} World example of the Amazon States Language using Pass states',
+  StartAt: '{{ must_env `START_AT` }}',
+  States: {
+    Hello: {
+      Next: 'World',
+      Type: 'Pass',
+    },
+    World: {
+      End: true,
+      Result: 'World',
+      Type: 'Pass',
+    },
+  },
+}

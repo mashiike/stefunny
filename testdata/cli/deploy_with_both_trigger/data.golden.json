@@ -4,9 +4,7 @@
   "region": "us-east-1",
   "alias": "current",
   "version": {},
-  "init": {
-    "definition_file_path": "definition.asl.json"
-  },
+  "init": {},
   "delete": {},
   "deploy": {
     "trigger_enabled": true,
