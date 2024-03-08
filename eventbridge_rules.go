@@ -2,6 +2,7 @@ package stefunny
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -176,6 +177,10 @@ func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, unified bool
 	var builder strings.Builder
 	var zero *EventBridgeRule
 	for _, delete := range result.Delete {
+		if !delete.IsManagedBy() {
+			log.Printf("[warn] rule %s is not managed by %s, suppressed diff", coalesce(delete.Name), appName)
+			continue
+		}
 		builder.WriteString(delete.DiffString(zero, unified))
 		builder.WriteRune('\n')
 	}
