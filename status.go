@@ -3,7 +3,9 @@ package stefunny
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -22,6 +24,9 @@ func (app *App) Status(ctx context.Context, opt StatusOption) error {
 	stateMachineStatus, err := app.newStateMachineStatus(ctx, quarifier)
 	if err != nil {
 		return fmt.Errorf("failed to get state machine status: %w", err)
+	}
+	if strings.HasPrefix(stateMachineStatus.Arn, knownAfterDeployArn) {
+		return nil
 	}
 	rulesStatus, err := app.newRuleStatus(ctx, stateMachineStatus.Arn)
 	if err != nil {
@@ -50,13 +55,39 @@ func (app *App) Status(ctx context.Context, opt StatusOption) error {
 	}
 }
 
+const (
+	notDeploayedStatus  = "NOT DEPLOYED"
+	knownAfterDeployArn = "[known after deploy]"
+)
+
 func (app *App) newStateMachineStatus(ctx context.Context, qualifier string) (*StateMachineStatus, error) {
 	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name:      app.cfg.StateMachineName(),
 		Qualifier: qualifier,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to describe state machine: %w", err)
+		if !errors.Is(err, ErrStateMachineDoesNotExist) {
+			return nil, fmt.Errorf("failed to describe state machine: %w", err)
+		}
+		arn := knownAfterDeployArn + ":" + app.StateMachineAliasName()
+		if qualifier != "" {
+			latestArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+				Name: app.cfg.StateMachineName(),
+			})
+			if err != nil {
+				if !errors.Is(err, ErrStateMachineDoesNotExist) {
+					return nil, fmt.Errorf("failed to describe latest state machine status: %w", err)
+				}
+				log.Println("[debug] state machine does not exist")
+			} else {
+				arn = latestArn
+			}
+		}
+		return &StateMachineStatus{
+			Arn:    arn,
+			Name:   app.cfg.StateMachineName(),
+			Status: notDeploayedStatus,
+		}, nil
 	}
 	version, err := extructVersion(coalesce(stateMachine.StateMachineArn))
 	if err != nil {
