@@ -150,6 +150,11 @@ func TestConfigLoadInValid(t *testing.T) {
 			path:     "testdata/hoge_type.yaml",
 			expected: "state_machine.type is invalid type: please STANDARD, EXPRESS",
 		},
+		{
+			casename: "cycle_template_func",
+			path:     "testdata/cycle_template_func.yaml",
+			expected: "cycle template_file detected",
+		},
 	}
 
 	for _, c := range cases {
