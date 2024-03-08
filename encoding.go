@@ -360,9 +360,12 @@ func walkSlilce(data []any, keyModifier func(string) string) error {
 }
 
 func jsonEscape(v string) (string, error) {
-	bs, err := json.Marshal(v)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(v); err != nil {
 		return "", err
 	}
+	bs := bytes.TrimSpace(buf.Bytes())
 	return string(bs[1 : len(bs)-1]), nil
 }
