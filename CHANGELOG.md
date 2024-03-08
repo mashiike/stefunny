@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.8.4](https://github.com/mashiike/stefunny/compare/v0.8.3...v0.8.4) - 2024-03-08
+- more explain, diff source in config file by @mashiike in https://github.com/mashiike/stefunny/pull/232
+- supression of diff eventbridge_rules by @mashiike in https://github.com/mashiike/stefunny/pull/234
+
 ## [v0.8.3](https://github.com/mashiike/stefunny/compare/v0.8.2...v0.8.3) - 2024-03-08
 - no deployed stats not error by @mashiike in https://github.com/mashiike/stefunny/pull/229
 - fix panic: care no version arn by @mashiike in https://github.com/mashiike/stefunny/pull/231
