@@ -1,6 +1,7 @@
 package stefunny
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,6 +18,38 @@ type StateMachine struct {
 	Status          sfntypes.StateMachineStatus
 	ConfigFilePath  *string
 	DefinitionPath  *string
+}
+
+func (s *StateMachine) Source() string {
+	if s == nil {
+		return knownAfterDeployArn
+	}
+	if s.StateMachineArn != nil {
+		return *s.StateMachineArn
+	}
+	if s.ConfigFilePath != nil {
+		return fmt.Sprintf("state_machine in %s", *s.ConfigFilePath)
+	}
+	if s.Name != nil {
+		return *s.Name
+	}
+	return knownAfterDeployArn
+}
+
+func (s *StateMachine) DefinitionSource() string {
+	if s == nil {
+		return knownAfterDeployArn
+	}
+	if s.StateMachineArn != nil {
+		return *s.StateMachineArn
+	}
+	if s.DefinitionPath != nil {
+		return *s.DefinitionPath
+	}
+	if s.Name != nil {
+		return *s.Name
+	}
+	return knownAfterDeployArn
 }
 
 func (s *StateMachine) QualifiedArn(name string) string {
@@ -75,14 +108,8 @@ func (s *StateMachine) String() string {
 
 func (s *StateMachine) DiffString(newStateMachine *StateMachine, unified bool) string {
 	var builder strings.Builder
-	from := "[known after deploy]"
-	if s != nil {
-		from = coalesce(s.StateMachineArn, s.ConfigFilePath, s.Name)
-	}
-	to := "[known after deploy]"
-	if newStateMachine != nil {
-		to = coalesce(newStateMachine.StateMachineArn, newStateMachine.ConfigFilePath, newStateMachine.Name)
-	}
+	from := s.Source()
+	to := newStateMachine.Source()
 	builder.WriteString(
 		JSONDiffString(
 			s.configureJSON(),
@@ -96,14 +123,8 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine, unified bool) s
 	if s != nil {
 		def = coalesce(s.Definition)
 	}
-	from = "[known after deploy]"
-	if s != nil {
-		from = coalesce(s.StateMachineArn, s.DefinitionPath, s.Name)
-	}
-	to = "[known after deploy]"
-	if newStateMachine != nil {
-		to = coalesce(newStateMachine.StateMachineArn, newStateMachine.DefinitionPath, newStateMachine.Name)
-	}
+	from = s.DefinitionSource()
+	to = newStateMachine.DefinitionSource()
 	builder.WriteString(
 		JSONDiffString(
 			def,

@@ -16,6 +16,23 @@ type EventBridgeRule struct {
 	Target            eventbridgetypes.Target   `yaml:"Target,omitempty" json:"Target,omitempty"`
 	AdditionalTargets []eventbridgetypes.Target `yaml:"AdditionalTargets,omitempty" json:"AdditionalTargets,omitempty"`
 	ConfigFilePath    *string                   `yaml:"ConfigFilePath,omitempty" json:"ConfigFilePath,omitempty"`
+	ConfigFileIndex   int                       `yaml:"ConfigFileIndex,omitempty" json:"ConfigFileIndex,omitempty"`
+}
+
+func (rule *EventBridgeRule) Source() string {
+	if rule == nil {
+		return knownAfterDeployArn
+	}
+	if rule.RuleArn != nil {
+		return *rule.RuleArn
+	}
+	if rule.ConfigFilePath != nil {
+		return fmt.Sprintf("trigger.rule[%d] in %s", rule.ConfigFileIndex, *rule.ConfigFilePath)
+	}
+	if rule.Name != nil {
+		return *rule.Name
+	}
+	return knownAfterDeployArn
 }
 
 func (rule *EventBridgeRule) SetStateMachineQualifiedArn(stateMachineArn string) {
@@ -87,14 +104,8 @@ func (rule *EventBridgeRule) String() string {
 
 func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, unified bool) string {
 	var builder strings.Builder
-	from := "[known after apply]"
-	if rule != nil {
-		from = coalesce(rule.RuleArn, rule.ConfigFilePath, rule.Name)
-	}
-	to := "[known after apply]"
-	if newRule != nil {
-		to = coalesce(newRule.RuleArn, newRule.ConfigFilePath, newRule.Name)
-	}
+	from := rule.Source()
+	to := newRule.Source()
 	builder.WriteString(
 		JSONDiffString(
 			rule.configureJSON(), newRule.configureJSON(),
