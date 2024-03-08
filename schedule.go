@@ -1,6 +1,7 @@
 package stefunny
 
 import (
+	"fmt"
 	"log"
 	"strings"
 	"time"
@@ -11,9 +12,26 @@ import (
 
 type Schedule struct {
 	scheduler.CreateScheduleInput
-	ScheduleArn    *string    `min:"1" type:"string"`
-	CreationDate   *time.Time `type:"timestamp"`
-	ConfigFilePath *string
+	ScheduleArn     *string    `min:"1" type:"string"`
+	CreationDate    *time.Time `type:"timestamp"`
+	ConfigFilePath  *string
+	ConfigFileIndex int
+}
+
+func (s *Schedule) Source() string {
+	if s == nil {
+		return knownAfterDeployArn
+	}
+	if s.ScheduleArn != nil {
+		return *s.ScheduleArn
+	}
+	if s.ConfigFilePath != nil {
+		return fmt.Sprintf("trigger.schedule[%d] in %s", s.ConfigFileIndex, *s.ConfigFilePath)
+	}
+	if s.Name != nil {
+		return *s.Name
+	}
+	return knownAfterDeployArn
 }
 
 func (s *Schedule) SetStateMachineQualifiedArn(stateMachineArn string) {
@@ -76,14 +94,8 @@ func (s *Schedule) String() string {
 
 func (s *Schedule) DiffString(newSchedule *Schedule, unified bool) string {
 	var builder strings.Builder
-	from := "[known after apply]"
-	if s != nil {
-		from = coalesce(s.ScheduleArn, s.ConfigFilePath, s.Name)
-	}
-	to := "[known after apply]"
-	if newSchedule != nil {
-		to = coalesce(newSchedule.ScheduleArn, newSchedule.ConfigFilePath, newSchedule.Name)
-	}
+	from := s.Source()
+	to := newSchedule.Source()
 
 	builder.WriteString(JSONDiffString(
 		s.configureJSON(), newSchedule.configureJSON(),

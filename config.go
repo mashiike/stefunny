@@ -760,11 +760,12 @@ func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
 	}
 	tags[tagManagedBy] = appName
 	rules := make(EventBridgeRules, 0, len(cfg.Trigger.Event))
-	for _, e := range cfg.Trigger.Event {
+	for i, e := range cfg.Trigger.Event {
 		rule := &EventBridgeRule{
-			PutRuleInput:   e.Value.PutRuleInput,
-			Target:         e.Value.Target,
-			ConfigFilePath: aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
+			PutRuleInput:    e.Value.PutRuleInput,
+			Target:          e.Value.Target,
+			ConfigFilePath:  aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
+			ConfigFileIndex: i,
 		}
 		if rule.Target.RoleArn == nil && e.Value.RoleArn != nil {
 			rule.Target.RoleArn = e.Value.RoleArn
@@ -784,10 +785,11 @@ func (cfg *Config) NewSchedules() Schedules {
 		return Schedules{}
 	}
 	schedules := make(Schedules, 0, len(cfg.Trigger.Schedule))
-	for _, s := range cfg.Trigger.Schedule {
+	for i, s := range cfg.Trigger.Schedule {
 		schedule := &Schedule{
 			CreateScheduleInput: s.Value,
 			ConfigFilePath:      aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName)),
+			ConfigFileIndex:     i,
 		}
 		if schedule.HasItPassed() {
 			log.Printf("[warn] schedule %s has passed, ignore this schedule", coalesce(schedule.Name))
