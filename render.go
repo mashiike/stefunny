@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -66,7 +65,7 @@ func (r *Renderer) CreateConfigFile(ctx context.Context, path string, template b
 	if err != nil {
 		return err
 	}
-	f, err := os.Create(path)
+	f, err := createFileWithMkdir(path)
 	if err != nil {
 		return err
 	}
@@ -99,7 +98,7 @@ func (r *Renderer) CreateDefinitionFile(ctx context.Context, path string, templa
 	if err != nil {
 		return err
 	}
-	f, err := os.Create(path)
+	f, err := createFileWithMkdir(path)
 	if err != nil {
 		return err
 	}

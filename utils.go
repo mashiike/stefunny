@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -153,4 +155,19 @@ func sliceDiff[T any](this, other []T, fetchKey func(T) string) sliceDiffResult[
 		}
 	}
 	return result
+}
+
+// create file with mkdir
+func createFileWithMkdir(path string) (*os.File, error) {
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("mkdir failed: %w", err)
+		}
+	}
+	file, err := os.Create(path)
+	if err != nil {
+		return nil, fmt.Errorf("create file failed: %w", err)
+	}
+	return file, nil
 }
