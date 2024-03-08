@@ -40,6 +40,11 @@ func TestConfigLoadValid(t *testing.T) {
 			},
 		},
 		{
+			casename:    "file_func",
+			path:        "testdata/file_func.yaml",
+			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),
+		},
+		{
 			casename:    "yaml_config_with_jsonnet_def",
 			path:        "testdata/jsonnet_def.yaml",
 			expectedDef: LoadString(t, "testdata/hello_world.asl.json"),

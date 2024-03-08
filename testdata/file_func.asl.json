@@ -1,0 +1,15 @@
+{
+  "Comment": "{{ template_file `comment.txt` | json_escape }}",
+  "StartAt": "Hello",
+  "States": {
+    "Hello": {
+      "Type": "Pass",
+      "Next": "World"
+    },
+    "World": {
+      "Type": "Pass",
+      "Result": "World",
+      "End": true
+    }
+  }
+}
