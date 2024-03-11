@@ -5,7 +5,7 @@ go 1.21.0
 require (
 	github.com/Songmu/prompter v0.5.1
 	github.com/alecthomas/kong v0.8.1
-	github.com/aws/aws-sdk-go-v2 v1.25.2
+	github.com/aws/aws-sdk-go-v2 v1.25.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.6
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.32.0
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.30.1
