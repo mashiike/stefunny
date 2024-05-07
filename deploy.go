@@ -34,7 +34,7 @@ func (cmd *DeployCommandOption) DeployOption() DeployOption {
 		SkipTrigger:        cmd.SkipTrigger,
 		VersionDescription: cmd.VersionDescription,
 		KeepVersions:       cmd.KeepVersions,
-		ScheduleEnabled:    enabled,
+		TriggerEnabled:     enabled,
 		Unified:            cmd.Unified,
 	}
 }
@@ -55,7 +55,7 @@ func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
 	}
 	return DeployOption{
 		DryRun:           cmd.DryRun,
-		ScheduleEnabled:  enabled,
+		TriggerEnabled:   enabled,
 		SkipTrigger:      false,
 		SkipStateMachine: true,
 	}
@@ -63,7 +63,7 @@ func (cmd *ScheduleCommandOption) DeployOption() DeployOption {
 
 type DeployOption struct {
 	DryRun             bool
-	ScheduleEnabled    *bool
+	TriggerEnabled     *bool
 	SkipStateMachine   bool
 	SkipTrigger        bool
 	VersionDescription string
@@ -149,8 +149,8 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 	targetArn := addQualifierToArn(stateMachineArn, app.StateMachineAliasName())
 	newRules.SetStateMachineQualifiedArn(targetArn)
 	keepState := true
-	if opt.ScheduleEnabled != nil {
-		newRules.SetEnabled(*opt.ScheduleEnabled)
+	if opt.TriggerEnabled != nil {
+		newRules.SetEnabled(*opt.TriggerEnabled)
 		keepState = false
 	}
 	if opt.DryRun {
@@ -194,6 +194,11 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 	newSchedules := app.cfg.NewSchedules()
 	targetArn := addQualifierToArn(stateMachineArn, app.StateMachineAliasName())
 	newSchedules.SetStateMachineQualifiedArn(targetArn)
+	keepState := true
+	if opt.TriggerEnabled != nil {
+		newSchedules.SetEnabled(*opt.TriggerEnabled)
+		keepState = false
+	}
 	if opt.DryRun {
 		currentSchedules := Schedules{}
 		if isStateMachineFound {
@@ -205,12 +210,15 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 				return fmt.Errorf("failed to search related schedules: %w", err)
 			}
 		}
+		if keepState {
+			newSchedules.SyncState(currentSchedules)
+		}
 		diffString := currentSchedules.DiffString(newSchedules, opt.Unified)
 		log.Printf("[notice] change related schedules %s", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil
 	}
-	if err := app.schedulerSvc.DeploySchedules(ctx, targetArn, newSchedules, opt.KeepVersions > 0); err != nil {
+	if err := app.schedulerSvc.DeploySchedules(ctx, targetArn, newSchedules, keepState); err != nil {
 		return fmt.Errorf("failed to deploy schedules: %w", err)
 	}
 	return nil
