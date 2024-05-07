@@ -116,7 +116,7 @@ func TestDeploy(t *testing.T) {
 				).Return(
 					nil,
 				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, false).Return(
+				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
 					nil,
 				).Once()
 			},
@@ -160,7 +160,7 @@ func TestDeploy(t *testing.T) {
 				).Return(
 					nil,
 				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, false).Return(
+				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
 					nil,
 				).Once()
 			},
@@ -229,7 +229,7 @@ func TestDeploy(t *testing.T) {
 					), true).Return(
 					nil,
 				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, false).Return(
+				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, true).Return(
 					nil,
 				).Once()
 			},
@@ -306,7 +306,7 @@ func TestDeploy(t *testing.T) {
 					), true).Return(
 					nil,
 				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, false).Return(
+				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, true).Return(
 					nil,
 				).Once()
 			},
@@ -380,7 +380,7 @@ func TestDeploy(t *testing.T) {
 							}, input)
 						},
 					),
-					false).Return(
+					true).Return(
 					nil,
 				).Once()
 			},
