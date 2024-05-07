@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.9.1](https://github.com/mashiike/stefunny/compare/v0.9.0...v0.9.1) - 2024-05-07
+- fix not default group. can not get exists schedule by @mashiike in https://github.com/mashiike/stefunny/pull/261
+
 ## [v0.9.0](https://github.com/mashiike/stefunny/compare/v0.8.4...v0.9.0) - 2024-05-07
 - fix: Detect Related Schedules in not default group by @mashiike in https://github.com/mashiike/stefunny/pull/253
 - change dependabot config: grouping update setting for aws sdk by @mashiike in https://github.com/mashiike/stefunny/pull/255
