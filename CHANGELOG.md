@@ -1,5 +1,8 @@
 # Changelog
 
+## [v0.9.2](https://github.com/mashiike/stefunny/compare/v0.9.1...v0.9.2) - 2024-05-07
+- Fix: Schedule deploy. ScheduleExpressionTimezone and KeepState by @mashiike in https://github.com/mashiike/stefunny/pull/263
+
 ## [v0.9.1](https://github.com/mashiike/stefunny/compare/v0.9.0...v0.9.1) - 2024-05-07
 - fix not default group. can not get exists schedule by @mashiike in https://github.com/mashiike/stefunny/pull/261
 
