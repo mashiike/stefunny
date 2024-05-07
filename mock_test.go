@@ -608,6 +608,25 @@ func (m *mockSchdulerClient) ListSchedules(ctx context.Context, params *schedule
 	return nil, err
 }
 
+func (m *mockSchdulerClient) ListScheduleGroups(ctx context.Context, params *scheduler.ListScheduleGroupsInput, optFns ...func(*scheduler.Options)) (*scheduler.ListScheduleGroupsOutput, error) {
+	var args mock.Arguments
+	if len(optFns) > 0 {
+		args = m.Called(ctx, params, optFns)
+	} else {
+		args = m.Called(ctx, params)
+	}
+	output := args.Get(0)
+	err := args.Error(1)
+	if err == nil {
+		if o, ok := output.(*scheduler.ListScheduleGroupsOutput); ok {
+			return o, nil
+		}
+		require.FailNow(m.t, "mock data is not *scheduler.ListScheduleGroupsOutput")
+		return nil, errors.New("mock data is not *scheduler.ListScheduleGroupsOutput")
+	}
+	return nil, err
+}
+
 func (m *mockSchdulerClient) UpdateSchedule(ctx context.Context, params *scheduler.UpdateScheduleInput, optFns ...func(*scheduler.Options)) (*scheduler.UpdateScheduleOutput, error) {
 	var args mock.Arguments
 	if len(optFns) > 0 {
