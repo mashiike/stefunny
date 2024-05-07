@@ -34,6 +34,7 @@ type SchedulerServiceImpl struct {
 	client                      SchedulerClient
 	cacheNamesByStateMachineArn map[string][]string
 	cacheScheduleByName         map[string]*scheduler.GetScheduleOutput
+	cacheGroups                 []schedulertypes.ScheduleGroupSummary
 }
 
 func NewSchedulerService(client SchedulerClient) *SchedulerServiceImpl {
@@ -77,6 +78,8 @@ func (svc *SchedulerServiceImpl) SearchRelatedSchedules(ctx context.Context, par
 func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context, stateMachineArn string) ([]string, error) {
 	log.Printf("[debug] call searchRelatedScheduleNames(%s)", stateMachineArn)
 	unqualified := removeQualifierFromArn(stateMachineArn)
+	log.Printf("[debug] state machine arn is `%s`", stateMachineArn)
+	log.Printf("[debug] unqualified state machine arn is `%s`", unqualified)
 	names, ok := svc.cacheNamesByStateMachineArn[stateMachineArn]
 	if ok {
 		if unqualified != stateMachineArn {
@@ -89,40 +92,32 @@ func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context,
 		}
 		return names, nil
 	}
-	gp := scheduler.NewListScheduleGroupsPaginator(svc.client, &scheduler.ListScheduleGroupsInput{
-		MaxResults: aws.Int32(100),
-	})
 	unqualifiedNames := make([]string, 0, 100)
-	for gp.HasMorePages() {
-		groups, err := gp.NextPage(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to list schedule groups: %w", err)
-		}
-		for _, group := range groups.ScheduleGroups {
-			if group.State != schedulertypes.ScheduleGroupStateActive {
-				continue
+	err := svc.forEachGroups(ctx, func(ctx context.Context, group schedulertypes.ScheduleGroupSummary) error {
+		p := scheduler.NewListSchedulesPaginator(svc.client, &scheduler.ListSchedulesInput{
+			GroupName:  group.Name,
+			MaxResults: aws.Int32(100),
+		})
+		for p.HasMorePages() {
+			page, err := p.NextPage(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to list schedules: %w", err)
 			}
-			p := scheduler.NewListSchedulesPaginator(svc.client, &scheduler.ListSchedulesInput{
-				GroupName:  group.Name,
-				MaxResults: aws.Int32(100),
-			})
-			for p.HasMorePages() {
-				page, err := p.NextPage(ctx)
-				if err != nil {
-					return nil, fmt.Errorf("failed to list schedules: %w", err)
+			for _, schedule := range page.Schedules {
+				targetArn := coalesce(schedule.Target.Arn)
+				log.Printf("[debug] schedule `%s` target Arn is `%s`", coalesce(schedule.Name), targetArn)
+				if targetArn == stateMachineArn {
+					names = append(names, coalesce(schedule.Name))
 				}
-				for _, schedule := range page.Schedules {
-					targetArn := coalesce(schedule.Target.Arn)
-					log.Printf("[debug] schedule `%s` target Arn is `%s`", coalesce(schedule.Name), targetArn)
-					if targetArn == stateMachineArn {
-						names = append(names, coalesce(schedule.Name))
-					}
-					if targetArn == unqualified {
-						unqualifiedNames = append(unqualifiedNames, coalesce(schedule.Name))
-					}
+				if targetArn == unqualified {
+					unqualifiedNames = append(unqualifiedNames, coalesce(schedule.Name))
 				}
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	names = unique(names)
 	svc.cacheNamesByStateMachineArn[stateMachineArn] = names
@@ -136,20 +131,67 @@ func (svc *SchedulerServiceImpl) searchRelatedScheduleNames(ctx context.Context,
 	return unique(result), nil
 }
 
+func (svc *SchedulerServiceImpl) forEachGroups(ctx context.Context, fn func(ctx context.Context, group schedulertypes.ScheduleGroupSummary) error) error {
+	if len(svc.cacheGroups) > 0 {
+		for _, group := range svc.cacheGroups {
+			if err := fn(ctx, group); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	gp := scheduler.NewListScheduleGroupsPaginator(svc.client, &scheduler.ListScheduleGroupsInput{
+		MaxResults: aws.Int32(100),
+	})
+	groupSummaries := make([]schedulertypes.ScheduleGroupSummary, 0, 100)
+	for gp.HasMorePages() {
+		groups, err := gp.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to list schedule groups: %w", err)
+		}
+		for _, group := range groups.ScheduleGroups {
+			if err := fn(ctx, group); err != nil {
+				return err
+			}
+			groupSummaries = append(groupSummaries, group)
+		}
+	}
+	svc.cacheGroups = groupSummaries
+	return nil
+}
+
 func (svc *SchedulerServiceImpl) getSchedule(ctx context.Context, name string) (*Schedule, error) {
 	log.Printf("[debug] call getSchedule(%s)", name)
 	schedule, ok := svc.cacheScheduleByName[name]
 	if !ok {
-		var err error
-		schedule, err = svc.client.GetSchedule(ctx, &scheduler.GetScheduleInput{
-			Name: aws.String(name),
+		var found bool
+		err := svc.forEachGroups(ctx, func(ctx context.Context, group schedulertypes.ScheduleGroupSummary) error {
+			var err error
+			if found {
+				return nil
+			}
+			if group.State != schedulertypes.ScheduleGroupStateActive {
+				return nil
+			}
+			schedule, err = svc.client.GetSchedule(ctx, &scheduler.GetScheduleInput{
+				Name:      aws.String(name),
+				GroupName: group.Name,
+			})
+			if err != nil {
+				var apiErr smithy.APIError
+				if errors.As(err, &apiErr) && apiErr.ErrorCode() == "ResourceNotFoundException" {
+					return nil
+				}
+				return fmt.Errorf("scheduler.GetSchedule `%s`: %w", name, err)
+			}
+			found = true
+			return nil
 		})
 		if err != nil {
-			var apiErr smithy.APIError
-			if errors.As(err, &apiErr) && apiErr.ErrorCode() == "ResourceNotFoundException" {
-				return nil, ErrScheduleNotFound
-			}
-			return nil, fmt.Errorf("scheduler.GetSchedule `%s`: %w", name, err)
+			return nil, err
+		}
+		if !found {
+			return nil, ErrScheduleNotFound
 		}
 		svc.cacheScheduleByName[name] = schedule
 	}
