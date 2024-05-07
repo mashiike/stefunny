@@ -1,4 +1,4 @@
-Usage: stefunny render <targets> ...
+Usage: stefunny render <targets> ... [flags]
 
 Render state machine definition
 

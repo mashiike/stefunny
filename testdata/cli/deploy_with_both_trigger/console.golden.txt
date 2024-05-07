@@ -1,4 +1,4 @@
-Usage: stefunny deploy
+Usage: stefunny deploy [flags]
 
 Deploy state machine and schedule rules
 

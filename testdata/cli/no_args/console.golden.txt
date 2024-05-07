@@ -1,4 +1,4 @@
-Usage: stefunny <command>
+Usage: stefunny <command> [flags]
 
 stefunny is a deployment tool for AWS StepFunctions state machine
 
@@ -15,43 +15,43 @@ Flags:
       --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
 
 Commands:
-  version
+  version [flags]
     Show version
 
-  init --state-machine=STRING
+  init --state-machine=STRING [flags]
     Initialize stefunny configuration
 
-  delete
+  delete [flags]
     Delete state machine and schedule rules
 
-  deploy
+  deploy [flags]
     Deploy state machine and schedule rules
 
-  rollback
+  rollback [flags]
     Rollback state machine
 
-  schedule --enabled --disabled
+  schedule --enabled --disabled [flags]
     Enable or disable schedule rules (deprecated)
 
-  render <targets> ...
+  render <targets> ... [flags]
     Render state machine definition
 
-  execute
+  execute [flags]
     Execute state machine
 
-  versions
+  versions [flags]
     Manage state machine versions
 
-  diff
+  diff [flags]
     Show diff of state machine definition and trigers
 
-  pull
+  pull [flags]
     Pull state machine definition
 
-  studio
+  studio [flags]
     Show Step Functions workflow studio URL
 
-  status
+  status [flags]
     Show status of state machine
 
 Run "stefunny <command> --help" for more information on a command.
