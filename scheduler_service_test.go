@@ -20,8 +20,22 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 	m := NewMockSchedulerClient(t)
 	defer m.AssertExpectations(t)
 
+	m.On("ListScheduleGroups", mock.Anything, &scheduler.ListScheduleGroupsInput{
+		MaxResults: aws.Int32(100),
+	}).Return(
+		&scheduler.ListScheduleGroupsOutput{
+			ScheduleGroups: []schedulertypes.ScheduleGroupSummary{
+				{
+					Name:  aws.String("default"),
+					State: schedulertypes.ScheduleGroupStateActive,
+				},
+			},
+		},
+		nil,
+	).Once()
 	m.On("ListSchedules", mock.Anything, &scheduler.ListSchedulesInput{
 		MaxResults: aws.Int32(100),
+		GroupName:  aws.String("default"),
 	}).Return(
 		&scheduler.ListSchedulesOutput{
 			Schedules: []schedulertypes.ScheduleSummary{
@@ -115,8 +129,22 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 	m := NewMockSchedulerClient(t)
 	defer m.AssertExpectations(t)
 
+	m.On("ListScheduleGroups", mock.Anything, &scheduler.ListScheduleGroupsInput{
+		MaxResults: aws.Int32(100),
+	}).Return(
+		&scheduler.ListScheduleGroupsOutput{
+			ScheduleGroups: []schedulertypes.ScheduleGroupSummary{
+				{
+					Name:  aws.String("default"),
+					State: schedulertypes.ScheduleGroupStateActive,
+				},
+			},
+		},
+		nil,
+	).Once()
 	m.On("ListSchedules", mock.Anything, &scheduler.ListSchedulesInput{
 		MaxResults: aws.Int32(100),
+		GroupName:  aws.String("default"),
 	}).Return(
 		&scheduler.ListSchedulesOutput{
 			Schedules: []schedulertypes.ScheduleSummary{
