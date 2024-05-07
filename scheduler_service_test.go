@@ -62,7 +62,8 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 		nil,
 	).Once()
 	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
-		Name: aws.String("Scheduled"),
+		Name:      aws.String("Scheduled"),
+		GroupName: aws.String("default"),
 	}).Return(
 		&scheduler.GetScheduleOutput{
 			Name:               aws.String("Scheduled"),
@@ -76,7 +77,8 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 		nil,
 	).Once()
 	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
-		Name: aws.String("Unqualified"),
+		Name:      aws.String("Unqualified"),
+		GroupName: aws.String("default"),
 	}).Return(
 		&scheduler.GetScheduleOutput{
 			Name:               aws.String("Unqualified"),
@@ -171,7 +173,8 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 		nil,
 	).Once()
 	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
-		Name: aws.String("Scheduled"),
+		Name:      aws.String("Scheduled"),
+		GroupName: aws.String("default"),
 	}).Return(
 		&scheduler.GetScheduleOutput{
 			Name:               aws.String("Scheduled"),
@@ -185,7 +188,8 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 		nil,
 	).Once()
 	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
-		Name: aws.String("Unqualified"),
+		Name:      aws.String("Unqualified"),
+		GroupName: aws.String("default"),
 	}).Return(
 		&scheduler.GetScheduleOutput{
 			Name:               aws.String("Unqualified"),
@@ -199,7 +203,8 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 		nil,
 	).Once()
 	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
-		Name: aws.String("Monthly"),
+		Name:      aws.String("Monthly"),
+		GroupName: aws.String("default"),
 	}).Return(
 		nil,
 		&smithy.GenericAPIError{
