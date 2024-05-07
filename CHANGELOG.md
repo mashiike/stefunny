@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.9.0](https://github.com/mashiike/stefunny/compare/v0.8.4...v0.9.0) - 2024-05-07
+- fix: Detect Related Schedules in not default group by @mashiike in https://github.com/mashiike/stefunny/pull/253
+- change dependabot config: grouping update setting for aws sdk by @mashiike in https://github.com/mashiike/stefunny/pull/255
+- remake: tagpr and release workflow by @mashiike in https://github.com/mashiike/stefunny/pull/256
+- Bump golang.org/x/term from 0.17.0 to 0.20.0 by @dependabot in https://github.com/mashiike/stefunny/pull/252
+- Bump github.com/aws/aws-sdk-go-v2 from 1.25.2 to 1.26.1 by @dependabot in https://github.com/mashiike/stefunny/pull/248
+- Bump golang.org/x/net from 0.20.0 to 0.23.0 by @dependabot in https://github.com/mashiike/stefunny/pull/251
+- Bump google.golang.org/protobuf from 1.32.0 to 1.33.0 by @dependabot in https://github.com/mashiike/stefunny/pull/240
+- Bump the aws-sdk-go-v2 group with 6 updates by @dependabot in https://github.com/mashiike/stefunny/pull/257
+- update .golangci.yaml by @mashiike in https://github.com/mashiike/stefunny/pull/259
+- Bump github.com/stretchr/testify from 1.8.4 to 1.9.0 by @dependabot in https://github.com/mashiike/stefunny/pull/235
+- Bump github.com/alecthomas/kong from 0.8.1 to 0.9.0 by @dependabot in https://github.com/mashiike/stefunny/pull/258
+- actions-misspell: exclude auto generate by @mashiike in https://github.com/mashiike/stefunny/pull/260
+
 ## [v0.8.4](https://github.com/mashiike/stefunny/compare/v0.8.3...v0.8.4) - 2024-03-08
 - more explain, diff source in config file by @mashiike in https://github.com/mashiike/stefunny/pull/232
 - supression of diff eventbridge_rules by @mashiike in https://github.com/mashiike/stefunny/pull/234
