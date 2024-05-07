@@ -1,4 +1,4 @@
-Usage: stefunny execute
+Usage: stefunny execute [flags]
 
 Execute state machine
 

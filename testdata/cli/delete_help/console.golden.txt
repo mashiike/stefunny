@@ -1,4 +1,4 @@
-Usage: stefunny delete
+Usage: stefunny delete [flags]
 
 Delete state machine and schedule rules
 

@@ -1,4 +1,4 @@
-Usage: stefunny init --state-machine=STRING
+Usage: stefunny init --state-machine=STRING [flags]
 
 Initialize stefunny configuration
 

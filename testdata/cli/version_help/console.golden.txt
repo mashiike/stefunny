@@ -1,4 +1,4 @@
-Usage: stefunny version
+Usage: stefunny version [flags]
 
 Show version
 

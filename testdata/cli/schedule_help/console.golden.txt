@@ -1,4 +1,4 @@
-Usage: stefunny schedule --enabled --disabled
+Usage: stefunny schedule --enabled --disabled [flags]
 
 Enable or disable schedule rules (deprecated)
 
