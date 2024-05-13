@@ -13,7 +13,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.27.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.28.6
 	github.com/aws/smithy-go v1.20.2
-	github.com/fatih/color v1.16.0
+	github.com/fatih/color v1.17.0
 	github.com/fujiwara/logutils v1.1.2
 	github.com/fujiwara/tfstate-lookup v1.1.6
 	github.com/goccy/go-yaml v1.11.3
