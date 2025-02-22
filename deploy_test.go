@@ -15,8 +15,8 @@ import (
 	"github.com/mashiike/stefunny"
 	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDeploy(t *testing.T) {
@@ -31,8 +31,8 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Hello",
 				}).Return(
 					&stefunny.StateMachine{
@@ -46,27 +46,27 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
 					Name: "Hello",
 				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Times(2)
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
+				m.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					RuleNames:                []string{},
 				}).Return(
 					stefunny.EventBridgeRules{},
 					nil,
-				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+				).Times(1)
+				m.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					ScheduleNames:            []string{},
 				}).Return(
 					stefunny.Schedules{},
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -74,8 +74,8 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Hello",
 				}).Return(
 					&stefunny.StateMachine{
@@ -89,8 +89,8 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeployStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.Name, "Hello")
 					},
@@ -101,24 +101,24 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
 					Name: "Hello",
 				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Times(2)
-				m.eventBridge.On("DeployRules",
-					mock.Anything,
+				m.eventBridge.EXPECT().DeployRules(
+					gomock.Any(),
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					stefunny.EventBridgeRules{},
 					true,
 				).Return(
 					nil,
-				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
+				).Times(1)
+				m.scheduler.EXPECT().DeploySchedules(gomock.Any(), "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -126,14 +126,14 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Hello",
 				}).Return(
 					nil,
 					stefunny.ErrStateMachineDoesNotExist,
-				).Once()
-				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeployStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.Name, "Hello") &&
 							assert.Nil(t, input.StateMachineArn)
@@ -145,24 +145,24 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
 					Name: "Hello",
 				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
 					nil,
 				).Times(2)
-				m.eventBridge.On("DeployRules",
-					mock.Anything,
+				m.eventBridge.EXPECT().DeployRules(
+					gomock.Any(),
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
 					stefunny.EventBridgeRules{},
 					true,
 				).Return(
 					nil,
-				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
+				).Times(1)
+				m.scheduler.EXPECT().DeploySchedules(gomock.Any(), "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -170,14 +170,14 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Scheduled",
 				}).Return(
 					nil,
 					stefunny.ErrStateMachineDoesNotExist,
-				).Once()
-				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeployStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.Name, "Scheduled") &&
 							assert.Nil(t, input.StateMachineArn) &&
@@ -190,17 +190,17 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
 					Name: "Scheduled",
 				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
 				).Times(2)
-				m.eventBridge.On("DeployRules",
-					mock.Anything,
+				m.eventBridge.EXPECT().DeployRules(
+					gomock.Any(),
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
-					mock.MatchedBy(
+					gomock.Cond(
 						func(input stefunny.EventBridgeRules) bool {
 							for _, rule := range input {
 								rule.ConfigFilePath = nil
@@ -228,10 +228,10 @@ func TestDeploy(t *testing.T) {
 						},
 					), true).Return(
 					nil,
-				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, true).Return(
+				).Times(1)
+				m.scheduler.EXPECT().DeploySchedules(gomock.Any(), "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, true).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -239,8 +239,8 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Scheduled",
 				}).Return(
 					&stefunny.StateMachine{
@@ -254,8 +254,8 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeployStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.Name, "Scheduled") &&
 							assert.JSONEq(t, *input.Definition, LoadString(t, "testdata/hello_world.asl.json"))
@@ -267,17 +267,17 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
 					Name: "Scheduled",
 				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
 				).Times(2)
-				m.eventBridge.On("DeployRules",
-					mock.Anything,
+				m.eventBridge.EXPECT().DeployRules(
+					gomock.Any(),
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
-					mock.MatchedBy(
+					gomock.Cond(
 						func(input stefunny.EventBridgeRules) bool {
 							for _, rule := range input {
 								rule.ConfigFilePath = nil
@@ -305,10 +305,10 @@ func TestDeploy(t *testing.T) {
 						},
 					), true).Return(
 					nil,
-				).Once()
-				m.scheduler.On("DeploySchedules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, true).Return(
+				).Times(1)
+				m.scheduler.EXPECT().DeploySchedules(gomock.Any(), "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test", stefunny.Schedules{}, true).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -316,8 +316,8 @@ func TestDeploy(t *testing.T) {
 			path:     "testdata/schedule.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("SetAliasName", "test").Return()
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Scheduled",
 				}).Return(
 					&stefunny.StateMachine{
@@ -329,8 +329,8 @@ func TestDeploy(t *testing.T) {
 						},
 					},
 					nil,
-				).Once()
-				m.sfn.On("DeployStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeployStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.Name, "Scheduled")
 					},
@@ -341,26 +341,25 @@ func TestDeploy(t *testing.T) {
 						CreationDate:    aws.Time(time.Now()),
 					},
 					nil,
-				).Once()
-				m.sfn.On("GetStateMachineArn", mock.Anything, &stefunny.GetStateMachineArnInput{
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
 					Name: "Scheduled",
 				}).Return(
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled",
 					nil,
 				).Times(2)
-				m.eventBridge.On("DeployRules",
-					mock.Anything,
+				m.eventBridge.EXPECT().DeployRules(
+					gomock.Any(),
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
 					stefunny.EventBridgeRules{},
 					true,
 				).Return(
 					nil,
-				).Once()
-				m.scheduler.On(
-					"DeploySchedules",
-					mock.Anything,
+				).Times(1)
+				m.scheduler.EXPECT().DeploySchedules(
+					gomock.Any(),
 					"arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:test",
-					mock.MatchedBy(
+					gomock.Cond(
 						func(input stefunny.Schedules) bool {
 							for _, schedule := range input {
 								schedule.ConfigFilePath = nil
@@ -382,7 +381,7 @@ func TestDeploy(t *testing.T) {
 					),
 					true).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 	}
@@ -392,7 +391,7 @@ func TestDeploy(t *testing.T) {
 			LoggerSetup(t, "debug")
 			t.Log("test location:", dataloc.L(c.casename))
 			mocks := NewMocks(t)
-			defer mocks.AssertExpectations(t)
+			defer mocks.Finish()
 			if c.setupMocks != nil {
 				c.setupMocks(t, mocks)
 			}

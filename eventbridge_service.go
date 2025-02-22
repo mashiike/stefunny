@@ -14,6 +14,7 @@ import (
 	"github.com/mashiike/stefunny/internal/eventbridgex"
 )
 
+//go:generate go tool mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 type EventBridgeClient interface {
 	eventbridgex.ListRuleNamesByTargetAPIClient
 	PutRule(ctx context.Context, params *eventbridge.PutRuleInput, optFns ...func(*eventbridge.Options)) (*eventbridge.PutRuleOutput, error)

@@ -24,6 +24,7 @@ var (
 	ErrRollbackTargetNotFound   = errors.New("rollback target not found")
 )
 
+//go:generate go tool mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 type SFnClient interface {
 	sfn.ListStateMachinesAPIClient
 	sfnx.ListStateMachineAliasesAPIClient

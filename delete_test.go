@@ -13,8 +13,8 @@ import (
 	"github.com/mashiike/stefunny"
 	"github.com/motemen/go-testutil/dataloc"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestDelete(t *testing.T) {
@@ -29,7 +29,7 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Hello",
 				}).Return(
 					&stefunny.StateMachine{
@@ -42,19 +42,19 @@ func TestDelete(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
+				).Times(1)
+				m.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
 				}).Return(
 					stefunny.EventBridgeRules{},
 					nil,
-				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+				).Times(1)
+				m.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
 				}).Return(
 					stefunny.Schedules{},
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -62,7 +62,7 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/stefunny.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Hello",
 				}).Return(
 					&stefunny.StateMachine{
@@ -76,26 +76,26 @@ func TestDelete(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
+				).Times(1)
+				m.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
 				}).Return(
 					stefunny.EventBridgeRules{},
 					nil,
-				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+				).Times(1)
+				m.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:current",
 				}).Return(
 					stefunny.Schedules{},
 					nil,
-				).Once()
-				m.sfn.On("DeleteStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeleteStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.StateMachineArn, "Hello")
 					},
 				)).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -103,7 +103,7 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/event.yaml",
 			DryRun:   true,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Scheduled",
 				}).Return(
 					&stefunny.StateMachine{
@@ -117,8 +117,8 @@ func TestDelete(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
+				).Times(1)
+				m.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
 				}).Return(
 					stefunny.EventBridgeRules{
@@ -140,13 +140,13 @@ func TestDelete(t *testing.T) {
 						},
 					},
 					nil,
-				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+				).Times(1)
+				m.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
 				}).Return(
 					stefunny.Schedules{},
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 		{
@@ -154,7 +154,7 @@ func TestDelete(t *testing.T) {
 			path:     "testdata/event.yaml",
 			DryRun:   false,
 			setupMocks: func(t *testing.T, m *mocks) {
-				m.sfn.On("DescribeStateMachine", mock.Anything, &stefunny.DescribeStateMachineInput{
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 					Name: "Scheduled",
 				}).Return(
 					&stefunny.StateMachine{
@@ -168,8 +168,8 @@ func TestDelete(t *testing.T) {
 						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 					},
 					nil,
-				).Once()
-				m.eventBridge.On("SearchRelatedRules", mock.Anything, &stefunny.SearchRelatedRulesInput{
+				).Times(1)
+				m.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
 				}).Return(
 					stefunny.EventBridgeRules{
@@ -191,27 +191,27 @@ func TestDelete(t *testing.T) {
 						},
 					},
 					nil,
-				).Once()
-				m.scheduler.On("SearchRelatedSchedules", mock.Anything, &stefunny.SearchRelatedSchedulesInput{
+				).Times(1)
+				m.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
 					StateMachineQualifiedArn: "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current",
 				}).Return(
 					stefunny.Schedules{},
 					nil,
-				).Once()
-				m.sfn.On("DeleteStateMachine", mock.Anything, mock.MatchedBy(
+				).Times(1)
+				m.sfn.EXPECT().DeleteStateMachine(gomock.Any(), gomock.Cond(
 					func(input *stefunny.StateMachine) bool {
 						return assert.Contains(t, *input.StateMachineArn, "Scheduled")
 					},
 				)).Return(
 					nil,
-				).Once()
-				m.eventBridge.On("DeployRules", mock.Anything, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current", mock.MatchedBy(
+				).Times(1)
+				m.eventBridge.EXPECT().DeployRules(gomock.Any(), "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current", gomock.Cond(
 					func(input stefunny.EventBridgeRules) bool {
 						return len(input) == 0
 					},
 				), false).Return(
 					nil,
-				).Once()
+				).Times(1)
 			},
 		},
 	}
@@ -221,7 +221,7 @@ func TestDelete(t *testing.T) {
 			LoggerSetup(t, "debug")
 			t.Log("test location:", dataloc.L(c.casename))
 			mocks := NewMocks(t)
-			defer mocks.AssertExpectations(t)
+			defer mocks.Finish()
 			if c.setupMocks != nil {
 				c.setupMocks(t, mocks)
 			}

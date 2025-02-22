@@ -38,9 +38,11 @@ const (
 	yamlExt    = ".yaml"
 )
 
+//go:generate go tool mockgen -source=$GOFILE -destination=./mock/$GOFILE -package=mock
 type CloudWatchLogsClient interface {
 	cloudwatchlogs.DescribeLogGroupsAPIClient
 }
+
 type ConfigLoader struct {
 	funcMap           template.FuncMap
 	nestedRednerFiles []string

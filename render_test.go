@@ -70,7 +70,7 @@ func TestAppRender(t *testing.T) {
 			t.Log("case location:", loc)
 			LoggerSetup(t, "debug")
 			m := NewMocks(t)
-			defer m.AssertExpectations(t)
+			defer m.Finish()
 			app := newMockApp(t, c.path, m)
 			ctx := context.Background()
 			var buf bytes.Buffer

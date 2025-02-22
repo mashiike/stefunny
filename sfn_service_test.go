@@ -11,19 +11,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
+	"github.com/mashiike/stefunny/mock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(&sfn.ListStateMachinesOutput{
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any(), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -34,10 +36,11 @@ func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
 
 func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(&sfn.ListStateMachinesOutput{
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any(), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{
 			{
 				Name:            aws.String("Express"),
@@ -52,8 +55,8 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	}, nil).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.DescribeStateMachineOutput{
 		Name:            aws.String("Hello"),
@@ -70,8 +73,8 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 			IncludeExecutionData: false,
 			Level:                sfntypes.LogLevelOff,
 		},
-	}, nil).Once()
-	m.On("ListTagsForResource", mock.Anything, &sfn.ListTagsForResourceInput{
+	}, nil).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
 		ResourceArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.ListTagsForResourceOutput{
 		Tags: []sfntypes.Tag{
@@ -84,7 +87,7 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 				Value: aws.String("test"),
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	sm, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -123,14 +126,16 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 
 func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.MatchedBy(
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Cond(
 		func(input *sfn.ListStateMachinesInput) bool {
 			return input.NextToken == nil
 		},
-	)).Return(&sfn.ListStateMachinesOutput{
+	), gomock.Any(),
+	).Return(&sfn.ListStateMachinesOutput{
 		NextToken: aws.String("next"),
 		StateMachines: []sfntypes.StateMachineListItem{
 			{
@@ -146,12 +151,12 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
-	m.On("ListStateMachines", mock.Anything, mock.MatchedBy(
+	}, nil).Times(1)
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Cond(
 		func(input *sfn.ListStateMachinesInput) bool {
 			return input.NextToken != nil && *input.NextToken == "next"
 		},
-	)).Return(&sfn.ListStateMachinesOutput{
+	), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{
 			{
 				Name:            aws.String("Hello"),
@@ -160,9 +165,9 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.DescribeStateMachineOutput{
 		Name:            aws.String("Hello"),
@@ -179,8 +184,8 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 			IncludeExecutionData: false,
 			Level:                sfntypes.LogLevelOff,
 		},
-	}, nil).Once()
-	m.On("ListTagsForResource", mock.Anything, &sfn.ListTagsForResourceInput{
+	}, nil).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
 		ResourceArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.ListTagsForResourceOutput{
 		Tags: []sfntypes.Tag{
@@ -193,7 +198,7 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 				Value: aws.String("test"),
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	sm, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -232,10 +237,12 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 
 func TestSFnService_DescribeStateMachine_FailedOnListStateMachine(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	expectedErr := errors.New("this is testing")
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, expectedErr).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -246,10 +253,11 @@ func TestSFnService_DescribeStateMachine_FailedOnListStateMachine(t *testing.T) 
 
 func TestSFnService_DescribeStateMachine_FailedOnDescribeStateMachine(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(&sfn.ListStateMachinesOutput{
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any(), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{
 			{
 				Name:            aws.String("Hello"),
@@ -258,11 +266,11 @@ func TestSFnService_DescribeStateMachine_FailedOnDescribeStateMachine(t *testing
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	expectedErr := errors.New("this is testing")
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-	}).Return(nil, expectedErr).Once()
+	}).Return(nil, expectedErr).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -273,10 +281,11 @@ func TestSFnService_DescribeStateMachine_FailedOnDescribeStateMachine(t *testing
 
 func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(&sfn.ListStateMachinesOutput{
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any(), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{
 			{
 				Name:            aws.String("Hello"),
@@ -285,8 +294,8 @@ func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	}, nil).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.DescribeStateMachineOutput{
 		Name:            aws.String("Hello"),
@@ -303,11 +312,12 @@ func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.
 			IncludeExecutionData: false,
 			Level:                sfntypes.LogLevelOff,
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	expectedErr := errors.New("this is testing")
-	m.On("ListTagsForResource", mock.Anything, &sfn.ListTagsForResourceInput{
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
 		ResourceArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-	}).Return(nil, expectedErr)
+	}).Return(nil, expectedErr).Times(1)
+
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -318,8 +328,10 @@ func TestSFnService_DescribeStateMachine_FailedOnListTagsForResource(t *testing.
 
 func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
 	stateMachine := &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name:       aws.String("Hello"),
@@ -341,46 +353,44 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 			},
 		},
 	}
-	m.On("CreateStateMachine", mock.Anything, mock.MatchedBy(func(input *sfn.CreateStateMachineInput) bool {
-		tags := make(map[string]string)
-		for _, tag := range input.Tags {
-			tags[*tag.Key] = *tag.Value
-		}
-		result := assert.EqualValues(t, map[string]string{
-			"ManagedBy":   "stefunny",
-			"Environment": "test",
-		}, tags)
-		stateMachine.CreateStateMachineInput.Tags = input.Tags
-		isPublish := assert.True(t, input.Publish)
-		stateMachine.CreateStateMachineInput.Publish = input.Publish
-		return assert.EqualValues(t, stateMachine.CreateStateMachineInput, *input) &&
-			result && isPublish
-	})).Return(&sfn.CreateStateMachineOutput{
-		StateMachineArn:        aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
-		CreationDate:           aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-	}, nil).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+
+	m.EXPECT().CreateStateMachine(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, input *sfn.CreateStateMachineInput, opts ...func(*sfn.Options)) (*sfn.CreateStateMachineOutput, error) {
+			tags := make(map[string]string)
+			for _, tag := range input.Tags {
+				tags[*tag.Key] = *tag.Value
+			}
+			assert.EqualValues(t, map[string]string{
+				"ManagedBy":   "stefunny",
+				"Environment": "test",
+			}, tags)
+			assert.True(t, input.Publish)
+			stateMachine.CreateStateMachineInput.Tags = input.Tags
+			stateMachine.CreateStateMachineInput.Publish = input.Publish
+			return &sfn.CreateStateMachineOutput{
+				StateMachineArn:        aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
+				CreationDate:           aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+			}, nil
+		}).Times(1)
+
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-	}).Return(
-		&sfn.DescribeStateMachineOutput{
-			Name:            stateMachine.CreateStateMachineInput.Name,
-			StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
-			Definition:      stateMachine.CreateStateMachineInput.Definition,
-			Status:          sfntypes.StateMachineStatusActive,
-			CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-		},
-		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	}).Return(&sfn.DescribeStateMachineOutput{
+		Name:            stateMachine.CreateStateMachineInput.Name,
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		Definition:      stateMachine.CreateStateMachineInput.Definition,
+		Status:          sfntypes.StateMachineStatusActive,
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
-	}).Return(
-		nil,
-		&sfntypes.ResourceNotFound{
-			Message: aws.String("not found"),
-		},
-	).Once()
-	m.On("CreateStateMachineAlias", mock.Anything, &sfn.CreateStateMachineAliasInput{
+	}).Return(nil, &sfntypes.ResourceNotFound{
+		Message: aws.String("not found"),
+	}).Times(1)
+
+	m.EXPECT().CreateStateMachineAlias(gomock.Any(), &sfn.CreateStateMachineAliasInput{
 		Name: aws.String("current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 			{
@@ -388,12 +398,9 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 				Weight:                 100,
 			},
 		},
-	}).Return(
-		&sfn.CreateStateMachineAliasOutput{
-			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
-		},
-		nil,
-	).Once()
+	}).Return(&sfn.CreateStateMachineAliasOutput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}, nil).Times(1)
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
@@ -409,8 +416,10 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 
 func TestSFnService_DeployStateMachine_CreateStateMachineFailed(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
 	stateMachine := &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name:       aws.String("Hello"),
@@ -437,7 +446,7 @@ func TestSFnService_DeployStateMachine_CreateStateMachineFailed(t *testing.T) {
 		},
 	}
 	expectedErr := errors.New("this is testing")
-	m.On("CreateStateMachine", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+	m.EXPECT().CreateStateMachine(gomock.Any(), gomock.Any()).Return(nil, expectedErr).Times(1)
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
@@ -447,8 +456,10 @@ func TestSFnService_DeployStateMachine_CreateStateMachineFailed(t *testing.T) {
 
 func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
 	stateMachine := &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name:       aws.String("Hello"),
@@ -477,49 +488,50 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 		Status:          sfntypes.StateMachineStatusActive,
 	}
-	m.On("UpdateStateMachine", mock.Anything, mock.MatchedBy(func(input *sfn.UpdateStateMachineInput) bool {
-		return assert.EqualValues(t, &sfn.UpdateStateMachineInput{
-			StateMachineArn:      stateMachine.StateMachineArn,
-			Definition:           stateMachine.Definition,
-			LoggingConfiguration: stateMachine.LoggingConfiguration,
-			RoleArn:              stateMachine.RoleArn,
-			Publish:              true,
-			TracingConfiguration: stateMachine.TracingConfiguration,
-		}, input)
 
-	})).Return(&sfn.UpdateStateMachineOutput{
-		RevisionId:             aws.String("1"),
-		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
-		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
-	}, nil).Once()
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, input *sfn.UpdateStateMachineInput, opts ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error) {
+			assert.EqualValues(t, &sfn.UpdateStateMachineInput{
+				StateMachineArn:      stateMachine.StateMachineArn,
+				Definition:           stateMachine.Definition,
+				LoggingConfiguration: stateMachine.LoggingConfiguration,
+				RoleArn:              stateMachine.RoleArn,
+				Publish:              true,
+				TracingConfiguration: stateMachine.TracingConfiguration,
+			}, input)
+			return &sfn.UpdateStateMachineOutput{
+				RevisionId:             aws.String("1"),
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+				UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+			}, nil
+		}).Times(1)
 
-	m.On("TagResource", mock.Anything, mock.MatchedBy(func(input *sfn.TagResourceInput) bool {
-		return assert.EqualValues(t, &sfn.TagResourceInput{
-			ResourceArn: stateMachine.StateMachineArn,
-			Tags:        stateMachine.CreateStateMachineInput.Tags,
-		}, input)
-	})).Return(&sfn.TagResourceOutput{}, nil).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	m.EXPECT().TagResource(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, input *sfn.TagResourceInput, opts ...func(*sfn.Options)) (*sfn.TagResourceOutput, error) {
+			assert.EqualValues(t, &sfn.TagResourceInput{
+				ResourceArn: stateMachine.StateMachineArn,
+				Tags:        stateMachine.CreateStateMachineInput.Tags,
+			}, input)
+			return &sfn.TagResourceOutput{}, nil
+		}).Times(1)
+
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: stateMachine.StateMachineArn,
-	}).Return(
-		&sfn.DescribeStateMachineOutput{
-			Name:            stateMachine.Name,
-			StateMachineArn: stateMachine.StateMachineArn,
-			Definition:      stateMachine.Definition,
-			CreationDate:    stateMachine.CreationDate,
-			Status:          sfntypes.StateMachineStatusActive,
-		},
-		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	}).Return(&sfn.DescribeStateMachineOutput{
+		Name:            stateMachine.Name,
+		StateMachineArn: stateMachine.StateMachineArn,
+		Definition:      stateMachine.Definition,
+		CreationDate:    stateMachine.CreationDate,
+		Status:          sfntypes.StateMachineStatusActive,
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
-	}).Return(
-		&sfn.DescribeStateMachineAliasOutput{
-			StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
-		},
-		nil,
-	).Once()
-	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
+	}).Return(&sfn.DescribeStateMachineAliasOutput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}, nil).Times(1)
+
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 			{
@@ -527,10 +539,7 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 				Weight:                 100,
 			},
 		},
-	}).Return(
-		&sfn.UpdateStateMachineAliasOutput{},
-		nil,
-	).Once()
+	}).Return(&sfn.UpdateStateMachineAliasOutput{}, nil).Times(1)
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
@@ -546,8 +555,10 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 
 func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
 	stateMachine := &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name:       aws.String("Hello"),
@@ -577,7 +588,7 @@ func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
 		Status:          sfntypes.StateMachineStatusActive,
 	}
 	expectedErr := errors.New("this is testing")
-	m.On("UpdateStateMachine", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(nil, expectedErr).Times(1)
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
@@ -587,8 +598,10 @@ func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
 
 func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
 	stateMachine := &stefunny.StateMachine{
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
 			Name:       aws.String("Hello"),
@@ -618,13 +631,13 @@ func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
 		Status:          sfntypes.StateMachineStatusActive,
 	}
 	expectedErr := errors.New("this is testing")
-	m.On("UpdateStateMachine", mock.Anything, mock.Anything).Return(&sfn.UpdateStateMachineOutput{
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
 		RevisionId:             aws.String("1"),
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
 		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
-	}, nil).Once()
+	}, nil).Times(1)
 
-	m.On("TagResource", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+	m.EXPECT().TagResource(gomock.Any(), gomock.Any()).Return(nil, expectedErr).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.DeployStateMachine(ctx, stateMachine)
@@ -633,12 +646,13 @@ func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
 
 func TestSFnService_DeleteStateMachine_Success(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachineArn := "arn:aws:states:us-east-1:123456789012:stateMachine:Hello"
-	m.On("DeleteStateMachine", mock.Anything, &sfn.DeleteStateMachineInput{
+	m.EXPECT().DeleteStateMachine(gomock.Any(), &sfn.DeleteStateMachineInput{
 		StateMachineArn: aws.String(stateMachineArn),
-	}).Return(&sfn.DeleteStateMachineOutput{}, nil).Once()
+	}).Return(&sfn.DeleteStateMachineOutput{}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	stateMachine := &stefunny.StateMachine{
@@ -650,8 +664,9 @@ func TestSFnService_DeleteStateMachine_Success(t *testing.T) {
 
 func TestSFnService_DeleteStateMachine_Deleting(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	stateMachine := &stefunny.StateMachine{
@@ -664,10 +679,11 @@ func TestSFnService_DeleteStateMachine_Deleting(t *testing.T) {
 
 func TestSFnService_DeleteStateMachine_Failed(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	expectedErr := errors.New("this is testing")
-	m.On("DeleteStateMachine", mock.Anything, mock.Anything).Return(nil, expectedErr).Once()
+	m.EXPECT().DeleteStateMachine(gomock.Any(), gomock.Any()).Return(nil, expectedErr).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	stateMachine := &stefunny.StateMachine{
@@ -679,8 +695,9 @@ func TestSFnService_DeleteStateMachine_Failed(t *testing.T) {
 
 func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
@@ -694,7 +711,7 @@ func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 		Async:         false,
 		Qualifier:     aws.String("current"),
 	}
-	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+	m.EXPECT().StartExecution(gomock.Any(), gomock.Cond(
 		func(input *sfn.StartExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartExecutionInput{
 				StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
@@ -706,8 +723,8 @@ func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 	)).Return(&sfn.StartExecutionOutput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
 		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-	}, nil).Once()
-	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
+	}, nil).Times(1)
+	m.EXPECT().DescribeExecution(gomock.Any(), &sfn.DescribeExecutionInput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
 	}).Return(&sfn.DescribeExecutionOutput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
@@ -716,8 +733,8 @@ func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 		Status:       sfntypes.ExecutionStatusRunning,
 		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
 		Output:       aws.String(`{"key":"value"}`),
-	}, nil).Once()
-	m.On("DescribeExecution", mock.Anything, &sfn.DescribeExecutionInput{
+	}, nil).Times(1)
+	m.EXPECT().DescribeExecution(gomock.Any(), &sfn.DescribeExecutionInput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
 	}).Return(&sfn.DescribeExecutionOutput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
@@ -726,8 +743,8 @@ func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 		Status:       sfntypes.ExecutionStatusSucceeded,
 		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
 		Output:       aws.String(`{"key":"value"}`),
-	}, nil).Once()
-	m.On("GetExecutionHistory", mock.Anything, mock.MatchedBy(
+	}, nil).Times(1)
+	m.EXPECT().GetExecutionHistory(gomock.Any(), gomock.Cond(
 		func(input *sfn.GetExecutionHistoryInput) bool {
 			return assert.EqualValues(t, &sfn.GetExecutionHistoryInput{
 				ExecutionArn:         aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
@@ -745,7 +762,7 @@ func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 				ExecutionStartedEventDetails: &sfntypes.ExecutionStartedEventDetails{},
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	output, err := svc.StartExecution(ctx, stateMachine, params)
@@ -762,8 +779,9 @@ func TestSFnService_StartExecution_StandardSyncSuccess(t *testing.T) {
 
 func TestSFnService_StartExecution_StartExecutionFailed(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	expectedErr := errors.New("this is testing")
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
@@ -777,7 +795,7 @@ func TestSFnService_StartExecution_StartExecutionFailed(t *testing.T) {
 		Input:         "{}",
 		Async:         false,
 	}
-	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+	m.EXPECT().StartExecution(gomock.Any(), gomock.Cond(
 		func(input *sfn.StartExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartExecutionInput{
 				StateMachineArn: stateMachine.StateMachineArn,
@@ -786,7 +804,7 @@ func TestSFnService_StartExecution_StartExecutionFailed(t *testing.T) {
 				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
 			}, input)
 		},
-	)).Return(nil, expectedErr).Once()
+	)).Return(nil, expectedErr).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.StartExecution(ctx, stateMachine, params)
@@ -795,8 +813,9 @@ func TestSFnService_StartExecution_StartExecutionFailed(t *testing.T) {
 
 func TestSFnService_StartExecution_StandardAsyncSuccess(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
@@ -809,7 +828,7 @@ func TestSFnService_StartExecution_StandardAsyncSuccess(t *testing.T) {
 		Input:         "{}",
 		Async:         true,
 	}
-	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+	m.EXPECT().StartExecution(gomock.Any(), gomock.Cond(
 		func(input *sfn.StartExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartExecutionInput{
 				StateMachineArn: stateMachine.StateMachineArn,
@@ -821,7 +840,7 @@ func TestSFnService_StartExecution_StandardAsyncSuccess(t *testing.T) {
 	)).Return(&sfn.StartExecutionOutput{
 		ExecutionArn: aws.String("arn:aws:states:us-east-1:123456789012:execution:Hello:12345678-1234-1234-1234-123456789012"),
 		StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
-	}, nil).Once()
+	}, nil).Times(1)
 
 	svc := stefunny.NewSFnService(m)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -836,8 +855,9 @@ func TestSFnService_StartExecution_StandardAsyncSuccess(t *testing.T) {
 
 func TestSFnService_StartExecution_ExpressSyncSuccess(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
@@ -850,7 +870,7 @@ func TestSFnService_StartExecution_ExpressSyncSuccess(t *testing.T) {
 		Input:         "{}",
 		Async:         false,
 	}
-	m.On("StartSyncExecution", mock.Anything, mock.MatchedBy(
+	m.EXPECT().StartSyncExecution(gomock.Any(), gomock.Cond(
 		func(input *sfn.StartSyncExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartSyncExecutionInput{
 				StateMachineArn: stateMachine.StateMachineArn,
@@ -865,7 +885,7 @@ func TestSFnService_StartExecution_ExpressSyncSuccess(t *testing.T) {
 		Status:       sfntypes.SyncExecutionStatusSucceeded,
 		StopDate:     aws.Time(time.Date(2021, 1, 1, 0, 0, 1, 0, time.UTC)),
 		Output:       aws.String(`{"key":"value"}`),
-	}, nil).Once()
+	}, nil).Times(1)
 
 	svc := stefunny.NewSFnService(m)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -885,8 +905,9 @@ func TestSFnService_StartExecution_ExpressSyncSuccess(t *testing.T) {
 
 func TestSFnService_StartExecution_ExpressAsyncSuccess(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 		CreateStateMachineInput: sfn.CreateStateMachineInput{
@@ -899,7 +920,7 @@ func TestSFnService_StartExecution_ExpressAsyncSuccess(t *testing.T) {
 		Input:         "{}",
 		Async:         true,
 	}
-	m.On("StartExecution", mock.Anything, mock.MatchedBy(
+	m.EXPECT().StartExecution(gomock.Any(), gomock.Cond(
 		func(input *sfn.StartExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartExecutionInput{
 				StateMachineArn: stateMachine.StateMachineArn,
@@ -914,7 +935,7 @@ func TestSFnService_StartExecution_ExpressAsyncSuccess(t *testing.T) {
 			StartDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
 		},
 		nil,
-	).Once()
+	).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
@@ -929,8 +950,9 @@ func TestSFnService_StartExecution_ExpressAsyncSuccess(t *testing.T) {
 
 func TestSFnService_StartExecution_ExpressStartExedcutionFailed(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	expectedErr := errors.New("this is testing")
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
@@ -944,7 +966,7 @@ func TestSFnService_StartExecution_ExpressStartExedcutionFailed(t *testing.T) {
 		Input:         "{}",
 		Async:         false,
 	}
-	m.On("StartSyncExecution", mock.Anything, mock.MatchedBy(
+	m.EXPECT().StartSyncExecution(gomock.Any(), gomock.Cond(
 		func(input *sfn.StartSyncExecutionInput) bool {
 			return assert.EqualValues(t, &sfn.StartSyncExecutionInput{
 				StateMachineArn: stateMachine.StateMachineArn,
@@ -953,7 +975,7 @@ func TestSFnService_StartExecution_ExpressStartExedcutionFailed(t *testing.T) {
 				TraceHeader:     aws.String("Hello_000000-0000-0000-0000-000000000000"),
 			}, input)
 		},
-	)).Return(nil, expectedErr).Once()
+	)).Return(nil, expectedErr).Times(1)
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 	svc := stefunny.NewSFnService(m)
@@ -963,13 +985,14 @@ func TestSFnService_StartExecution_ExpressStartExedcutionFailed(t *testing.T) {
 
 func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -983,8 +1006,8 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -996,9 +1019,9 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1027,9 +1050,9 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1039,9 +1062,9 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
-	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 			{
@@ -1052,13 +1075,13 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 	}).Return(
 		&sfn.UpdateStateMachineAliasOutput{},
 		nil,
-	).Once()
-	m.On("DeleteStateMachineVersion", mock.Anything, &sfn.DeleteStateMachineVersionInput{
+	).Times(1)
+	m.EXPECT().DeleteStateMachineVersion(gomock.Any(), &sfn.DeleteStateMachineVersionInput{
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 	}).Return(
 		&sfn.DeleteStateMachineVersionOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1068,13 +1091,14 @@ func TestSFnService__RollbackStateMachine__NormalCase(t *testing.T) {
 
 func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1088,8 +1112,8 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1101,8 +1125,8 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1131,9 +1155,9 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1143,7 +1167,7 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
 
 	ctx := context.Background()
@@ -1156,13 +1180,14 @@ func TestSFnService__RollbackStateMachine__DryRun(t *testing.T) {
 
 func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1176,8 +1201,8 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1189,8 +1214,8 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1219,9 +1244,9 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1231,9 +1256,9 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
-	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 			{
@@ -1244,7 +1269,7 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 	}).Return(
 		&sfn.UpdateStateMachineAliasOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1256,13 +1281,14 @@ func TestSFnService__RolebackStateMachine__KeepVersion(t *testing.T) {
 
 func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1276,8 +1302,8 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1289,8 +1315,8 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1319,9 +1345,9 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1331,7 +1357,7 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
 
 	ctx := context.Background()
@@ -1344,13 +1370,14 @@ func TestSFnService__RollbackStateMachine__DryRunKeepVersion(t *testing.T) {
 
 func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1364,8 +1391,8 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1377,9 +1404,9 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1392,8 +1419,8 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 	}).Return(
 		&sfn.DescribeStateMachineOutput{
@@ -1403,7 +1430,7 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 			Description:     aws.String("test"),
 		},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1415,13 +1442,14 @@ func TestSFnService__RollbackStateMachine__NoVersionToRollback(t *testing.T) {
 
 func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1435,8 +1463,8 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1448,8 +1476,8 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1478,9 +1506,9 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1490,9 +1518,9 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
-	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 			{
@@ -1503,13 +1531,13 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 	}).Return(
 		&sfn.UpdateStateMachineAliasOutput{},
 		nil,
-	).Once()
-	m.On("DeleteStateMachineVersion", mock.Anything, &sfn.DeleteStateMachineVersionInput{
+	).Times(1)
+	m.EXPECT().DeleteStateMachineVersion(gomock.Any(), &sfn.DeleteStateMachineVersionInput{
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
 	}).Return(
 		&sfn.DeleteStateMachineVersionOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1521,13 +1549,14 @@ func TestSFnService__RollbackStateMachine__AfterKeepVersion(t *testing.T) {
 
 func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1541,8 +1570,8 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1557,8 +1586,8 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:other"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1572,8 +1601,8 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1602,9 +1631,9 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1614,10 +1643,10 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
 
-	m.On("UpdateStateMachineAlias", mock.Anything, &sfn.UpdateStateMachineAliasInput{
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
 			{
@@ -1628,15 +1657,15 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 	}).Return(
 		&sfn.UpdateStateMachineAliasOutput{},
 		nil,
-	).Once()
-	m.On("DeleteStateMachineVersion", mock.Anything, &sfn.DeleteStateMachineVersionInput{
+	).Times(1)
+	m.EXPECT().DeleteStateMachineVersion(gomock.Any(), &sfn.DeleteStateMachineVersionInput{
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 	}).Return(
 		nil,
 		&sfntypes.ConflictException{
 			Message: aws.String("Version to be deleted must not be referenced by an alias. Current list of aliases referencing this version: [other]"),
 		},
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1648,13 +1677,14 @@ func TestSFnService__RollbackStateMachine__OtherVersioinReferenced(t *testing.T)
 
 func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1669,8 +1699,8 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1684,8 +1714,8 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:hoge"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1699,8 +1729,8 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1729,9 +1759,9 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 	for i := 5; i >= 1; i-- {
-		m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+		m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 			StateMachineArn: aws.String(fmt.Sprintf("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:%d", i)),
 		}).Return(
 			&sfn.DescribeStateMachineOutput{
@@ -1741,21 +1771,21 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 				Description:     aws.String("test"),
 			},
 			nil,
-		).Once()
+		).Times(1)
 	}
 
-	m.On("DeleteStateMachineVersion", mock.Anything, &sfn.DeleteStateMachineVersionInput{
+	m.EXPECT().DeleteStateMachineVersion(gomock.Any(), &sfn.DeleteStateMachineVersionInput{
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:3"),
 	}).Return(
 		&sfn.DeleteStateMachineVersionOutput{},
 		nil,
-	).Once()
-	m.On("DeleteStateMachineVersion", mock.Anything, &sfn.DeleteStateMachineVersionInput{
+	).Times(1)
+	m.EXPECT().DeleteStateMachineVersion(gomock.Any(), &sfn.DeleteStateMachineVersionInput{
 		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:1"),
 	}).Return(
 		&sfn.DeleteStateMachineVersionOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1765,13 +1795,14 @@ func TestSFnService_PurgeStateMachineVersions_NormalCase(t *testing.T) {
 
 func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1786,8 +1817,8 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1801,8 +1832,8 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:hoge"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1816,8 +1847,8 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1838,8 +1869,8 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 	}).Return(
 		&sfn.DescribeStateMachineOutput{
@@ -1849,8 +1880,8 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			Description:     aws.String("test"),
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
 	}).Return(
 		&sfn.DescribeStateMachineOutput{
@@ -1860,8 +1891,8 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			Description:     aws.String("test2"),
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
 	}).Return(
 		&sfn.DescribeStateMachineOutput{
@@ -1871,7 +1902,7 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 			Description:     aws.String("test3"),
 		},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)
@@ -1881,13 +1912,14 @@ func TestSFnService_PurgeStateMachineVersions_NoVersionToPurge(t *testing.T) {
 
 func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 	stateMachine := &stefunny.StateMachine{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}
 
-	m.On("ListStateMachineAliases", mock.Anything, &sfn.ListStateMachineAliasesInput{
+	m.EXPECT().ListStateMachineAliases(gomock.Any(), &sfn.ListStateMachineAliasesInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1899,8 +1931,8 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachineAlias", mock.Anything, &sfn.DescribeStateMachineAliasInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
 		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
 	}).Return(
 		&sfn.DescribeStateMachineAliasOutput{
@@ -1914,8 +1946,8 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListStateMachineVersions", mock.Anything, &sfn.ListStateMachineVersionsInput{
+	).Times(1)
+	m.EXPECT().ListStateMachineVersions(gomock.Any(), &sfn.ListStateMachineVersionsInput{
 		StateMachineArn: stateMachine.StateMachineArn,
 		MaxResults:      32,
 	}).Return(
@@ -1932,8 +1964,8 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:5"),
 	}).Return(
 		&sfn.DescribeStateMachineOutput{
@@ -1943,8 +1975,8 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 			Description:     aws.String("test"),
 		},
 		nil,
-	).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:4"),
 	}).Return(
 		&sfn.DescribeStateMachineOutput{
@@ -1954,7 +1986,7 @@ func TestSFnService_ListStateMachineVersions_Success(t *testing.T) {
 			Description:     aws.String("test2"),
 		},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewSFnService(m)

@@ -9,16 +9,18 @@ import (
 	eventbridgetypes "github.com/aws/aws-sdk-go-v2/service/eventbridge/types"
 	"github.com/aws/smithy-go"
 	"github.com/mashiike/stefunny"
-	"github.com/stretchr/testify/mock"
+	"github.com/mashiike/stefunny/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockEventBridgeClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockEventBridgeClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
 			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"
 		},
@@ -27,8 +29,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			RuleNames: []string{"Scheduled"},
 		},
 		nil,
-	).Once()
-	m.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
+	).Times(1)
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
 			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"
 		},
@@ -37,8 +39,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			RuleNames: []string{"Unqualified"},
 		},
 		nil,
-	).Once()
-	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+	).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
 		Name: aws.String("Scheduled"),
 	}).Return(
 		&eventbridge.DescribeRuleOutput{
@@ -49,8 +51,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			EventBusName: aws.String("default"),
 		},
 		nil,
-	).Once()
-	m.On("ListTagsForResource", mock.Anything, &eventbridge.ListTagsForResourceInput{
+	).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &eventbridge.ListTagsForResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
 	}).Return(
 		&eventbridge.ListTagsForResourceOutput{
@@ -62,8 +64,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+	).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
 		Name: aws.String("Unqualified"),
 	}).Return(
 		&eventbridge.DescribeRuleOutput{
@@ -73,16 +75,16 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			EventBusName: aws.String("default"),
 		},
 		nil,
-	).Once()
-	m.On("ListTagsForResource", mock.Anything, &eventbridge.ListTagsForResourceInput{
+	).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &eventbridge.ListTagsForResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),
 	}).Return(
 		&eventbridge.ListTagsForResourceOutput{
 			Tags: []eventbridgetypes.Tag{},
 		},
 		nil,
-	).Once()
-	m.On("ListTargetsByRule", mock.Anything, mock.MatchedBy(
+	).Times(1)
+	m.EXPECT().ListTargetsByRule(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListTargetsByRuleInput) bool {
 			return *input.Rule == "Scheduled"
 		},
@@ -96,8 +98,8 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListTargetsByRule", mock.Anything, mock.MatchedBy(
+	).Times(1)
+	m.EXPECT().ListTargetsByRule(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListTargetsByRuleInput) bool {
 			return *input.Rule == "Unqualified"
 		},
@@ -115,7 +117,7 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewEventBridgeService(m)
@@ -169,10 +171,11 @@ func TestEventBridgeService__SearchRealtedRules(t *testing.T) {
 
 func TestEventBridgeService__DeployRules(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockEventBridgeClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockEventBridgeClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
 			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"
 		},
@@ -181,8 +184,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			RuleNames: []string{"Scheduled"},
 		},
 		nil,
-	).Once()
-	m.On("ListRuleNamesByTarget", mock.Anything, mock.MatchedBy(
+	).Times(1)
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
 			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled"
 		},
@@ -191,8 +194,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			RuleNames: []string{"Unqualified"},
 		},
 		nil,
-	).Once()
-	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+	).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
 		Name: aws.String("Scheduled"),
 	}).Return(
 		&eventbridge.DescribeRuleOutput{
@@ -203,8 +206,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			EventBusName: aws.String("default"),
 		},
 		nil,
-	).Once()
-	m.On("ListTagsForResource", mock.Anything, &eventbridge.ListTagsForResourceInput{
+	).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &eventbridge.ListTagsForResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
 	}).Return(
 		&eventbridge.ListTagsForResourceOutput{
@@ -216,8 +219,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+	).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
 		Name: aws.String("Unqualified"),
 	}).Return(
 		&eventbridge.DescribeRuleOutput{
@@ -227,14 +230,14 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			EventBusName: aws.String("default"),
 		},
 		nil,
-	).Once()
-	m.On("DescribeRule", mock.Anything, &eventbridge.DescribeRuleInput{
+	).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
 		Name: aws.String("Event"),
 	}).Return(
 		nil,
 		&smithy.GenericAPIError{Code: "ResourceNotFoundException"},
-	).Once()
-	m.On("ListTagsForResource", mock.Anything, &eventbridge.ListTagsForResourceInput{
+	).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &eventbridge.ListTagsForResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),
 	}).Return(
 		&eventbridge.ListTagsForResourceOutput{
@@ -246,8 +249,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListTargetsByRule", mock.Anything, mock.MatchedBy(
+	).Times(1)
+	m.EXPECT().ListTargetsByRule(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListTargetsByRuleInput) bool {
 			return *input.Rule == "Scheduled"
 		},
@@ -261,8 +264,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListTargetsByRule", mock.Anything, mock.MatchedBy(
+	).Times(1)
+	m.EXPECT().ListTargetsByRule(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.ListTargetsByRuleInput) bool {
 			return *input.Rule == "Unqualified"
 		},
@@ -280,26 +283,26 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("RemoveTargets", mock.Anything, &eventbridge.RemoveTargetsInput{
+	).Times(1)
+	m.EXPECT().RemoveTargets(gomock.Any(), &eventbridge.RemoveTargetsInput{
 		Rule:         aws.String("Unqualified"),
 		Ids:          []string{"Id0000000-0000-0000-0000-000000000000", "Id0000000-0000-0000-0000-000000000001"},
 		EventBusName: aws.String("default"),
 	}).Return(
 		&eventbridge.RemoveTargetsOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
-	m.On("DeleteRule", mock.Anything, mock.MatchedBy(
+	m.EXPECT().DeleteRule(gomock.Any(), gomock.Cond(
 		func(input *eventbridge.DeleteRuleInput) bool {
 			return *input.Name == "Unqualified"
 		},
 	)).Return(
 		&eventbridge.DeleteRuleOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
-	m.On("PutRule", mock.Anything, &eventbridge.PutRuleInput{
+	m.EXPECT().PutRule(gomock.Any(), &eventbridge.PutRuleInput{
 		Name:         aws.String("Scheduled"),
 		State:        eventbridgetypes.RuleStateDisabled,
 		EventBusName: aws.String("default"),
@@ -315,8 +318,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
 		},
 		nil,
-	).Once()
-	m.On("PutTargets", mock.Anything, &eventbridge.PutTargetsInput{
+	).Times(1)
+	m.EXPECT().PutTargets(gomock.Any(), &eventbridge.PutTargetsInput{
 		Rule: aws.String("Scheduled"),
 		Targets: []eventbridgetypes.Target{
 			{
@@ -327,8 +330,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 	}).Return(
 		&eventbridge.PutTargetsOutput{},
 		nil,
-	).Once()
-	m.On("TagResource", mock.Anything, &eventbridge.TagResourceInput{
+	).Times(1)
+	m.EXPECT().TagResource(gomock.Any(), &eventbridge.TagResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Scheduled"),
 		Tags: []eventbridgetypes.Tag{
 			{
@@ -339,8 +342,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 	}).Return(
 		&eventbridge.TagResourceOutput{},
 		nil,
-	).Once()
-	m.On("PutRule", mock.Anything, &eventbridge.PutRuleInput{
+	).Times(1)
+	m.EXPECT().PutRule(gomock.Any(), &eventbridge.PutRuleInput{
 		Name:         aws.String("Event"),
 		State:        eventbridgetypes.RuleStateEnabled,
 		EventPattern: aws.String(`{"source":["stefunny"],"detail-type":["Scheduled"]}`),
@@ -356,8 +359,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),
 		},
 		nil,
-	).Once()
-	m.On("PutTargets", mock.Anything, &eventbridge.PutTargetsInput{
+	).Times(1)
+	m.EXPECT().PutTargets(gomock.Any(), &eventbridge.PutTargetsInput{
 		Rule: aws.String("Event"),
 		Targets: []eventbridgetypes.Target{
 			{
@@ -368,8 +371,8 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 	}).Return(
 		&eventbridge.PutTargetsOutput{},
 		nil,
-	).Once()
-	m.On("TagResource", mock.Anything, &eventbridge.TagResourceInput{
+	).Times(1)
+	m.EXPECT().TagResource(gomock.Any(), &eventbridge.TagResourceInput{
 		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Unqualified"),
 		Tags: []eventbridgetypes.Tag{
 			{
@@ -380,7 +383,7 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 	}).Return(
 		&eventbridge.TagResourceOutput{},
 		nil,
-	).Once()
+	).Times(1)
 
 	ctx := context.Background()
 	svc := stefunny.NewEventBridgeService(m)
@@ -416,5 +419,4 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 		true,
 	)
 	require.NoError(t, err)
-
 }

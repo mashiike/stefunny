@@ -10,19 +10,21 @@ import (
 	schedulertypes "github.com/aws/aws-sdk-go-v2/service/scheduler/types"
 	"github.com/aws/smithy-go"
 	"github.com/mashiike/stefunny"
+	"github.com/mashiike/stefunny/mock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSchedulerClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSchedulerClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListScheduleGroups", mock.Anything, &scheduler.ListScheduleGroupsInput{
+	m.EXPECT().ListScheduleGroups(gomock.Any(), &scheduler.ListScheduleGroupsInput{
 		MaxResults: aws.Int32(100),
-	}).Return(
+	}, gomock.Any()).Return(
 		&scheduler.ListScheduleGroupsOutput{
 			ScheduleGroups: []schedulertypes.ScheduleGroupSummary{
 				{
@@ -32,11 +34,11 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListSchedules", mock.Anything, &scheduler.ListSchedulesInput{
+	).Times(1)
+	m.EXPECT().ListSchedules(gomock.Any(), &scheduler.ListSchedulesInput{
 		MaxResults: aws.Int32(100),
 		GroupName:  aws.String("default"),
-	}).Return(
+	}, gomock.Any()).Return(
 		&scheduler.ListSchedulesOutput{
 			Schedules: []schedulertypes.ScheduleSummary{
 				{
@@ -60,11 +62,11 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
+	).Times(1)
+	m.EXPECT().GetSchedule(gomock.Any(), &scheduler.GetScheduleInput{
 		Name:      aws.String("Scheduled"),
 		GroupName: aws.String("default"),
-	}).Return(
+	}, gomock.Any()).Return(
 		&scheduler.GetScheduleOutput{
 			Name:               aws.String("Scheduled"),
 			ScheduleExpression: aws.String("rate(1 day)"),
@@ -75,8 +77,8 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 			Arn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Scheduled"),
 		},
 		nil,
-	).Once()
-	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
+	).Times(1)
+	m.EXPECT().GetSchedule(gomock.Any(), &scheduler.GetScheduleInput{
 		Name:      aws.String("Unqualified"),
 		GroupName: aws.String("default"),
 	}).Return(
@@ -90,7 +92,7 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 			Arn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Unqualified"),
 		},
 		nil,
-	).Once()
+	).Times(1)
 	svc := stefunny.NewSchedulerService(m)
 	ctx := context.Background()
 	schedules, err := svc.SearchRelatedSchedules(ctx, &stefunny.SearchRelatedSchedulesInput{
@@ -128,12 +130,13 @@ func TestSchedulerService__SearchRelatedSchedules(t *testing.T) {
 
 func TestSchedulerService__DeploySchedules(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSchedulerClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSchedulerClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListScheduleGroups", mock.Anything, &scheduler.ListScheduleGroupsInput{
+	m.EXPECT().ListScheduleGroups(gomock.Any(), &scheduler.ListScheduleGroupsInput{
 		MaxResults: aws.Int32(100),
-	}).Return(
+	}, gomock.Any()).Return(
 		&scheduler.ListScheduleGroupsOutput{
 			ScheduleGroups: []schedulertypes.ScheduleGroupSummary{
 				{
@@ -143,11 +146,11 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("ListSchedules", mock.Anything, &scheduler.ListSchedulesInput{
+	).Times(1)
+	m.EXPECT().ListSchedules(gomock.Any(), &scheduler.ListSchedulesInput{
 		MaxResults: aws.Int32(100),
 		GroupName:  aws.String("default"),
-	}).Return(
+	}, gomock.Any()).Return(
 		&scheduler.ListSchedulesOutput{
 			Schedules: []schedulertypes.ScheduleSummary{
 				{
@@ -171,11 +174,11 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 			},
 		},
 		nil,
-	).Once()
-	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
+	).Times(1)
+	m.EXPECT().GetSchedule(gomock.Any(), &scheduler.GetScheduleInput{
 		Name:      aws.String("Scheduled"),
 		GroupName: aws.String("default"),
-	}).Return(
+	}, gomock.Any()).Return(
 		&scheduler.GetScheduleOutput{
 			Name:               aws.String("Scheduled"),
 			ScheduleExpression: aws.String("rate(1 day)"),
@@ -186,8 +189,8 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 			Arn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Scheduled"),
 		},
 		nil,
-	).Once()
-	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
+	).Times(1)
+	m.EXPECT().GetSchedule(gomock.Any(), &scheduler.GetScheduleInput{
 		Name:      aws.String("Unqualified"),
 		GroupName: aws.String("default"),
 	}).Return(
@@ -201,8 +204,8 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 			Arn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Unqualified"),
 		},
 		nil,
-	).Once()
-	m.On("GetSchedule", mock.Anything, &scheduler.GetScheduleInput{
+	).Times(1)
+	m.EXPECT().GetSchedule(gomock.Any(), &scheduler.GetScheduleInput{
 		Name:      aws.String("Monthly"),
 		GroupName: aws.String("default"),
 	}).Return(
@@ -210,16 +213,16 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 		&smithy.GenericAPIError{
 			Code: "ResourceNotFoundException",
 		},
-	).Once()
-	m.On("DeleteSchedule", mock.Anything, &scheduler.DeleteScheduleInput{
+	).Times(1)
+	m.EXPECT().DeleteSchedule(gomock.Any(), &scheduler.DeleteScheduleInput{
 		Name: aws.String("Unqualified"),
 	}).Return(
 		&scheduler.DeleteScheduleOutput{},
 		nil,
-	).Once()
-	m.On("UpdateSchedule", mock.Anything, mock.MatchedBy(
-		func(input *scheduler.UpdateScheduleInput) bool {
-			return assert.EqualValues(t, &scheduler.UpdateScheduleInput{
+	).Times(1)
+	m.EXPECT().UpdateSchedule(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, input *scheduler.UpdateScheduleInput, opts ...func(*scheduler.Options)) (*scheduler.UpdateScheduleOutput, error) {
+			assert.EqualValues(t, &scheduler.UpdateScheduleInput{
 				Name:               aws.String("Scheduled"),
 				ScheduleExpression: aws.String("rate(1 hour)"),
 				State:              schedulertypes.ScheduleStateDisabled,
@@ -227,13 +230,11 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 					Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
 				},
 			}, input)
-		})).Return(
-		&scheduler.UpdateScheduleOutput{},
-		nil,
-	).Once()
-	m.On("CreateSchedule", mock.Anything, mock.MatchedBy(
-		func(input *scheduler.CreateScheduleInput) bool {
-			return assert.EqualValues(t, &scheduler.CreateScheduleInput{
+			return &scheduler.UpdateScheduleOutput{}, nil
+		}).Times(1)
+	m.EXPECT().CreateSchedule(gomock.Any(), gomock.Any()).DoAndReturn(
+		func(ctx context.Context, input *scheduler.CreateScheduleInput, opts ...func(*scheduler.Options)) (*scheduler.CreateScheduleOutput, error) {
+			assert.EqualValues(t, &scheduler.CreateScheduleInput{
 				Name:               aws.String("Monthly"),
 				ScheduleExpression: aws.String("cron(0 0 1 * ? *)"),
 				State:              schedulertypes.ScheduleStateEnabled,
@@ -241,13 +242,10 @@ func TestSchedulerService__DeploySchedules(t *testing.T) {
 					Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current"),
 				},
 			}, input)
-		},
-	)).Return(
-		&scheduler.CreateScheduleOutput{
-			ScheduleArn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Monthly"),
-		},
-		nil,
-	).Once()
+			return &scheduler.CreateScheduleOutput{
+				ScheduleArn: aws.String("arn:aws:scheduler:us-east-1:000000000000:schedule:Monthly"),
+			}, nil
+		}).Times(1)
 	svc := stefunny.NewSchedulerService(m)
 	ctx := context.Background()
 	err := svc.DeploySchedules(ctx, "arn:aws:states:us-east-1:000000000000:stateMachine:Scheduled:current", stefunny.Schedules{
