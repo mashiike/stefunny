@@ -80,7 +80,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.12.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.5 // indirect
-	github.com/hashicorp/go-slug v0.13.4 // indirect
+	github.com/hashicorp/go-slug v0.16.3 // indirect
 	github.com/hashicorp/go-tfe v1.44.0 // indirect
 	github.com/hashicorp/jsonapi v1.3.1 // indirect
 	github.com/itchyny/gojq v0.12.14 // indirect
