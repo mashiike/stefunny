@@ -16,10 +16,10 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
-          golangci_lint_flags: "--config=.golangci.yaml"
+          golangci_lint_flags: "--config=.golangci.yaml --timeout 5m"
           filter_mode: diff_context
           reporter: github-pr-review
-          fail_on_error: true
+          fail_level: error
 
   actionlint:
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
         with:
           reporter: github-pr-review
           filter_mode: diff_context
-          fail_on_error: true
+          fail_level: error
 
   misspell:
     runs-on: ubuntu-latest
@@ -40,7 +40,7 @@ jobs:
           reporter: github-pr-review
           level: warning
           filter_mode: diff_context
-          fail_on_error: true
+          fail_level: error
           exclude: |
             ./.git/*
             ./.cache/*

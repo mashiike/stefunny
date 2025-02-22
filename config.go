@@ -425,7 +425,7 @@ func (l *ConfigLoader) migrationForDeprecatedFields(ctx context.Context, cfg *Co
 					if err != nil {
 						return fmt.Errorf("load aws config:%w", err)
 					}
-					client = cloudwatchlogs.NewFromConfig(awsCfg)
+					client = cfg.NewCloudWatchLogsClientFromConfig(awsCfg)
 				}
 				p := cloudwatchlogs.NewDescribeLogGroupsPaginator(client, &cloudwatchlogs.DescribeLogGroupsInput{
 					Limit: aws.Int32(50),
@@ -576,6 +576,7 @@ type EndpointsConfig struct {
 	CloudWatchLogs string `yaml:"cloudwatchlogs,omitempty" json:"cloud_watch_logs,omitempty"`
 	STS            string `yaml:"sts,omitempty" json:"sts,omitempty"`
 	EventBridge    string `yaml:"eventbridge,omitempty" json:"event_bridge,omitempty"`
+	Scheduler      string `yaml:"scheduler,omitempty" json:"scheduler,omitempty"`
 }
 
 type ScheduleConfig struct {
@@ -710,15 +711,12 @@ func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 		log.Printf("[debug] use aws_region = %s", cfg.AWSRegion)
 		opts = append(opts, awsconfig.WithRegion(cfg.AWSRegion))
 	}
-	if endpointsResolver, ok := cfg.EndpointResolver(); ok {
-		opts = append(opts, awsconfig.WithEndpointResolverWithOptions(endpointsResolver))
-	}
 	log.Println("[debug] load aws default config")
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return aws.Config{}, err
 	}
-	stsClient := sts.NewFromConfig(awsCfg)
+	stsClient := cfg.NewStsClientFromConfig(awsCfg)
 	identity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
 	if err == nil {
 		log.Printf("[debug] caller identity: %s", *identity.Arn)
@@ -951,49 +949,52 @@ func NewDefaultConfig() *Config {
 	}
 }
 
-func (cfg *Config) EndpointResolver() (aws.EndpointResolverWithOptions, bool) {
-	if cfg.Endpoints == nil {
-		return nil, false
+func (cfg *Config) NewStsClientFromConfig(awsCfg aws.Config) *sts.Client {
+	var opts []func(*sts.Options)
+	if cfg.Endpoints != nil && cfg.Endpoints.STS != "" {
+		opts = append(opts, func(o *sts.Options) {
+			o.BaseEndpoint = aws.String(cfg.Endpoints.STS)
+		})
 	}
-	return aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		if cfg.AWSRegion != region {
-			return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-		}
-		switch service {
-		case sfn.ServiceID:
-			if cfg.Endpoints.StepFunctions != "" {
-				return aws.Endpoint{
-					PartitionID:   "aws",
-					URL:           cfg.Endpoints.StepFunctions,
-					SigningRegion: cfg.AWSRegion,
-				}, nil
-			}
-		case cloudwatchlogs.ServiceID:
-			if cfg.Endpoints.StepFunctions != "" {
-				return aws.Endpoint{
-					PartitionID:   "aws",
-					URL:           cfg.Endpoints.CloudWatchLogs,
-					SigningRegion: cfg.AWSRegion,
-				}, nil
-			}
-		case sts.ServiceID:
-			if cfg.Endpoints.StepFunctions != "" {
-				return aws.Endpoint{
-					PartitionID:   "aws",
-					URL:           cfg.Endpoints.STS,
-					SigningRegion: cfg.AWSRegion,
-				}, nil
-			}
-		case eventbridge.ServiceID:
-			if cfg.Endpoints.StepFunctions != "" {
-				return aws.Endpoint{
-					PartitionID:   "aws",
-					URL:           cfg.Endpoints.EventBridge,
-					SigningRegion: cfg.AWSRegion,
-				}, nil
-			}
-		}
-		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+	return sts.NewFromConfig(awsCfg, opts...)
+}
 
-	}), true
+func (cfg *Config) NewCloudWatchLogsClientFromConfig(awsCfg aws.Config) *cloudwatchlogs.Client {
+	var opts []func(*cloudwatchlogs.Options)
+	if cfg.Endpoints != nil && cfg.Endpoints.CloudWatchLogs != "" {
+		opts = append(opts, func(o *cloudwatchlogs.Options) {
+			o.BaseEndpoint = aws.String(cfg.Endpoints.CloudWatchLogs)
+		})
+	}
+	return cloudwatchlogs.NewFromConfig(awsCfg, opts...)
+}
+
+func (cfg *Config) NewEventBridgeClientFromConfig(awsCfg aws.Config) *eventbridge.Client {
+	var opts []func(*eventbridge.Options)
+	if cfg.Endpoints != nil && cfg.Endpoints.EventBridge != "" {
+		opts = append(opts, func(o *eventbridge.Options) {
+			o.BaseEndpoint = aws.String(cfg.Endpoints.EventBridge)
+		})
+	}
+	return eventbridge.NewFromConfig(awsCfg, opts...)
+}
+
+func (cfg *Config) NewStepFunctionsClientFromConfig(awsCfg aws.Config) *sfn.Client {
+	var opts []func(*sfn.Options)
+	if cfg.Endpoints != nil && cfg.Endpoints.StepFunctions != "" {
+		opts = append(opts, func(o *sfn.Options) {
+			o.BaseEndpoint = aws.String(cfg.Endpoints.StepFunctions)
+		})
+	}
+	return sfn.NewFromConfig(awsCfg, opts...)
+}
+
+func (cfg *Config) NewSchedulerClientFromConfig(awsCfg aws.Config) *scheduler.Client {
+	var opts []func(*scheduler.Options)
+	if cfg.Endpoints != nil && cfg.Endpoints.Scheduler != "" {
+		opts = append(opts, func(o *scheduler.Options) {
+			o.BaseEndpoint = aws.String(cfg.Endpoints.Scheduler)
+		})
+	}
+	return scheduler.NewFromConfig(awsCfg, opts...)
 }
