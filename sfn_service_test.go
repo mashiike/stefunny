@@ -11,19 +11,21 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sfn"
 	sfntypes "github.com/aws/aws-sdk-go-v2/service/sfn/types"
 	"github.com/mashiike/stefunny"
+	"github.com/mashiike/stefunny/mock"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 )
 
 func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(&sfn.ListStateMachinesOutput{
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	_, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -34,10 +36,11 @@ func TestSFnService_DescribeStateMachine_NotFound(t *testing.T) {
 
 func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.Anything).Return(&sfn.ListStateMachinesOutput{
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Any()).Return(&sfn.ListStateMachinesOutput{
 		StateMachines: []sfntypes.StateMachineListItem{
 			{
 				Name:            aws.String("Express"),
@@ -52,8 +55,8 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	}, nil).Times(1)
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.DescribeStateMachineOutput{
 		Name:            aws.String("Hello"),
@@ -70,8 +73,8 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 			IncludeExecutionData: false,
 			Level:                sfntypes.LogLevelOff,
 		},
-	}, nil).Once()
-	m.On("ListTagsForResource", mock.Anything, &sfn.ListTagsForResourceInput{
+	}, nil).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
 		ResourceArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.ListTagsForResourceOutput{
 		Tags: []sfntypes.Tag{
@@ -84,7 +87,7 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 				Value: aws.String("test"),
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	sm, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{
@@ -123,10 +126,11 @@ func TestSFnService_DescribeStateMachine_SuccessFirstFetch(t *testing.T) {
 
 func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 	LoggerSetup(t, "debug")
-	m := NewMockSFnClient(t)
-	defer m.AssertExpectations(t)
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
 
-	m.On("ListStateMachines", mock.Anything, mock.MatchedBy(
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Cond(
 		func(input *sfn.ListStateMachinesInput) bool {
 			return input.NextToken == nil
 		},
@@ -146,8 +150,8 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
-	m.On("ListStateMachines", mock.Anything, mock.MatchedBy(
+	}, nil).Times(1)
+	m.EXPECT().ListStateMachines(gomock.Any(), gomock.Cond(
 		func(input *sfn.ListStateMachinesInput) bool {
 			return input.NextToken != nil && *input.NextToken == "next"
 		},
@@ -160,9 +164,9 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 				Type:            sfntypes.StateMachineTypeStandard,
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 
-	m.On("DescribeStateMachine", mock.Anything, &sfn.DescribeStateMachineInput{
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
 		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.DescribeStateMachineOutput{
 		Name:            aws.String("Hello"),
@@ -179,8 +183,8 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 			IncludeExecutionData: false,
 			Level:                sfntypes.LogLevelOff,
 		},
-	}, nil).Once()
-	m.On("ListTagsForResource", mock.Anything, &sfn.ListTagsForResourceInput{
+	}, nil).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
 		ResourceArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
 	}).Return(&sfn.ListTagsForResourceOutput{
 		Tags: []sfntypes.Tag{
@@ -193,7 +197,7 @@ func TestSFnService_DescribeStateMachine_SuccessSecondFetch(t *testing.T) {
 				Value: aws.String("test"),
 			},
 		},
-	}, nil).Once()
+	}, nil).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
 	sm, err := svc.DescribeStateMachine(ctx, &stefunny.DescribeStateMachineInput{

@@ -2,6 +2,8 @@ module github.com/mashiike/stefunny
 
 go 1.24.0
 
+tool go.uber.org/mock/mockgen
+
 require (
 	github.com/Songmu/prompter v0.5.1
 	github.com/alecthomas/kong v1.8.1
@@ -114,13 +116,16 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
+	go.uber.org/mock v0.5.0 // indirect
 	golang.org/x/crypto v0.34.0 // indirect
+	golang.org/x/mod v0.18.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
+	golang.org/x/tools v0.22.0 // indirect
 	google.golang.org/api v0.222.0 // indirect
 	google.golang.org/genproto v0.0.0-20250219182151-9fdb1cabc7b2 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250219182151-9fdb1cabc7b2 // indirect
