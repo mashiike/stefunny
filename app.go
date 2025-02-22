@@ -7,9 +7,6 @@ import (
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/eventbridge"
-	"github.com/aws/aws-sdk-go-v2/service/scheduler"
-	"github.com/aws/aws-sdk-go-v2/service/sfn"
 )
 
 const (
@@ -47,7 +44,7 @@ func (o *newAppOptions) GetSFnService(ctx context.Context) (SFnService, error) {
 	if err != nil {
 		return nil, err
 	}
-	client := sfn.NewFromConfig(awsCfg)
+	client := o.cfg.NewStepFunctionsClientFromConfig(awsCfg)
 	o.sfnSvc = NewSFnService(client)
 	return o.sfnSvc, nil
 }
@@ -62,7 +59,7 @@ func (o *newAppOptions) GetEventBridgeService(ctx context.Context) (EventBridgeS
 	if err != nil {
 		return nil, err
 	}
-	client := eventbridge.NewFromConfig(awsCfg)
+	client := o.cfg.NewEventBridgeClientFromConfig(awsCfg)
 	o.eventbridgeSvc = NewEventBridgeService(client)
 	return o.eventbridgeSvc, nil
 }
@@ -77,7 +74,7 @@ func (o *newAppOptions) GetSchedulerService(ctx context.Context) (SchedulerServi
 	if err != nil {
 		return nil, err
 	}
-	client := scheduler.NewFromConfig(awsCfg)
+	client := o.cfg.NewSchedulerClientFromConfig(awsCfg)
 	o.schedulerSvc = NewSchedulerService(client)
 	return o.schedulerSvc, nil
 }
