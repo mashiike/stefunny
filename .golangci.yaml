@@ -1,12 +1,16 @@
 linters-settings:
   gofmt:
     simplify: true
-  goimports:
-    local-prefixes: github.com/my_org
   errcheck:
     check-type-assertions: true
     check-blank: true
-    ignore: '[rR]ead|[w|W]rite|[c|C]lose|[c|C]ommit|[r|R]ollback|[p|P]rintln'
+    exclude-functions: # `ignore` の代わりに `exclude-functions` を使用
+      - '[rR]ead'
+      - '[w|W]rite'
+      - '[c|C]lose'
+      - '[c|C]ommit'
+      - '[r|R]ollback'
+      - '[p|P]rintln'
 
 linters:
   disable-all: true
@@ -24,8 +28,7 @@ linters:
     - staticcheck
 
 run:
-  timeout: 5m
-  concurrency: 8
+  deadline: 10m
 
 issues:
   exclude-dirs:
