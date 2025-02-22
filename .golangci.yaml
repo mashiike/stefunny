@@ -11,7 +11,8 @@ linters-settings:
       - '[c|C]ommit'
       - '[r|R]ollback'
       - '[p|P]rintln'
-
+      - 'io.WriteString'
+      - 'bufio.Writer.WriteRune'
 linters:
   disable-all: true
   enable:
