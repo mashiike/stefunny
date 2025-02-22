@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.9.3](https://github.com/mashiike/stefunny/compare/v0.9.2...v0.9.3) - 2025-02-22
+- Bump github.com/aws/aws-sdk-go-v2 from 1.26.1 to 1.30.3 by @dependabot in https://github.com/mashiike/stefunny/pull/287
+- Bump github.com/hashicorp/go-version from 1.6.0 to 1.7.0 by @dependabot in https://github.com/mashiike/stefunny/pull/270
+- Feature/update go 1.24 and change mock library by @mashiike in https://github.com/mashiike/stefunny/pull/297
+- Bump goreleaser/goreleaser-action from 5 to 6 by @dependabot in https://github.com/mashiike/stefunny/pull/276
+
 ## [v0.9.2](https://github.com/mashiike/stefunny/compare/v0.9.1...v0.9.2) - 2024-05-07
 - Fix: Schedule deploy. ScheduleExpressionTimezone and KeepState by @mashiike in https://github.com/mashiike/stefunny/pull/263
 
