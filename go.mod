@@ -7,7 +7,7 @@ tool go.uber.org/mock/mockgen
 require (
 	github.com/Songmu/prompter v0.5.1
 	github.com/alecthomas/kong v1.8.1
-	github.com/aws/aws-sdk-go-v2 v1.36.2
+	github.com/aws/aws-sdk-go-v2 v1.36.3
 	github.com/aws/aws-sdk-go-v2/config v1.29.7
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.45.14
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.36.12
