@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.9.4](https://github.com/mashiike/stefunny/compare/v0.9.3...v0.9.4) - 2025-03-10
+- Fix Deprecated by @mashiike in https://github.com/mashiike/stefunny/pull/298
+- Bump golang.org/x/term from 0.29.0 to 0.30.0 by @dependabot in https://github.com/mashiike/stefunny/pull/303
+
 ## [v0.9.3](https://github.com/mashiike/stefunny/compare/v0.9.2...v0.9.3) - 2025-02-22
 - Bump github.com/aws/aws-sdk-go-v2 from 1.26.1 to 1.30.3 by @dependabot in https://github.com/mashiike/stefunny/pull/287
 - Bump github.com/hashicorp/go-version from 1.6.0 to 1.7.0 by @dependabot in https://github.com/mashiike/stefunny/pull/270
