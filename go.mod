@@ -26,7 +26,7 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/motemen/go-testutil v0.0.0-20231019055648-af6add1c10c8
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/sebdah/goldie/v2 v2.5.3
+	github.com/sebdah/goldie/v2 v2.5.5
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/shogo82148/go-retry v1.3.1
 	github.com/stretchr/testify v1.10.0
