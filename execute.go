@@ -90,7 +90,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	for _, event := range events {
 		table.Append([]string{
 			fmt.Sprintf("%3d", event.Id),
-			fmt.Sprintf("%v", event.HistoryEvent.Type),
+			fmt.Sprintf("%v", event.Type),
 			event.Step,
 			fmt.Sprintf("%d", event.Elapsed().Milliseconds()),
 			event.Timestamp.Format(time.RFC3339),

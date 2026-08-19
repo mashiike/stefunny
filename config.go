@@ -646,16 +646,16 @@ func (cfg *TriggerConfig) Restrict(stateMachineName string) error {
 }
 
 func (cfg *TriggerEventConfig) Restrict(i int, stateMachineName string) error {
-	cfg.Value.PutRuleInput.RoleArn = ptr(coalesce(cfg.Value.PutRuleInput.RoleArn, cfg.Value.Target.RoleArn))
+	cfg.Value.RoleArn = ptr(coalesce(cfg.Value.RoleArn, cfg.Value.Target.RoleArn))
 	cfg.Value.Target.RoleArn = nil
-	if coalesce(cfg.Value.PutRuleInput.RoleArn) == "" && coalesce(cfg.Value.Target.RoleArn) == "" {
+	if coalesce(cfg.Value.RoleArn) == "" && coalesce(cfg.Value.Target.RoleArn) == "" {
 		return errors.New("role_arn is required")
 	}
-	if coalesce(cfg.Value.PutRuleInput.Name) == "" {
+	if coalesce(cfg.Value.Name) == "" {
 		log.Printf("[warn] trigger.event[%d].rule_name is empty. Use state_machine.name as rule_name.", i)
-		cfg.Value.PutRuleInput.Name = aws.String(stateMachineName)
+		cfg.Value.Name = aws.String(stateMachineName)
 	}
-	if coalesce(cfg.Value.PutRuleInput.ScheduleExpression) == "" && coalesce(cfg.Value.PutRuleInput.EventPattern) == "" {
+	if coalesce(cfg.Value.ScheduleExpression) == "" && coalesce(cfg.Value.EventPattern) == "" {
 		return errors.New("schedule_expression or event_pattern is required")
 	}
 	if cfg.Value.Target.Arn != nil {

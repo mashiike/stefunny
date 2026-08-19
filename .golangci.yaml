@@ -1,40 +1,62 @@
-linters-settings:
-  gofmt:
-    simplify: true
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-    exclude-functions: # `ignore` の代わりに `exclude-functions` を使用
-      - '[rR]ead'
-      - '[w|W]rite'
-      - '[c|C]lose'
-      - '[c|C]ommit'
-      - '[r|R]ollback'
-      - '[p|P]rintln'
-      - 'io.WriteString'
-      - 'bufio.Writer.WriteRune'
-linters:
-  disable-all: true
-  enable:
-    - govet
-    - revive
-    - gocyclo
-    - gofmt
-    - goimports
-    - errcheck
-    - unconvert
-    - ineffassign
-    - typecheck
-    - unused
-    - staticcheck
+version: "2"
 
 run:
-  deadline: 10m
+  timeout: 10m
 
-issues:
-  exclude-dirs:
-    - vendor
-    - third_party
-  exclude-files:
-    - ".*\\.gen\\.go"
-    - ".*_test\\.go"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - gocyclo
+    - govet
+    - ineffassign
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+      exclude-functions: # `ignore` の代わりに `exclude-functions` を使用
+        - '[rR]ead'
+        - '[w|W]rite'
+        - '[c|C]lose'
+        - '[c|C]ommit'
+        - '[r|R]ollback'
+        - '[p|P]rintln'
+        - 'io.WriteString'
+        - 'bufio.Writer.WriteRune'
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      - .*\.gen\.go
+      - .*_test\.go
+      - vendor
+      - third_party
+      - third_party$
+      - builtin$
+      - examples$
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+  exclusions:
+    generated: lax
+    paths:
+      - .*\.gen\.go
+      - .*_test\.go
+      - vendor
+      - third_party
+      - third_party$
+      - builtin$
+      - examples$
