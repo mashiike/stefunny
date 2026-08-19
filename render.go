@@ -45,7 +45,9 @@ func (app *App) Render(ctx context.Context, opt RenderOption) error {
 		default:
 			return fmt.Errorf("unknown target: %s", target)
 		}
-		out.WriteRune('\n')
+		if _, err := out.WriteRune('\n'); err != nil {
+			return fmt.Errorf("write newline: %w", err)
+		}
 	}
 	return nil
 }
