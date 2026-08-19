@@ -7,14 +7,14 @@ tool go.uber.org/mock/mockgen
 require (
 	github.com/Songmu/prompter v0.5.1
 	github.com/alecthomas/kong v1.8.1
-	github.com/aws/aws-sdk-go-v2 v1.36.2
+	github.com/aws/aws-sdk-go-v2 v1.39.4
 	github.com/aws/aws-sdk-go-v2/config v1.29.7
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.45.14
 	github.com/aws/aws-sdk-go-v2/service/eventbridge v1.36.12
 	github.com/aws/aws-sdk-go-v2/service/scheduler v1.12.18
 	github.com/aws/aws-sdk-go-v2/service/sfn v1.34.13
 	github.com/aws/aws-sdk-go-v2/service/sts v1.33.15
-	github.com/aws/smithy-go v1.22.3
+	github.com/aws/smithy-go v1.23.1
 	github.com/fatih/color v1.18.0
 	github.com/fujiwara/logutils v1.1.2
 	github.com/fujiwara/tfstate-lookup v1.5.0
@@ -26,12 +26,12 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/motemen/go-testutil v0.0.0-20231019055648-af6add1c10c8
 	github.com/olekukonko/tablewriter v0.0.5
-	github.com/sebdah/goldie/v2 v2.5.3
+	github.com/sebdah/goldie/v2 v2.8.0
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/shogo82148/go-retry v1.3.1
 	github.com/stretchr/testify v1.10.0
 	go.uber.org/mock v0.5.0
-	golang.org/x/term v0.30.0
+	golang.org/x/term v0.37.0
 )
 
 require (
@@ -116,15 +116,15 @@ require (
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/crypto v0.34.0 // indirect
-	golang.org/x/mod v0.18.0 // indirect
-	golang.org/x/net v0.35.0 // indirect
+	golang.org/x/crypto v0.45.0 // indirect
+	golang.org/x/mod v0.29.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/oauth2 v0.26.0 // indirect
-	golang.org/x/sync v0.11.0 // indirect
-	golang.org/x/sys v0.31.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
-	golang.org/x/tools v0.22.0 // indirect
+	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/api v0.222.0 // indirect
 	google.golang.org/genproto v0.0.0-20250219182151-9fdb1cabc7b2 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250219182151-9fdb1cabc7b2 // indirect
