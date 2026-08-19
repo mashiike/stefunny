@@ -16,6 +16,7 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           level: warning
+          golangci_lint_version: v2.10.1
           golangci_lint_flags: "--config=.golangci.yaml --timeout 5m"
           filter_mode: diff_context
           reporter: github-pr-review
