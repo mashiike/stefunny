@@ -912,5 +912,5 @@ func (svc *SFnServiceImpl) GetExecutionHistory(ctx context.Context, executionArn
 }
 
 func (event HistoryEvent) Elapsed() time.Duration {
-	return event.HistoryEvent.Timestamp.Sub(event.StartDate)
+	return event.Timestamp.Sub(event.StartDate)
 }
