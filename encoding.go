@@ -255,13 +255,13 @@ func NewKeysToSnakeCase[T any](v T) KeysToSnakeCase[T] {
 
 func SnakeToCamel(s string) string {
 	str := snaker.SnakeToCamel(s)
-	str = strings.Replace(str, "Cloudwatch", "CloudWatch", -1)
+	str = strings.ReplaceAll(str, "Cloudwatch", "CloudWatch")
 	return str
 }
 
 func CamelToSnake(s string) string {
 	str := snaker.CamelToSnake(s)
-	str = strings.Replace(str, "cloud_watch", "cloudwatch", -1)
+	str = strings.ReplaceAll(str, "cloud_watch", "cloudwatch")
 	return str
 }
 
