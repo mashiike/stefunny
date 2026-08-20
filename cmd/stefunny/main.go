@@ -15,7 +15,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP, os.Interrupt)
 	defer cancel()
 
-	if err := cli.Run(ctx, os.Args[1:]); err != nil {
+	if err := cli.Main(ctx, os.Args[1:]); err != nil {
 		log.Printf("[error] %s", err)
 	}
 }
