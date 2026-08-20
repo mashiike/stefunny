@@ -1,6 +1,6 @@
 module github.com/mashiike/stefunny
 
-go 1.24.0
+go 1.26.0
 
 tool go.uber.org/mock/mockgen
 
