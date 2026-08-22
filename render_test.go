@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/mashiike/stefunny"
@@ -143,4 +145,39 @@ func TestRendererTemplateize(t *testing.T) {
 			g.Assert(t, c.casename, buf.Bytes())
 		})
 	}
+}
+
+func TestRendererTemplateizeTFStateAbsoluteFileURL(t *testing.T) {
+	t.Setenv("START_AT", "Hello")
+	t.Setenv("AWS_REGION", "us-east-1")
+	LoggerSetup(t, "debug")
+
+	testdataDir, err := filepath.Abs("testdata")
+	require.NoError(t, err)
+	definitionPath := filepath.Join(testdataDir, "hello_world.asl.json")
+	tfstatePath := filepath.Join(testdataDir, "terraform.tfstate")
+	configPath := filepath.Join(t.TempDir(), "stefunny.yaml")
+	configContent := fmt.Sprintf(`required_version: ">v0.0.0"
+
+state_machine:
+  name: Hello
+  definition: %s
+  role_arn: "{{ tfstate %saws_iam_role.test.arn%s }}"
+
+tfstate:
+  - location: file://%s
+`, definitionPath, "`", "`", tfstatePath)
+	require.NoError(t, os.WriteFile(configPath, []byte(configContent), 0600))
+
+	l := stefunny.NewConfigLoader(nil, nil)
+	ctx := context.Background()
+	cfg, err := l.Load(ctx, configPath)
+	require.NoError(t, err)
+	require.Equal(t, "arn:aws:iam::000000000000:role/test", *cfg.StateMachine.Value.RoleArn)
+
+	r := stefunny.NewRenderer(cfg)
+	var buf bytes.Buffer
+	err = r.RenderConfig(ctx, &buf, "json", true)
+	require.NoError(t, err)
+	require.Contains(t, buf.String(), "{{ tfstate `aws_iam_role.test.arn` }}")
 }

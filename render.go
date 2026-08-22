@@ -216,7 +216,7 @@ func (r *Renderer) templateizeTFState(ctx context.Context, data any, base string
 		var err error
 		if base != "" {
 			u, err := url.Parse(cfg.Location)
-			if err != nil || u.Scheme == "" || u.Scheme == "file" {
+			if err != nil || u.Scheme == "" {
 				loc = resolvePath(base, loc)
 			}
 		}
