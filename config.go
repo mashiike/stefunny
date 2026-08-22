@@ -182,10 +182,7 @@ func newTemplatefuncMustEnv(mustEnvs *OrderdMap[string, string], missingEnvs map
 
 func (l *ConfigLoader) newTemplateFuncFile(base string, files *OrderdMap[string, string], missingFiles map[string]struct{}) func(string) (string, error) {
 	return func(path string) (string, error) {
-		target := path
-		if !filepath.IsAbs(path) {
-			target = filepath.Join(base, path)
-		}
+		target := resolvePath(base, path)
 		bs, err := os.ReadFile(target)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
@@ -206,10 +203,7 @@ func (l *ConfigLoader) newTemplateFuncTemplateFile(base string, files *OrderdMap
 		if err != nil {
 			return "", err
 		}
-		target := path
-		if !filepath.IsAbs(path) {
-			target = filepath.Join(base, path)
-		}
+		target := resolvePath(base, path)
 		for _, nested := range l.nestedRednerFiles {
 			if strings.EqualFold(nested, target) {
 				return "", fmt.Errorf("cycle template_file detected: %s", strings.Join(append(l.nestedRednerFiles, target), " -> "))
@@ -331,7 +325,7 @@ func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	}
 	// cfg.StateMachine.Definition written definition file path
 	var definition json.RawMessage
-	definitionPath := filepath.Clean(filepath.Join(filepath.Dir(path), cfg.StateMachine.DefinitionPath))
+	definitionPath := resolvePath(filepath.Dir(path), cfg.StateMachine.DefinitionPath)
 	log.Println("[debug] definition path =", definitionPath)
 	if err := l.load(definitionPath, false, true, &definition); err != nil {
 		return nil, fmt.Errorf("load definition `%s`: %w", definitionPath, err)
@@ -400,7 +394,7 @@ func (l *ConfigLoader) preLoadForTemplateFuncs(ctx context.Context, cfg *Config,
 		loc := tfstate.Location
 		u, err := url.Parse(loc)
 		if err != nil || (u != nil && u.Scheme == "") {
-			loc = filepath.Join(filepath.Dir(path), loc)
+			loc = resolvePath(filepath.Dir(path), loc)
 		}
 		if err := l.AppendTFState(ctx, tfstate.FuncPrefix, loc); err != nil {
 			return fmt.Errorf("tfstate[%d] %w", i, err)
@@ -743,7 +737,7 @@ func (cfg *Config) NewStateMachine() *StateMachine {
 	stateMachine.AppendTags(cfg.Tags)
 
 	stateMachine.ConfigFilePath = aws.String(filepath.Join(cfg.ConfigDir, cfg.ConfigFileName))
-	stateMachine.DefinitionPath = aws.String(filepath.Join(cfg.ConfigDir, cfg.StateMachine.DefinitionPath))
+	stateMachine.DefinitionPath = aws.String(resolvePath(cfg.ConfigDir, cfg.StateMachine.DefinitionPath))
 	return stateMachine
 }
 
