@@ -11,12 +11,16 @@ import (
 )
 
 func main() {
-	os.Exit(run(os.Args[1:]))
+	os.Exit(run(stefunny.NewCLI(), os.Args[1:]))
 }
 
-// os.Exit skips deferred calls, so the CLI runs here and main() only exits with the returned code.
-func run(args []string) int {
-	cli := stefunny.NewCLI()
+// run executes the CLI and returns the process exit code.
+//
+// The CLI is taken as an argument so that tests can inject writers and an exit
+// function instead of letting kong call os.Exit on the test binary. main() does
+// nothing but exit with the returned code, because os.Exit skips deferred calls
+// and would otherwise leak the signal context.
+func run(cli *stefunny.CLI, args []string) int {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP, os.Interrupt)
 	defer cancel()
 
