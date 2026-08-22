@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path/filepath"
 )
 
 type PullOption struct {
@@ -13,7 +12,7 @@ type PullOption struct {
 }
 
 func (app *App) Pull(ctx context.Context, opt PullOption) error {
-	defPath := filepath.Join(app.cfg.ConfigDir, app.cfg.StateMachine.DefinitionPath)
+	defPath := resolvePath(app.cfg.ConfigDir, app.cfg.StateMachine.DefinitionPath)
 	cfg, err := app.makeConfig(ctx, defPath, true, &DescribeStateMachineInput{
 		Name:      app.cfg.StateMachineName(),
 		Qualifier: opt.Qualifier,

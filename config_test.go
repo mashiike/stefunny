@@ -2,6 +2,9 @@ package stefunny_test
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -132,6 +135,34 @@ func TestConfigLoadValid(t *testing.T) {
 		})
 	}
 
+}
+
+func TestConfigLoadAbsolutePath(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-east-1")
+	LoggerSetup(t, "debug")
+	testdataDir, err := filepath.Abs("testdata")
+	require.NoError(t, err)
+	definitionPath := filepath.Join(testdataDir, "hello_world.asl.json")
+	tfstatePath := filepath.Join(testdataDir, "terraform.tfstate")
+	configPath := filepath.Join(t.TempDir(), "stefunny.yaml")
+	configContent := fmt.Sprintf(`required_version: ">v0.0.0"
+
+state_machine:
+  name: Hello
+  definition: %s
+  role_arn: "{{ tfstate %saws_iam_role.test.arn%s }}"
+
+tfstate:
+  - location: %s
+`, definitionPath, "`", "`", tfstatePath)
+	require.NoError(t, os.WriteFile(configPath, []byte(configContent), 0600))
+
+	l := stefunny.NewConfigLoader(nil, nil)
+	cfg, err := l.Load(context.Background(), configPath)
+	require.NoError(t, err)
+	require.JSONEq(t, LoadString(t, "testdata/hello_world.asl.json"), *cfg.StateMachine.Value.Definition)
+	require.Equal(t, "arn:aws:iam::000000000000:role/test", *cfg.StateMachine.Value.RoleArn)
+	require.Equal(t, definitionPath, *cfg.NewStateMachine().DefinitionPath)
 }
 
 func TestConfigLoadInValid(t *testing.T) {

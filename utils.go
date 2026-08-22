@@ -160,6 +160,15 @@ func sliceDiff[T any](this, other []T, fetchKey func(T) string) sliceDiffResult[
 	return result
 }
 
+// paths in a config are relative to the config directory, but an absolute path
+// must be used as it is. filepath.Join would concatenate it with baseDir.
+func resolvePath(baseDir string, path string) string {
+	if filepath.IsAbs(path) {
+		return filepath.Clean(path)
+	}
+	return filepath.Clean(filepath.Join(baseDir, path))
+}
+
 // create file with mkdir
 func createFileWithMkdir(path string) (*os.File, error) {
 	dir := filepath.Dir(path)

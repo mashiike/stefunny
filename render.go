@@ -217,9 +217,7 @@ func (r *Renderer) templateizeTFState(ctx context.Context, data any, base string
 		if base != "" {
 			u, err := url.Parse(cfg.Location)
 			if err != nil || u.Scheme == "" || u.Scheme == "file" {
-				if !filepath.IsAbs(loc) {
-					loc = filepath.Join(base, loc)
-				}
+				loc = resolvePath(base, loc)
 			}
 		}
 		resources, err = ListResourcesFromTFState(ctx, loc)
