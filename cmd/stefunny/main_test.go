@@ -9,7 +9,10 @@ import (
 	"testing"
 
 	"github.com/mashiike/stefunny"
+	"github.com/stretchr/testify/require"
 )
+
+type testBailout struct{}
 
 // stefunny.New eagerly resolves the AWS config and calls sts:GetCallerIdentity,
 // so without a stub endpoint every case here would reach the real AWS API.
@@ -41,18 +44,18 @@ func TestRun(t *testing.T) {
 	stubSTS(t)
 
 	configPath := filepath.Join("..", "..", "testdata", "stefunny.yaml")
-	kongExit := func(code int) *int { return &code }
 	cases := []struct {
 		name string
 		args []string
-		// wantExitCode is the code run() must return.
+		// wantExitCode is the code run() must return. Only checked when
+		// wantKongExit is false: when kong exits, the exit callback panics
+		// before run() can return anything.
 		wantExitCode int
-		// wantKongExitCode is the code kong's own exit function must be called
-		// with. Parse errors never come back as a returned error in production,
-		// so a case that expects one has to pin the code down here; nil means the
-		// arguments must parse and kong must not exit at all.
-		wantKongExitCode *int
-		wantOutput       []string
+		// wantKongExit is true if kong's own exit function must be called.
+		// Parse errors never come back as a returned error in production, so
+		// a case that expects one has to be pinned down here.
+		wantKongExit bool
+		wantOutput   []string
 	}{
 		{
 			name:         "render config",
@@ -71,11 +74,10 @@ func TestRun(t *testing.T) {
 			wantExitCode: 1,
 		},
 		{
-			name:             "unknown flag",
-			args:             []string{"--no-such-flag"},
-			wantExitCode:     1,
-			wantKongExitCode: kongExit(1),
-			wantOutput:       []string{"unknown flag --no-such-flag"},
+			name:         "unknown flag",
+			args:         []string{"--no-such-flag"},
+			wantKongExit: true,
+			wantOutput:   []string{"unknown flag --no-such-flag"},
 		},
 	}
 	for _, c := range cases {
@@ -86,19 +88,32 @@ func TestRun(t *testing.T) {
 			kongExitCalls := []int{}
 			cli.Exit(func(code int) {
 				kongExitCalls = append(kongExitCalls, code)
+				panic(testBailout{})
 			})
 
-			exitCode := run(cli, c.args)
-			if exitCode != c.wantExitCode {
-				t.Errorf("unexpected exit code: got %d, want %d", exitCode, c.wantExitCode)
-			}
-			switch {
-			case c.wantKongExitCode == nil && len(kongExitCalls) != 0:
+			var exitCode int
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						if _, ok := r.(testBailout); !ok {
+							require.FailNow(t, "unexpected panic", "%v", r)
+						}
+					}
+				}()
+				exitCode = run(cli, c.args)
+			}()
+
+			if c.wantKongExit {
+				if len(kongExitCalls) != 1 {
+					t.Errorf("kong exit calls: got %v, want exactly one call", kongExitCalls)
+				} else if kongExitCalls[0] != 1 {
+					t.Errorf("unexpected kong exit code: got %d, want 1", kongExitCalls[0])
+				}
+			} else if len(kongExitCalls) != 0 {
 				t.Errorf("kong exited with %v, want no exit", kongExitCalls)
-			case c.wantKongExitCode != nil && len(kongExitCalls) != 1:
-				t.Errorf("kong exit calls: got %v, want exactly one call with %d", kongExitCalls, *c.wantKongExitCode)
-			case c.wantKongExitCode != nil && kongExitCalls[0] != *c.wantKongExitCode:
-				t.Errorf("unexpected kong exit code: got %d, want %d", kongExitCalls[0], *c.wantKongExitCode)
+			}
+			if !c.wantKongExit && exitCode != c.wantExitCode {
+				t.Errorf("unexpected exit code: got %d, want %d", exitCode, c.wantExitCode)
 			}
 			out := buf.String()
 			for _, want := range c.wantOutput {
