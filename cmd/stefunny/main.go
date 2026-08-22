@@ -24,7 +24,7 @@ func run(cli *stefunny.CLI, args []string) int {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP, os.Interrupt)
 	defer cancel()
 
-	if err := cli.Run(ctx, args); err != nil {
+	if err := cli.Main(ctx, args); err != nil {
 		log.Printf("[error] %s", err)
 		return 1
 	}

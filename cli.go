@@ -115,7 +115,12 @@ func (cli *CLI) Parse(args []string) (string, error) {
 		kong.Name("stefunny"),
 		kong.Description("stefunny is a deployment tool for AWS StepFunctions state machine"),
 		kong.UsageOnError(),
-		kong.Exit(cli.exitFunc),
+		kong.Exit(func(code int) {
+			if code != 0 {
+				code = 1
+			}
+			cli.exitFunc(code)
+		}),
 		kong.Writers(cli.stdout, cli.stderr),
 	}
 	for k, v := range cli.namedMappers {
@@ -208,8 +213,8 @@ func (cli *CLI) NewApp(ctx context.Context) (*App, error) {
 	return app, nil
 }
 
-// Run() runs the command
-func (cli *CLI) Run(ctx context.Context, args []string) error {
+// Main runs the command
+func (cli *CLI) Main(ctx context.Context, args []string) error {
 	cmd, err := cli.Parse(args)
 	if err != nil {
 		return err
