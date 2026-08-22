@@ -1,5 +1,28 @@
 # Changelog
 
+## [v0.9.4](https://github.com/mashiike/stefunny/compare/v0.9.3...v0.9.4) - 2026-08-22
+
+- Fix Deprecated by @mashiike in https://github.com/mashiike/stefunny/pull/298
+- Bump golang.org/x/term from 0.29.0 to 0.30.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/303
+- Migrate golangci-lint config to v2 and pin CI version by @mashiike in https://github.com/mashiike/stefunny/pull/330
+- Bump actions/checkout from 4 to 6 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/329
+- Bump actions/setup-go from 5 to 6 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/323
+- Bump golang.org/x/crypto from 0.34.0 to 0.45.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/328
+- Bump github.com/aws/aws-sdk-go-v2 from 1.36.2 to 1.39.4 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/327
+- Bump github.com/sebdah/goldie/v2 from 2.5.3 to 2.8.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/325
+- Bump github.com/golang-jwt/jwt/v4 from 4.5.1 to 4.5.2 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/307
+- Bump Go version to 1.26.0 by @mashiike in https://github.com/mashiike/stefunny/pull/333
+- Bump the aws-sdk-go-v2 group across 1 directory with 6 updates by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/301
+- Bump google.golang.org/grpc from 1.70.0 to 1.82.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/331
+- Bump golang.org/x/net from 0.53.0 to 0.55.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/310
+- Bump github.com/golang-jwt/jwt/v5 from 5.2.1 to 5.2.2 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/306
+- Bump golang.org/x/crypto from 0.51.0 to 0.52.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/332
+- Bump github.com/aws/aws-sdk-go-v2/service/s3 from 1.77.1 to 1.97.3 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/334
+- fix: exit with non-zero code when command fails by @terakoya76 in https://github.com/mashiike/stefunny/pull/338
+- fix: use absolute paths in config as-is by @terakoya76 in https://github.com/mashiike/stefunny/pull/339
+- Bump github.com/alecthomas/kong from 1.8.1 to 1.16.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/317
+- fix: PR #338/#339 follow-ups (exit-code test hardening + tfstate file:// path fix) by @mashiike in https://github.com/mashiike/stefunny/pull/340
+
 ## [v0.9.3](https://github.com/mashiike/stefunny/compare/v0.9.2...v0.9.3) - 2025-02-22
 - Bump github.com/aws/aws-sdk-go-v2 from 1.26.1 to 1.30.3 by @dependabot in https://github.com/mashiike/stefunny/pull/287
 - Bump github.com/hashicorp/go-version from 1.6.0 to 1.7.0 by @dependabot in https://github.com/mashiike/stefunny/pull/270
