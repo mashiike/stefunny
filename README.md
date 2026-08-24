@@ -476,7 +476,7 @@ std.native('caller_identity')().Account
 
 It returns an object with `Account`, `Arn` and `UserId` fields. The result is resolved at most once per `stefunny` invocation and reused for every subsequent reference.
 
-Using `caller_identity` makes config/definition loading require resolvable AWS credentials, even for commands like `render` that would otherwise not need any AWS access. If a config doesn't use `caller_identity`, loading it never touches AWS.
+Using `caller_identity` makes config/definition loading require resolvable AWS credentials, even for commands like `render` that would otherwise not need any AWS access. If a config doesn't use `caller_identity` (and doesn't rely on the deprecated `state_machine.logging` field with a non-ARN log group, which resolves AWS credentials for an unrelated reason), loading it never touches AWS.
 
 If `caller_identity` is used inside the configuration file itself (not only in the definition file), it is resolved before that file has finished decoding, so `aws_region` and `endpoints.sts` written in the same file are not yet available; set `AWS_REGION` / `AWS_ENDPOINT_URL_STS` via environment variables instead if you need to control them in that case.
 

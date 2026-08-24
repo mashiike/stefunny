@@ -53,3 +53,61 @@ func TestApp_LazyServiceConstruction_Error(t *testing.T) {
 	_, err = app.sfnService(context.Background())
 	require.ErrorContains(t, err, "failed to get SFN client")
 }
+
+func TestApp_LazyServiceConstruction_EventBridgeAndScheduler(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-east-1")
+	t.Setenv("AWS_ACCESS_KEY_ID", "dummy")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "dummy")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+	cases := []struct {
+		name   string
+		getter func(app *App, ctx context.Context) (any, error)
+	}{
+		{"eventBridgeService", func(app *App, ctx context.Context) (any, error) { return app.eventBridgeService(ctx) }},
+		{"schedulerService", func(app *App, ctx context.Context) (any, error) { return app.schedulerService(ctx) }},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			ctx := context.Background()
+			app, err := New(ctx, NewDefaultConfig())
+			require.NoError(t, err)
+
+			svc1, err := c.getter(app, ctx)
+			require.NoError(t, err)
+			require.NotNil(t, svc1)
+
+			svc2, err := c.getter(app, ctx)
+			require.NoError(t, err)
+			require.Same(t, svc1, svc2, "subsequent calls must reuse the same constructed service")
+		})
+	}
+}
+
+func TestApp_LazyServiceConstruction_EventBridgeAndScheduler_Error(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+	t.Setenv("AWS_PROFILE", "stefunny-test-profile-does-not-exist")
+
+	cases := []struct {
+		name    string
+		getter  func(app *App, ctx context.Context) (any, error)
+		wantErr string
+	}{
+		{"eventBridgeService", func(app *App, ctx context.Context) (any, error) { return app.eventBridgeService(ctx) }, "failed to get EventBridge client"},
+		{"schedulerService", func(app *App, ctx context.Context) (any, error) { return app.schedulerService(ctx) }, "failed to get Scheduler client"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			app, err := New(context.Background(), NewDefaultConfig())
+			require.NoError(t, err)
+
+			_, err = c.getter(app, context.Background())
+			require.ErrorContains(t, err, c.wantErr)
+		})
+	}
+}

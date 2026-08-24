@@ -53,7 +53,6 @@ type ConfigLoader struct {
 	vm                *jsonnet.VM
 	cwLogsClient      CloudWatchLogsClient
 	stsClient         STSClient
-	callerIdentity    *callerIdentity
 }
 
 func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
@@ -65,9 +64,8 @@ func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 		vm.ExtCode(k, v)
 	}
 	return &ConfigLoader{
-		funcMap:        make(template.FuncMap),
-		vm:             vm,
-		callerIdentity: &callerIdentity{},
+		funcMap: make(template.FuncMap),
+		vm:      vm,
 	}
 }
 
@@ -304,10 +302,10 @@ func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, err
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
-	l.callerIdentity.reset(cfg, l.stsClient)
-	l.vm.NativeFunction(l.callerIdentity.JsonnetNativeFunc(ctx))
-	for k, v := range l.callerIdentity.FuncMap(ctx) {
-		l.funcMap[k] = v
+	ci := newCallerIdentity(cfg, l.stsClient)
+	l.vm.NativeFunction(ci.JsonnetNativeFunc(ctx))
+	if err := l.AppendFuncMap("", ci.FuncMap(ctx)); err != nil {
+		return nil, fmt.Errorf("append caller_identity func map: %w", err)
 	}
 	if err := l.setConfigPath(cfg, path); err != nil {
 		return nil, fmt.Errorf("set config path:%w", err)

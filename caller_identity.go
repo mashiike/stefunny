@@ -20,8 +20,8 @@ type STSClient interface {
 }
 
 // callerIdentity memoizes the result of GetCallerIdentity so that it is
-// resolved at most once, no matter how many times jsonnet/template
-// evaluation calls the caller_identity function.
+// resolved at most once per Load call, no matter how many times
+// jsonnet/template evaluation calls the caller_identity function.
 type callerIdentity struct {
 	mu     sync.Mutex
 	data   map[string]any
@@ -29,12 +29,10 @@ type callerIdentity struct {
 	client STSClient
 }
 
-// reset points callerIdentity at cfg/client for the next Get call.
-func (c *callerIdentity) reset(cfg *Config, client STSClient) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.cfg = cfg
-	c.client = client
+// newCallerIdentity is created fresh by ConfigLoader.Load for each call, so
+// its memoized data can never leak into an unrelated Load call.
+func newCallerIdentity(cfg *Config, client STSClient) *callerIdentity {
+	return &callerIdentity{cfg: cfg, client: client}
 }
 
 // Get resolves the caller identity, memoizing the result.

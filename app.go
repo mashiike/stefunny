@@ -13,6 +13,12 @@ const (
 	defaultAliasName = "current"
 )
 
+// App runs stefunny commands against a state machine and its triggers.
+//
+// sfnSvc, eventbridgeSvc and schedulerSvc are constructed lazily, on first
+// use, via sfnService/eventBridgeService/schedulerService: a command that
+// never needs one of them (e.g. render) never resolves AWS credentials for
+// it. mu guards all four fields.
 type App struct {
 	mu             sync.Mutex
 	cfg            *Config
@@ -22,6 +28,7 @@ type App struct {
 	aliasName      string
 }
 
+// NewAppOption configures an App constructed by New.
 type NewAppOption func(*App)
 
 func (app *App) sfnService(ctx context.Context) (SFnService, error) {
