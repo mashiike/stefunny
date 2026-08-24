@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-08-24
+
+- Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
+
 ## [v0.9.4](https://github.com/mashiike/stefunny/compare/v0.9.3...v0.9.4) - 2026-08-22
 
 - Fix Deprecated by @mashiike in https://github.com/mashiike/stefunny/pull/298
