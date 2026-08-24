@@ -710,11 +710,6 @@ func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	if err != nil {
 		return aws.Config{}, err
 	}
-	stsClient := cfg.NewStsClientFromConfig(awsCfg)
-	identity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
-	if err == nil {
-		log.Printf("[debug] caller identity: %s", *identity.Arn)
-	}
 	cfg.awsCfg = &awsCfg
 	return awsCfg, nil
 }
