@@ -13,9 +13,13 @@ type DiffOption struct {
 }
 
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
 	newStateMachine := app.cfg.NewStateMachine()
 	var stateMachineArn string
-	currentStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	currentStateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name:      app.cfg.StateMachineName(),
 		Qualifier: opt.Qualifier,
 	})
@@ -24,7 +28,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 			return fmt.Errorf("failed to describe current state machine status: %w", err)
 		}
 		if opt.Qualifier != "" {
-			latestStateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+			latestStateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 				Name: app.cfg.StateMachineName(),
 			})
 			if err != nil {
@@ -50,7 +54,11 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	var currentRules EventBridgeRules
 	newRules := app.cfg.NewEventBridgeRules()
 	if currentStateMachine != nil {
-		currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+		eventBridgeSvc, err := app.eventBridgeService(ctx)
+		if err != nil {
+			return err
+		}
+		currentRules, err = eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
 			StateMachineQualifiedArn: stateMachineArn,
 			RuleNames:                newRules.Names(),
 		})
@@ -70,7 +78,11 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	var currentSchedules Schedules
 	newSchedules := app.cfg.NewSchedules()
 	if currentStateMachine != nil {
-		currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+		schedulerSvc, err := app.schedulerService(ctx)
+		if err != nil {
+			return err
+		}
+		currentSchedules, err = schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
 			StateMachineQualifiedArn: stateMachineArn,
 			ScheduleNames:            newSchedules.Names(),
 		})

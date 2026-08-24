@@ -25,7 +25,11 @@ func (app *App) Studio(ctx context.Context, opt StudioOption) error {
 			return fmt.Errorf("AWS region is not set")
 		}
 	}
-	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachineArn, err := sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	if err != nil {

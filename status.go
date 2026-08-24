@@ -61,7 +61,11 @@ const (
 )
 
 func (app *App) newStateMachineStatus(ctx context.Context, qualifier string) (*StateMachineStatus, error) {
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name:      app.cfg.StateMachineName(),
 		Qualifier: qualifier,
 	})
@@ -71,7 +75,7 @@ func (app *App) newStateMachineStatus(ctx context.Context, qualifier string) (*S
 		}
 		arn := knownAfterDeployArn + ":" + app.StateMachineAliasName()
 		if qualifier != "" {
-			latestArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+			latestArn, err := sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 				Name: app.cfg.StateMachineName(),
 			})
 			if err != nil {
@@ -104,9 +108,13 @@ func (app *App) newStateMachineStatus(ctx context.Context, qualifier string) (*S
 }
 
 func (app *App) newRuleStatus(ctx context.Context, stateMachineArn string) ([]*RulesStatus, error) {
+	eventBridgeSvc, err := app.eventBridgeService(ctx)
+	if err != nil {
+		return nil, err
+	}
 	cfgRules := app.cfg.NewEventBridgeRules()
 	stateMachineQualifiedArn := addQualifierToArn(stateMachineArn, app.StateMachineAliasName())
-	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+	rules, err := eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
 		StateMachineQualifiedArn: stateMachineQualifiedArn,
 		RuleNames:                cfgRules.Names(),
 	})
@@ -150,9 +158,13 @@ func (app *App) newRuleStatus(ctx context.Context, stateMachineArn string) ([]*R
 }
 
 func (app *App) newScheduleStatus(ctx context.Context, stateMachineArn string) ([]*ScheduleStatus, error) {
+	schedulerSvc, err := app.schedulerService(ctx)
+	if err != nil {
+		return nil, err
+	}
 	cfgSchedules := app.cfg.NewSchedules()
 	stateMachineQualifiedArn := addQualifierToArn(stateMachineArn, app.StateMachineAliasName())
-	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+	schedules, err := schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
 		StateMachineQualifiedArn: stateMachineQualifiedArn,
 		ScheduleNames:            cfgSchedules.Names(),
 	})

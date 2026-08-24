@@ -67,7 +67,11 @@ func (app *App) makeConfig(ctx context.Context, defPath string, skipTrigger bool
 	cfg := NewDefaultConfig()
 	cfg.RequiredVersion = ">=" + Version
 
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, params)
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe state machine: %w", err)
 	}
@@ -87,13 +91,21 @@ func (app *App) makeConfig(ctx context.Context, defPath string, skipTrigger bool
 }
 
 func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine) (*TriggerConfig, error) {
-	rules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+	eventBridgeSvc, err := app.eventBridgeService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rules, err := eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
 		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed search related rules: %w", err)
 	}
-	schedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+	schedulerSvc, err := app.schedulerService(ctx)
+	if err != nil {
+		return nil, err
+	}
+	schedules, err := schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
 		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {

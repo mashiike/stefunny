@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -14,24 +12,6 @@ import (
 
 type testBailout struct{}
 
-// stefunny.New eagerly resolves the AWS config and calls sts:GetCallerIdentity,
-// so without a stub endpoint every case here would reach the real AWS API.
-func stubSTS(t *testing.T) {
-	t.Helper()
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "text/xml")
-		_, _ = w.Write([]byte(`<GetCallerIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
-  <GetCallerIdentityResult>
-    <Arn>arn:aws:iam::012345678901:user/dummy</Arn>
-    <UserId>AIDADUMMY</UserId>
-    <Account>012345678901</Account>
-  </GetCallerIdentityResult>
-</GetCallerIdentityResponse>`))
-	}))
-	t.Cleanup(server.Close)
-	t.Setenv("AWS_ENDPOINT_URL_STS", server.URL)
-}
-
 func TestRun(t *testing.T) {
 	t.Setenv("AWS_REGION", "us-east-1")
 	t.Setenv("AWS_ACCESS_KEY_ID", "dummy")
@@ -41,12 +21,15 @@ func TestRun(t *testing.T) {
 	// shared config loader and can fail the run for reasons unrelated to the test.
 	t.Setenv("AWS_PROFILE", "")
 	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
-	stubSTS(t)
 
 	configPath := filepath.Join("..", "..", "testdata", "stefunny.yaml")
 	cases := []struct {
 		name string
-		args []string
+		// setup runs inside the subtest, after the shared env vars above are
+		// applied, so it can override them (e.g. to simulate an environment
+		// without usable AWS credentials).
+		setup func(t *testing.T)
+		args  []string
 		// wantExitCode is the code run() must return. Only checked when
 		// wantKongExit is false: when kong exits, the exit callback panics
 		// before run() can return anything.
@@ -59,6 +42,18 @@ func TestRun(t *testing.T) {
 	}{
 		{
 			name:         "render config",
+			args:         []string{"--log-level", "error", "--config", configPath, "render", "config"},
+			wantExitCode: 0,
+			wantOutput:   []string{"state_machine:", "name: Hello"},
+		},
+		{
+			name: "render config without AWS credentials",
+			setup: func(t *testing.T) {
+				t.Setenv("AWS_ACCESS_KEY_ID", "")
+				t.Setenv("AWS_SECRET_ACCESS_KEY", "")
+				t.Setenv("AWS_SESSION_TOKEN", "")
+				t.Setenv("AWS_PROFILE", "stefunny-test-profile-does-not-exist")
+			},
 			args:         []string{"--log-level", "error", "--config", configPath, "render", "config"},
 			wantExitCode: 0,
 			wantOutput:   []string{"state_machine:", "name: Hello"},
@@ -82,6 +77,9 @@ func TestRun(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			if c.setup != nil {
+				c.setup(t)
+			}
 			cli := stefunny.NewCLI()
 			var buf bytes.Buffer
 			cli.Writers(&buf, &buf)

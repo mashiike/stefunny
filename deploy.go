@@ -99,8 +99,12 @@ func (app *App) Deploy(ctx context.Context, opt DeployOption) error {
 
 func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error {
 	log.Println("[debug] deploy state machine")
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
 	newStateMachine := app.cfg.NewStateMachine()
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	if err != nil {
@@ -120,13 +124,13 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if opt.VersionDescription != "" {
 		newStateMachine.VersionDescription = aws.String(opt.VersionDescription)
 	}
-	output, err := app.sfnSvc.DeployStateMachine(ctx, newStateMachine)
+	output, err := sfnSvc.DeployStateMachine(ctx, newStateMachine)
 	if err != nil {
 		return err
 	}
 	log.Printf("[info] deploy state machine `%s`(at `%s`)\n", app.cfg.StateMachineName(), *output.UpdateDate)
 	if opt.KeepVersions > 0 {
-		if err := app.sfnSvc.PurgeStateMachineVersions(ctx, newStateMachine, opt.KeepVersions); err != nil {
+		if err := sfnSvc.PurgeStateMachineVersions(ctx, newStateMachine, opt.KeepVersions); err != nil {
 			return fmt.Errorf("failed to delete older versions: %w", err)
 		}
 	}
@@ -134,7 +138,11 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 }
 
 func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) error {
-	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachineArn, err := sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	isStateMachineFound := true
@@ -156,7 +164,11 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 	if opt.DryRun {
 		currentRules := EventBridgeRules{}
 		if isStateMachineFound {
-			currentRules, err = app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+			eventBridgeSvc, err := app.eventBridgeService(ctx)
+			if err != nil {
+				return err
+			}
+			currentRules, err = eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
 				StateMachineQualifiedArn: targetArn,
 				RuleNames:                newRules.Names(),
 			})
@@ -172,14 +184,22 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		fmt.Println(diffString)
 		return nil
 	}
-	if err := app.eventbridgeSvc.DeployRules(ctx, targetArn, newRules, keepState); err != nil {
+	eventBridgeSvc, err := app.eventBridgeService(ctx)
+	if err != nil {
+		return err
+	}
+	if err := eventBridgeSvc.DeployRules(ctx, targetArn, newRules, keepState); err != nil {
 		return fmt.Errorf("failed to deploy rules: %w", err)
 	}
 	return nil
 }
 
 func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
-	stateMachineArn, err := app.sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachineArn, err := sfnSvc.GetStateMachineArn(ctx, &GetStateMachineArnInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	isStateMachineFound := true
@@ -202,7 +222,11 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 	if opt.DryRun {
 		currentSchedules := Schedules{}
 		if isStateMachineFound {
-			currentSchedules, err = app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+			schedulerSvc, err := app.schedulerService(ctx)
+			if err != nil {
+				return err
+			}
+			currentSchedules, err = schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
 				StateMachineQualifiedArn: targetArn,
 				ScheduleNames:            newSchedules.Names(),
 			})
@@ -218,7 +242,11 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 		fmt.Println(diffString)
 		return nil
 	}
-	if err := app.schedulerSvc.DeploySchedules(ctx, targetArn, newSchedules, keepState); err != nil {
+	schedulerSvc, err := app.schedulerService(ctx)
+	if err != nil {
+		return err
+	}
+	if err := schedulerSvc.DeploySchedules(ctx, targetArn, newSchedules, keepState); err != nil {
 		return fmt.Errorf("failed to deploy schedules: %w", err)
 	}
 	return nil

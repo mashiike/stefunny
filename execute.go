@@ -55,13 +55,17 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	}
 	input := string(bs)
 	log.Printf("[info] input:\n%s\n", input)
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	if err != nil {
 		return err
 	}
-	output, err := app.sfnSvc.StartExecution(ctx, stateMachine, &StartExecutionInput{
+	output, err := sfnSvc.StartExecution(ctx, stateMachine, &StartExecutionInput{
 		Input:         input,
 		ExecutionName: opt.ExecutionName,
 		Qualifier:     opt.Qualifier,
@@ -81,7 +85,7 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 		log.Println("[warn] this state machine can not dump history.")
 		return nil
 	}
-	events, err := app.sfnSvc.GetExecutionHistory(ctx, output.ExecutionArn)
+	events, err := sfnSvc.GetExecutionHistory(ctx, output.ExecutionArn)
 	if err != nil {
 		return err
 	}

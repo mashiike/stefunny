@@ -22,7 +22,11 @@ func (opt DeleteOption) DryRunString() string {
 
 func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	log.Println("[info] Starting delete", opt.DryRunString())
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	if err != nil {
@@ -30,7 +34,11 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	}
 
 	log.Printf("[notice] delete state machine is %s\n%s", opt.DryRunString(), stateMachine)
-	currentRules, err := app.eventbridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+	eventBridgeSvc, err := app.eventBridgeService(ctx)
+	if err != nil {
+		return err
+	}
+	currentRules, err := eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
 		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
@@ -39,7 +47,11 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 	if len(currentRules) > 0 {
 		log.Printf("[notice] delete related rules is %s\n%s", opt.DryRunString(), currentRules)
 	}
-	currentSchedules, err := app.schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+	schedulerSvc, err := app.schedulerService(ctx)
+	if err != nil {
+		return err
+	}
+	currentSchedules, err := schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
 		StateMachineQualifiedArn: stateMachine.QualifiedArn(app.StateMachineAliasName()),
 	})
 	if err != nil {
@@ -62,18 +74,18 @@ func (app *App) Delete(ctx context.Context, opt DeleteOption) error {
 			return errors.New("confirmation failed")
 		}
 	}
-	err = app.sfnSvc.DeleteStateMachine(ctx, stateMachine)
+	err = sfnSvc.DeleteStateMachine(ctx, stateMachine)
 	if err != nil {
 		return fmt.Errorf("failed to delete state machine status: %w", err)
 	}
 	if len(currentRules) > 0 {
-		err := app.eventbridgeSvc.DeployRules(ctx, stateMachine.QualifiedArn(app.StateMachineAliasName()), EventBridgeRules{}, false)
+		err := eventBridgeSvc.DeployRules(ctx, stateMachine.QualifiedArn(app.StateMachineAliasName()), EventBridgeRules{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to delete rules: %w", err)
 		}
 	}
 	if len(currentSchedules) > 0 {
-		err := app.schedulerSvc.DeploySchedules(ctx, stateMachine.QualifiedArn(app.StateMachineAliasName()), Schedules{}, false)
+		err := schedulerSvc.DeploySchedules(ctx, stateMachine.QualifiedArn(app.StateMachineAliasName()), Schedules{}, false)
 		if err != nil {
 			return fmt.Errorf("failed to delete schedules: %w", err)
 		}
