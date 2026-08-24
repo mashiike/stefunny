@@ -84,7 +84,11 @@ func (f OutputFormatter) String() string {
 }
 
 func (app *App) Versions(ctx context.Context, opt VersionsOption) error {
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	if err != nil {
@@ -95,11 +99,11 @@ func (app *App) Versions(ctx context.Context, opt VersionsOption) error {
 		return nil
 	}
 	if opt.Delete {
-		if err := app.sfnSvc.PurgeStateMachineVersions(ctx, stateMachine, opt.KeepVersions); err != nil {
+		if err := sfnSvc.PurgeStateMachineVersions(ctx, stateMachine, opt.KeepVersions); err != nil {
 			return fmt.Errorf("failed to delete older versions: %w", err)
 		}
 	}
-	versions, err := app.sfnSvc.ListStateMachineVersions(ctx, stateMachine)
+	versions, err := sfnSvc.ListStateMachineVersions(ctx, stateMachine)
 	if err != nil {
 		return fmt.Errorf("failed to list state machine versions: %w", err)
 	}

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-
-	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 const (
@@ -15,7 +13,14 @@ const (
 	defaultAliasName = "current"
 )
 
+// App runs stefunny commands against a state machine and its triggers.
+//
+// sfnSvc, eventbridgeSvc and schedulerSvc are constructed lazily, on first
+// use, via sfnService/eventBridgeService/schedulerService: a command that
+// never needs one of them (e.g. render) never resolves AWS credentials for
+// it. mu guards all four fields.
 type App struct {
+	mu             sync.Mutex
 	cfg            *Config
 	sfnSvc         SFnService
 	eventbridgeSvc EventBridgeService
@@ -23,109 +28,95 @@ type App struct {
 	aliasName      string
 }
 
-type newAppOptions struct {
-	mu             sync.Mutex
-	cfg            *Config
-	sfnSvc         SFnService
-	eventbridgeSvc EventBridgeService
-	schedulerSvc   SchedulerService
-	awsCfg         *aws.Config
+// NewAppOption configures an App constructed by New.
+type NewAppOption func(*App)
+
+func (app *App) sfnService(ctx context.Context) (SFnService, error) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.sfnSvc != nil {
+		return app.sfnSvc, nil
+	}
+	awsCfg, err := app.cfg.LoadAWSConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SFN client: %w", err)
+	}
+	client := app.cfg.NewStepFunctionsClientFromConfig(awsCfg)
+	svc := NewSFnService(client)
+	svc.SetAliasName(app.aliasName)
+	app.sfnSvc = svc
+	return app.sfnSvc, nil
 }
 
-type NewAppOption func(*newAppOptions)
-
-func (o *newAppOptions) GetSFnService(ctx context.Context) (SFnService, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if o.sfnSvc != nil {
-		return o.sfnSvc, nil
+func (app *App) eventBridgeService(ctx context.Context) (EventBridgeService, error) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.eventbridgeSvc != nil {
+		return app.eventbridgeSvc, nil
 	}
-	awsCfg, err := o.cfg.LoadAWSConfig(ctx)
+	awsCfg, err := app.cfg.LoadAWSConfig(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
 	}
-	client := o.cfg.NewStepFunctionsClientFromConfig(awsCfg)
-	o.sfnSvc = NewSFnService(client)
-	return o.sfnSvc, nil
+	client := app.cfg.NewEventBridgeClientFromConfig(awsCfg)
+	app.eventbridgeSvc = NewEventBridgeService(client)
+	return app.eventbridgeSvc, nil
 }
 
-func (o *newAppOptions) GetEventBridgeService(ctx context.Context) (EventBridgeService, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if o.eventbridgeSvc != nil {
-		return o.eventbridgeSvc, nil
+func (app *App) schedulerService(ctx context.Context) (SchedulerService, error) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	if app.schedulerSvc != nil {
+		return app.schedulerSvc, nil
 	}
-	awsCfg, err := o.cfg.LoadAWSConfig(ctx)
+	awsCfg, err := app.cfg.LoadAWSConfig(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get Scheduler client: %w", err)
 	}
-	client := o.cfg.NewEventBridgeClientFromConfig(awsCfg)
-	o.eventbridgeSvc = NewEventBridgeService(client)
-	return o.eventbridgeSvc, nil
-}
-
-func (o *newAppOptions) GetSchedulerService(ctx context.Context) (SchedulerService, error) {
-	o.mu.Lock()
-	defer o.mu.Unlock()
-	if o.schedulerSvc != nil {
-		return o.schedulerSvc, nil
-	}
-	awsCfg, err := o.cfg.LoadAWSConfig(ctx)
-	if err != nil {
-		return nil, err
-	}
-	client := o.cfg.NewSchedulerClientFromConfig(awsCfg)
-	o.schedulerSvc = NewSchedulerService(client)
-	return o.schedulerSvc, nil
+	client := app.cfg.NewSchedulerClientFromConfig(awsCfg)
+	app.schedulerSvc = NewSchedulerService(client)
+	return app.schedulerSvc, nil
 }
 
 // WithSFNClient sets the SFn client for New(ctx, cfg, opts...)
 // this is for testing
 func WithSFnClient(sfnClient SFnClient) NewAppOption {
-	return func(o *newAppOptions) {
-		o.sfnSvc = NewSFnService(sfnClient)
+	return func(app *App) {
+		app.sfnSvc = NewSFnService(sfnClient)
 	}
 }
 
 // WithSFnService sets the SFn service for New(ctx, cfg, opts...)
 func WithSFnService(sfnService SFnService) NewAppOption {
-	return func(o *newAppOptions) {
-		o.sfnSvc = sfnService
+	return func(app *App) {
+		app.sfnSvc = sfnService
 	}
 }
 
 func WithSchedulerService(schedulerService SchedulerService) NewAppOption {
-	return func(o *newAppOptions) {
-		o.schedulerSvc = schedulerService
+	return func(app *App) {
+		app.schedulerSvc = schedulerService
 	}
 }
 
 func WithSchedulerClient(schedulerClient SchedulerClient) NewAppOption {
-	return func(o *newAppOptions) {
-		o.schedulerSvc = NewSchedulerService(schedulerClient)
+	return func(app *App) {
+		app.schedulerSvc = NewSchedulerService(schedulerClient)
 	}
 }
 
 // WithEventBridgeClient sets the EventBridge client for New(ctx, cfg, opts...)
 // this is for testing
 func WithEventBridgeClient(eventBridgeClient EventBridgeClient) NewAppOption {
-	return func(o *newAppOptions) {
-		o.eventbridgeSvc = NewEventBridgeService(eventBridgeClient)
+	return func(app *App) {
+		app.eventbridgeSvc = NewEventBridgeService(eventBridgeClient)
 	}
 }
 
 // WithEventBridgeService sets the EventBridge service for New(ctx, cfg, opts...)
 func WithEventBridgeService(eventBridgeService EventBridgeService) NewAppOption {
-	return func(o *newAppOptions) {
-		o.eventbridgeSvc = eventBridgeService
-	}
-}
-
-// WithAWSConfig sets the AWS config for New(ctx, cfg, opts...)
-// this is for testing
-func WithAWSConfig(awsCfg aws.Config) NewAppOption {
-	return func(o *newAppOptions) {
-		o.awsCfg = &awsCfg
+	return func(app *App) {
+		app.eventbridgeSvc = eventBridgeService
 	}
 }
 
@@ -133,40 +124,28 @@ func (app *App) SetAliasName(aliasName string) {
 	if aliasName == "" {
 		aliasName = defaultAliasName
 	}
+	app.mu.Lock()
+	defer app.mu.Unlock()
 	app.aliasName = aliasName
-	app.sfnSvc.SetAliasName(aliasName)
+	if app.sfnSvc != nil {
+		app.sfnSvc.SetAliasName(aliasName)
+	}
 	log.Printf("[debug] set state machine alias name %s", aliasName)
 }
 
 func (app *App) StateMachineAliasName() string {
+	app.mu.Lock()
+	defer app.mu.Unlock()
 	return app.aliasName
 }
 
 // New creates a new App
-func New(ctx context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
-	o := newAppOptions{
+func New(_ context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
+	app := &App{
 		cfg: cfg,
 	}
 	for _, opt := range opts {
-		opt(&o)
-	}
-	sfnSvc, err := o.GetSFnService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get SFN client: %w", err)
-	}
-	eventbridgeSvc, err := o.GetEventBridgeService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
-	}
-	scheduelrSvc, err := o.GetSchedulerService(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Scheduler client: %w", err)
-	}
-	app := &App{
-		cfg:            cfg,
-		sfnSvc:         sfnSvc,
-		eventbridgeSvc: eventbridgeSvc,
-		schedulerSvc:   scheduelrSvc,
+		opt(app)
 	}
 	app.SetAliasName("")
 	return app, nil

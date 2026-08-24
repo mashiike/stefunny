@@ -52,6 +52,7 @@ type ConfigLoader struct {
 	templateFiles     *OrderdMap[string, string]
 	vm                *jsonnet.VM
 	cwLogsClient      CloudWatchLogsClient
+	stsClient         STSClient
 }
 
 func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
@@ -70,6 +71,12 @@ func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 
 func (l *ConfigLoader) SetCloudWatchLogsClient(client CloudWatchLogsClient) {
 	l.cwLogsClient = client
+}
+
+// SetSTSClient injects the STS client used to resolve caller_identity.
+// this is for testing
+func (l *ConfigLoader) SetSTSClient(client STSClient) {
+	l.stsClient = client
 }
 
 func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState string) error {
@@ -295,6 +302,11 @@ func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, err
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
+	ci := newCallerIdentity(cfg, l.stsClient)
+	l.vm.NativeFunction(ci.JsonnetNativeFunc(ctx))
+	if err := l.AppendFuncMap("", ci.FuncMap(ctx)); err != nil {
+		return nil, fmt.Errorf("append caller_identity func map: %w", err)
+	}
 	if err := l.setConfigPath(cfg, path); err != nil {
 		return nil, fmt.Errorf("set config path:%w", err)
 	}
@@ -709,11 +721,6 @@ func (cfg *Config) LoadAWSConfig(ctx context.Context) (aws.Config, error) {
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return aws.Config{}, err
-	}
-	stsClient := cfg.NewStsClientFromConfig(awsCfg)
-	identity, err := stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
-	if err == nil {
-		log.Printf("[debug] caller identity: %s", *identity.Arn)
 	}
 	cfg.awsCfg = &awsCfg
 	return awsCfg, nil

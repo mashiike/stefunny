@@ -20,7 +20,11 @@ func (opt RollbackOption) DryRunString() string {
 }
 
 func (app *App) Rollback(ctx context.Context, opt RollbackOption) error {
-	stateMachine, err := app.sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
+	sfnSvc, err := app.sfnService(ctx)
+	if err != nil {
+		return err
+	}
+	stateMachine, err := sfnSvc.DescribeStateMachine(ctx, &DescribeStateMachineInput{
 		Name: app.cfg.StateMachineName(),
 	})
 	if err != nil {
@@ -31,7 +35,7 @@ func (app *App) Rollback(ctx context.Context, opt RollbackOption) error {
 	}
 
 	log.Println("[info] Starting rollback", coalesce(stateMachine.StateMachineArn), opt.DryRunString())
-	if err := app.sfnSvc.RollbackStateMachine(ctx, stateMachine, opt.KeepVersion, opt.DryRun); err != nil {
+	if err := sfnSvc.RollbackStateMachine(ctx, stateMachine, opt.KeepVersion, opt.DryRun); err != nil {
 		return err
 	}
 	log.Println("[info] finish rollback", coalesce(stateMachine.StateMachineArn), opt.DryRunString())
