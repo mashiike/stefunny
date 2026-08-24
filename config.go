@@ -52,6 +52,8 @@ type ConfigLoader struct {
 	templateFiles     *OrderdMap[string, string]
 	vm                *jsonnet.VM
 	cwLogsClient      CloudWatchLogsClient
+	stsClient         STSClient
+	callerIdentity    *callerIdentity
 }
 
 func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
@@ -63,13 +65,20 @@ func NewConfigLoader(extStr, extCode map[string]string) *ConfigLoader {
 		vm.ExtCode(k, v)
 	}
 	return &ConfigLoader{
-		funcMap: make(template.FuncMap),
-		vm:      vm,
+		funcMap:        make(template.FuncMap),
+		vm:             vm,
+		callerIdentity: &callerIdentity{},
 	}
 }
 
 func (l *ConfigLoader) SetCloudWatchLogsClient(client CloudWatchLogsClient) {
 	l.cwLogsClient = client
+}
+
+// SetSTSClient injects the STS client used to resolve caller_identity.
+// this is for testing
+func (l *ConfigLoader) SetSTSClient(client STSClient) {
+	l.stsClient = client
 }
 
 func (l *ConfigLoader) AppendTFState(ctx context.Context, prefix string, tfState string) error {
@@ -295,6 +304,11 @@ func (l *ConfigLoader) renderTemplate(bs []byte, loadingDir string) ([]byte, err
 
 func (l *ConfigLoader) Load(ctx context.Context, path string) (*Config, error) {
 	cfg := NewDefaultConfig()
+	l.callerIdentity.reset(cfg, l.stsClient)
+	l.vm.NativeFunction(l.callerIdentity.JsonnetNativeFunc(ctx))
+	for k, v := range l.callerIdentity.FuncMap(ctx) {
+		l.funcMap[k] = v
+	}
 	if err := l.setConfigPath(cfg, path); err != nil {
 		return nil, fmt.Errorf("set config path:%w", err)
 	}

@@ -373,7 +373,7 @@ trigger:
 
 ```
 
-Configuration files and definition files are read with `text/template`, stefunny has template functions env, must_env, file, json_escape and tfstate.
+Configuration files and definition files are read with `text/template`, stefunny has template functions env, must_env, file, json_escape, tfstate and caller_identity.
 
 
 ### Template syntax
@@ -461,6 +461,26 @@ send_sns.asl.jsonnet
 ```
 
 This function uses [tfstate-lookup](https://github.com/fujiwara/tfstate-lookup) to load tfstate.
+
+#### `caller_identity`
+
+`caller_identity` resolves the AWS account calling stefunny (the same information as `aws sts get-caller-identity`). It is available both as a `text/template` function and, in Jsonnet definition/config files, as a native function via `std.native`.
+
+```
+"{{ caller_identity.Account }}"
+```
+
+```jsonnet
+std.native('caller_identity')().Account
+```
+
+It returns an object with `Account`, `Arn` and `UserId` fields. The result is resolved at most once per `stefunny` invocation and reused for every subsequent reference.
+
+Using `caller_identity` makes config/definition loading require resolvable AWS credentials, even for commands like `render` that would otherwise not need any AWS access. If a config doesn't use `caller_identity`, loading it never touches AWS.
+
+If `caller_identity` is used inside the configuration file itself (not only in the definition file), it is resolved before that file has finished decoding, so `aws_region` and `endpoints.sts` written in the same file are not yet available; set `AWS_REGION` / `AWS_ENDPOINT_URL_STS` via environment variables instead if you need to control them in that case.
+
+Because the result is memoized for the whole invocation, this also means: if `caller_identity` is used in the configuration file, the definition file reuses that same already-resolved value rather than re-resolving it with the now-decoded `aws_region` / `endpoints.sts`. In practice this rarely matters, since `Account`, `Arn` and `UserId` don't depend on region or endpoint.
 
 
 ## Special Thanks
