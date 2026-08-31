@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-08-31
+
+- Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
+- chore(deps): bump actions/checkout from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/350
+- chore(deps): bump actions/setup-go from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/349
+
 ## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-08-24
 
 - Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
