@@ -13,6 +13,21 @@
 - chore(deps): bump google.golang.org/grpc from 1.82.1 to 1.83.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/354
 - chore(deps): bump goreleaser/goreleaser-action from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/348
 - chore(deps): bump github.com/google/go-jsonnet from 0.20.0 to 0.22.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/346
+- chore(deps): bump the aws-sdk-go-v2 group across 1 directory with 6 updates by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/343
+
+## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-09-02
+
+- Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
+- chore(deps): bump actions/checkout from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/350
+- chore(deps): bump actions/setup-go from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/349
+- chore(deps): bump github.com/fatih/color from 1.18.0 to 1.19.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/345
+- fix(render): stop pruning zero values from state machine definitions by @mashiike in https://github.com/mashiike/stefunny/pull/353
+- chore(deps): bump github.com/stretchr/testify from 1.11.1 to 1.12.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/347
+- feat: add --exit-code flag to diff command by @mashiike in https://github.com/mashiike/stefunny/pull/355
+- fix: adapt to tablewriter v1.1.4 API and propagate render errors by @mashiike in https://github.com/mashiike/stefunny/pull/356
+- chore(deps): bump google.golang.org/grpc from 1.82.1 to 1.83.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/354
+- chore(deps): bump goreleaser/goreleaser-action from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/348
+- chore(deps): bump github.com/google/go-jsonnet from 0.20.0 to 0.22.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/346
 
 ## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-09-02
 
