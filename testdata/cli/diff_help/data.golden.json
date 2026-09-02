@@ -1,0 +1,20 @@
+{
+  "version": {},
+  "init": {},
+  "delete": {},
+  "deploy": {},
+  "rollback": {},
+  "schedule": {},
+  "render": {},
+  "execute": {},
+  "versions": {},
+  "diff": {},
+  "pull": {
+    "Templateize": false,
+    "Qualifier": ""
+  },
+  "studio": {
+    "Open": false
+  },
+  "status": {}
+}

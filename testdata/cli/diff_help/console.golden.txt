@@ -1,0 +1,19 @@
+Usage: stefunny diff [flags]
+
+Show diff of state machine definition and trigers
+
+Flags:
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn,
+                                  error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config
+                                  ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+
+  -u, --[no-]unified              output in unified format
+      --qualifier=""              qualifier for state machine
+      --exit-code                 exit with code 2 if there are differences

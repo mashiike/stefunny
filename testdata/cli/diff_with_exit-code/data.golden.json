@@ -1,0 +1,36 @@
+{
+  "log_level": "info",
+  "config": "stefunny.yaml",
+  "region": "us-east-1",
+  "alias": "current",
+  "version": {},
+  "init": {},
+  "delete": {},
+  "deploy": {
+    "unified": true
+  },
+  "rollback": {},
+  "schedule": {},
+  "render": {},
+  "execute": {
+    "input": "-"
+  },
+  "versions": {
+    "format": "table",
+    "keep_versions": 5
+  },
+  "diff": {
+    "unified": true,
+    "exit_code": true
+  },
+  "pull": {
+    "Templateize": true,
+    "Qualifier": ""
+  },
+  "studio": {
+    "Open": false
+  },
+  "status": {
+    "format": "text"
+  }
+}

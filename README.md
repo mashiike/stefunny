@@ -251,6 +251,53 @@ stefunny deploy works as below.
 - Create/ Update EventBridge rule.
 - Create/ Update EventBridge Scheduler schedule.
 
+`stefunny deploy` always applies the current config as-is; it has no notion of "there is no diff, so skip". It always publishes a new state machine version and moves the alias, even when nothing changed. If you want to skip deploy when there is no change, check for a diff before calling deploy, e.g. with `stefunny diff --exit-code` in CI (see [Diff](#diff) below).
+
+### Diff
+
+```console
+Usage: stefunny diff [flags]
+
+Show diff of state machine definition and trigers
+
+Flags:
+  -h, --help                      Show context-sensitive help.
+      --log-level="info"          Set log level (debug, info, notice, warn, error) ($STEFUNNY_LOG_LEVEL)
+  -c, --config="stefunny.yaml"    Path to config file ($STEFUNNY_CONFIG)
+      --tfstate=STRING            URL to terraform.tfstate referenced in config ($STEFUNNY_TFSTATE)
+      --ext-str=,...              external string values for Jsonnet
+      --ext-code=,...             external code values for Jsonnet
+      --region=""                 AWS region ($AWS_REGION)
+      --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+
+  -u, --[no-]unified              output in unified format
+      --qualifier=""              qualifier for state machine
+      --exit-code                 exit with code 2 if there are differences
+```
+
+`stefunny diff` shows the diff of the state machine definition and triggers (EventBridge rules / EventBridge Scheduler schedules) between the config and the deployed resources.
+
+With `--exit-code`, the exit status reports whether a diff was found, matching [lambroll](https://github.com/fujiwara/lambroll)'s `diff --exit-code`: exit code `0` when there is no diff, `2` when there is a diff, and any other non-zero code on an actual error. This lets CI gate `deploy` on whether anything changed, without `deploy` itself having to decide:
+
+```yaml
+- name: diff
+  id: diff
+  run: |
+    set +e
+    stefunny diff --exit-code
+    code=$?
+    set -e
+    case $code in
+      0) echo "changed=false" >> "$GITHUB_OUTPUT" ;;
+      2) echo "changed=true"  >> "$GITHUB_OUTPUT" ;;
+      *) exit $code ;;
+    esac
+
+- name: deploy
+  if: steps.diff.outputs.changed == 'true'
+  run: stefunny deploy --keep-versions 10
+```
+
 ### Rollback 
 
 ```console
