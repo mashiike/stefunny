@@ -8,6 +8,16 @@
 - chore(deps): bump github.com/fatih/color from 1.18.0 to 1.19.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/345
 - fix(render): stop pruning zero values from state machine definitions by @mashiike in https://github.com/mashiike/stefunny/pull/353
 - chore(deps): bump github.com/stretchr/testify from 1.11.1 to 1.12.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/347
+- feat: add --exit-code flag to diff command by @mashiike in https://github.com/mashiike/stefunny/pull/355
+
+## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-09-02
+
+- Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
+- chore(deps): bump actions/checkout from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/350
+- chore(deps): bump actions/setup-go from 6 to 7 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/349
+- chore(deps): bump github.com/fatih/color from 1.18.0 to 1.19.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/345
+- fix(render): stop pruning zero values from state machine definitions by @mashiike in https://github.com/mashiike/stefunny/pull/353
+- chore(deps): bump github.com/stretchr/testify from 1.11.1 to 1.12.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/347
 
 ## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-09-02
 
