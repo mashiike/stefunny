@@ -1,0 +1,15 @@
+{
+  "StartAt": "Pass",
+  "States": {
+    "Pass": {
+      "Type": "Pass",
+      "ResultPath": null,
+      "Parameters": {
+        "empty_list": { "L": [] },
+        "flag": false,
+        "blank": ""
+      },
+      "End": true
+    }
+  }
+}
