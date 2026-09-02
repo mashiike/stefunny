@@ -64,6 +64,24 @@ func TestAppRender(t *testing.T) {
 			target:   []string{"def", "config"},
 			format:   "jsonnet",
 		},
+		{
+			casename: "zero_value_json",
+			path:     "testdata/zero_value_def.yaml",
+			target:   []string{"definition"},
+			format:   "json",
+		},
+		{
+			casename: "zero_value_jsonnet",
+			path:     "testdata/zero_value_def.yaml",
+			target:   []string{"definition"},
+			format:   "jsonnet",
+		},
+		{
+			casename: "zero_value_yaml",
+			path:     "testdata/zero_value_def.yaml",
+			target:   []string{"definition"},
+			format:   "yaml",
+		},
 	}
 
 	for _, c := range cases {
@@ -124,6 +142,11 @@ func TestRendererTemplateize(t *testing.T) {
 			path:     "testdata/file_func.yaml",
 			format:   "jsonnet",
 		},
+		{
+			casename: "zero_value",
+			path:     "testdata/zero_value_def.yaml",
+			format:   "json",
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.casename, func(t *testing.T) {
@@ -180,4 +203,36 @@ tfstate:
 	err = r.RenderConfig(ctx, &buf, "json", true)
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), "{{ tfstate `aws_iam_role.test.arn` }}")
+}
+
+func TestRenderConfig_StillPrunesZeroValues(t *testing.T) {
+	LoggerSetup(t, "debug")
+
+	definitionPath, err := filepath.Abs("testdata/hello_world.asl.json")
+	require.NoError(t, err)
+	configPath := filepath.Join(t.TempDir(), "stefunny.yaml")
+	configContent := fmt.Sprintf(`required_version: ">v0.0.0"
+
+state_machine:
+  name: Hello
+  definition: %s
+  role_arn: arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role
+
+tags:
+  empty_tag: ""
+  real_tag: "value"
+`, definitionPath)
+	require.NoError(t, os.WriteFile(configPath, []byte(configContent), 0600))
+
+	l := stefunny.NewConfigLoader(nil, nil)
+	ctx := context.Background()
+	cfg, err := l.Load(ctx, configPath)
+	require.NoError(t, err)
+
+	r := stefunny.NewRenderer(cfg)
+	var buf bytes.Buffer
+	err = r.RenderConfig(ctx, &buf, "json", false)
+	require.NoError(t, err)
+	require.NotContains(t, buf.String(), "empty_tag")
+	require.Contains(t, buf.String(), "real_tag")
 }

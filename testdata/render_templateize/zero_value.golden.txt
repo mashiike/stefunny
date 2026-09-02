@@ -1,0 +1,33 @@
+## config
+{
+  "aws_region": "us-east-1",
+  "required_version": "\u003ev0.0.0",
+  "state_machine": {
+    "definition": "zero_value_def.json",
+    "logging_configuration": {
+      "level": "OFF"
+    },
+    "name": "Hello",
+    "role_arn": "arn:aws:iam::012345678901:role/service-role/StepFunctions-Hello-role",
+    "tracing_configuration": {},
+    "type": "STANDARD"
+  }
+}
+## definition
+{
+  "StartAt": "Pass",
+  "States": {
+    "Pass": {
+      "End": true,
+      "Parameters": {
+        "blank": "",
+        "empty_list": {
+          "L": []
+        },
+        "flag": false
+      },
+      "ResultPath": null,
+      "Type": "Pass"
+    }
+  }
+}

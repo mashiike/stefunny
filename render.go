@@ -2,6 +2,7 @@ package stefunny
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -76,6 +77,9 @@ func (r *Renderer) CreateConfigFile(ctx context.Context, path string, template b
 	return r.RenderConfig(ctx, f, fmt, template)
 }
 
+// RenderConfig renders the stefunny config (excluding the state machine definition body) to w.
+// In json/jsonnet format, keys whose value is null, false, an empty string, or an empty array are
+// dropped, since those AWS SDK-derived fields treat the zero value as "unset".
 func (r *Renderer) RenderConfig(ctx context.Context, w io.Writer, format string, template bool) error {
 	def := r.cfg.StateMachineDefinition()
 	r.cfg.StateMachine.SetDefinition(r.cfg.StateMachine.DefinitionPath)
@@ -90,7 +94,7 @@ func (r *Renderer) RenderConfig(ctx context.Context, w io.Writer, format string,
 			return fmt.Errorf("failed to templateize: %w", err)
 		}
 	}
-	if err := r.render(w, format, v); err != nil {
+	if err := r.render(w, format, v, true); err != nil {
 		return fmt.Errorf("failed to render: %w", err)
 	}
 	return nil
@@ -109,6 +113,9 @@ func (r *Renderer) CreateDefinitionFile(ctx context.Context, path string, templa
 	return r.RenderStateMachine(ctx, f, fmt, template)
 }
 
+// RenderStateMachine renders the state machine definition to w. Unlike RenderConfig, the
+// definition is a user-authored document, so in json/jsonnet format its null/false/empty-string/
+// empty-array values are preserved as-is rather than pruned.
 func (r *Renderer) RenderStateMachine(ctx context.Context, w io.Writer, format string, template bool) error {
 	def := json.RawMessage(r.cfg.StateMachineDefinition())
 	var v any = def
@@ -119,7 +126,7 @@ func (r *Renderer) RenderStateMachine(ctx context.Context, w io.Writer, format s
 			return fmt.Errorf("failed to templateize: %w", err)
 		}
 	}
-	if err := r.render(w, format, v); err != nil {
+	if err := r.render(w, format, v, false); err != nil {
 		return fmt.Errorf("failed to render: %w", err)
 	}
 	return nil
@@ -139,12 +146,25 @@ func (r *Renderer) detectFormat(path string) (string, error) {
 	}
 }
 
-func (r *Renderer) render(w io.Writer, format string, v any) error {
+func (r *Renderer) render(w io.Writer, format string, v any, prune bool) error {
 	switch f := strings.ToLower(format); f {
 	case "json", "jsonnet":
-		buf, err := marshalJSON(v)
-		if err != nil {
-			return err
+		var buf *bytes.Buffer
+		var err error
+		if prune {
+			buf, err = marshalJSON(v)
+			if err != nil {
+				return err
+			}
+		} else {
+			bs, merr := json.MarshalIndent(v, "", "  ")
+			if merr != nil {
+				return merr
+			}
+			buf = bytes.NewBuffer(bs)
+			if _, err := buf.WriteString("\n"); err != nil {
+				return err
+			}
 		}
 		if f == "json" {
 			_, err = w.Write(buf.Bytes())

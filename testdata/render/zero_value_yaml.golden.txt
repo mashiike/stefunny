@@ -1,0 +1,12 @@
+StartAt: Pass
+States:
+  Pass:
+    End: true
+    Parameters:
+      blank: ""
+      empty_list:
+        L: []
+      flag: false
+    ResultPath: null
+    Type: Pass
+
