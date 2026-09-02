@@ -135,6 +135,21 @@ func TestCLI__Parse(t *testing.T) {
 			code: 0,
 		},
 		{
+			name: "diff",
+			args: []string{"diff"},
+			cmd:  "diff",
+		},
+		{
+			name: "diff with exit-code",
+			args: []string{"diff", "--exit-code"},
+			cmd:  "diff",
+		},
+		{
+			name: "diff help",
+			args: []string{"diff", "--help"},
+			code: 0,
+		},
+		{
 			name: "render",
 			args: []string{"render", "--log-level", "debug", "config"},
 			cmd:  "render",
