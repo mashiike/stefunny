@@ -26,6 +26,9 @@ type ExecuteOption struct {
 	Qualifier     *string `name:"qualifier" help:"state machine version qualifier" json:"qualifier,omitempty"`
 }
 
+// Execute starts a state machine execution with the given input and waits for it to finish
+// unless opt.Async is set. Returns an error if the execution fails to start, or if the
+// execution itself fails when its result is awaited.
 func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	var inputReader io.Reader
 	if opt.Input == "-" {
@@ -89,18 +92,22 @@ func (app *App) Execute(ctx context.Context, opt ExecuteOption) error {
 	if err != nil {
 		return err
 	}
-	table := tablewriter.NewWriter(opt.Stderr)
-	table.SetHeader([]string{"ID", "Type", "Step", "Elapsed(ms)", "Timestamp"})
+	table := tablewriter.NewTable(opt.Stderr)
+	table.Header("ID", "Type", "Step", "Elapsed(ms)", "Timestamp")
 	for _, event := range events {
-		table.Append([]string{
+		if err := table.Append(
 			fmt.Sprintf("%3d", event.Id),
 			fmt.Sprintf("%v", event.Type),
 			event.Step,
 			fmt.Sprintf("%d", event.Elapsed().Milliseconds()),
 			event.Timestamp.Format(time.RFC3339),
-		})
+		); err != nil {
+			return fmt.Errorf("failed to append execution history row: %w", err)
+		}
 	}
-	table.Render()
+	if err := table.Render(); err != nil {
+		return fmt.Errorf("failed to render execution history table: %w", err)
+	}
 
 	if output.Datail != nil {
 		log.Printf("[info] execution detail:\n%s", MarshalJSONString(output.Datail))

@@ -24,21 +24,21 @@ type OutputFormatter struct {
 	Format string
 }
 
-func (f OutputFormatter) JSON() string {
+// JSON renders f.Data.Versions as an indented JSON string.
+// Returns an error if marshaling or indenting fails.
+func (f OutputFormatter) JSON() (string, error) {
 	if f.Data == nil {
-		return "[]"
+		return "[]", nil
 	}
 	b, err := json.Marshal(f.Data.Versions)
 	if err != nil {
-		log.Printf("[warn] failed to marshal JSON: %v", err)
-		return "[]"
+		return "", fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 	var out bytes.Buffer
 	if err := json.Indent(&out, b, "", "  "); err != nil {
-		log.Printf("[warn] failed to indent JSON: %v", err)
-		return string(b)
+		return "", fmt.Errorf("failed to indent JSON: %w", err)
 	}
-	return out.String()
+	return out.String(), nil
 }
 
 func (f OutputFormatter) TSV() string {
@@ -55,34 +55,47 @@ func (f OutputFormatter) TSV() string {
 	return buf.String()
 }
 
-func (f OutputFormatter) Table() string {
+// Table renders f.Data.Versions as a table string.
+// Returns an error if the underlying tablewriter fails to append rows or render.
+func (f OutputFormatter) Table() (string, error) {
 	buf := new(strings.Builder)
-	w := tablewriter.NewWriter(buf)
-	w.SetHeader([]string{"Version", "Aliases", "Creation Date", "Revision ID", "Description"})
+	w := tablewriter.NewTable(buf)
+	w.Header("Version", "Aliases", "Creation Date", "Revision ID", "Description")
 	for _, v := range f.Data.Versions {
-		w.Append([]string{
+		if err := w.Append(
 			fmt.Sprintf("%d", v.Version),
 			strings.Join(v.Aliases, ","),
 			v.CreationDate.Local().Format(time.RFC3339),
 			v.RevisionID,
 			v.Description,
-		})
+		); err != nil {
+			return "", fmt.Errorf("failed to append version row: %w", err)
+		}
 	}
-	w.Render()
-	return buf.String()
+	if err := w.Render(); err != nil {
+		return "", fmt.Errorf("failed to render versions table: %w", err)
+	}
+	return buf.String(), nil
 }
 
-func (f OutputFormatter) String() string {
+// Render returns f's string representation according to f.Format ("json", "tsv", or table by default).
+// Returns an error if the table format fails to render (see Table).
+//
+// Named Render rather than String because f can fail to format and therefore
+// does not satisfy fmt.Stringer.
+func (f OutputFormatter) Render() (string, error) {
 	switch f.Format {
 	case "json":
 		return f.JSON()
 	case "tsv":
-		return f.TSV()
+		return f.TSV(), nil
 	default:
 		return f.Table()
 	}
 }
 
+// Versions lists the deployed versions of the state machine, optionally purging older ones.
+// Returns an error if describing, listing, or (when opt.Delete is set) purging the versions fails.
 func (app *App) Versions(ctx context.Context, opt VersionsOption) error {
 	sfnSvc, err := app.sfnService(ctx)
 	if err != nil {
@@ -111,6 +124,10 @@ func (app *App) Versions(ctx context.Context, opt VersionsOption) error {
 		Data:   versions,
 		Format: opt.Format,
 	}
-	fmt.Println(formatter.String())
+	s, err := formatter.Render()
+	if err != nil {
+		return fmt.Errorf("failed to format versions: %w", err)
+	}
+	fmt.Println(s)
 	return nil
 }
