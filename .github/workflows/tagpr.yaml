@@ -33,6 +33,12 @@ jobs:
         uses: actions/setup-go@v7
         with:
           go-version: "1.26"
+      - name: Checkout release pull request branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ fromJSON(steps.tagpr.outputs.pull_request).head.ref }}
+          fetch-depth: 0
+        if: ${{ steps.tagpr.outputs.tag == '' && github.event_name != 'workflow_dispatch' }}
       - uses: mashiike/action-gocredits@v0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
