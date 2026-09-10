@@ -30,7 +30,7 @@ require (
 	github.com/serenize/snaker v0.0.0-20201027110005-a7ad2135616e
 	github.com/shogo82148/go-retry v1.3.1
 	github.com/stretchr/testify v1.12.1
-	go.uber.org/mock v0.5.0
+	go.uber.org/mock v0.6.0
 	golang.org/x/term v0.43.0
 )
 
