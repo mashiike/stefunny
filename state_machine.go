@@ -53,6 +53,9 @@ func (s *StateMachine) DefinitionSource() string {
 }
 
 func (s *StateMachine) QualifiedArn(name string) string {
+	if s == nil {
+		return ""
+	}
 	unqualified := removeQualifierFromArn(coalesce(s.StateMachineArn))
 	return addQualifierToArn(unqualified, name)
 }
