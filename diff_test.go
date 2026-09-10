@@ -23,6 +23,7 @@ func TestDiff(t *testing.T) {
 		exitCode       bool
 		roleArn        string
 		orphanRule     bool
+		skipTrigger    bool
 		wantErrHasDiff bool
 	}{
 		{
@@ -46,6 +47,20 @@ func TestDiff(t *testing.T) {
 			casename:       "eventbridge rule diff only, exit-code on",
 			exitCode:       true,
 			orphanRule:     true,
+			wantErrHasDiff: true,
+		},
+		{
+			casename:       "eventbridge rule diff, skip-trigger on, exit-code on",
+			exitCode:       true,
+			orphanRule:     true,
+			skipTrigger:    true,
+			wantErrHasDiff: false,
+		},
+		{
+			casename:       "state machine diff, skip-trigger on, exit-code on",
+			exitCode:       true,
+			roleArn:        "arn:aws:iam::999999999999:role/other-role",
+			skipTrigger:    true,
 			wantErrHasDiff: true,
 		},
 	}
@@ -89,19 +104,22 @@ func TestDiff(t *testing.T) {
 			mocks.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
 				Name: "Hello",
 			}).Return(current, nil).Times(1)
-			mocks.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
-				StateMachineQualifiedArn: qualifiedArn,
-				RuleNames:                []string{},
-			}).Return(currentRules, nil).Times(1)
-			mocks.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
-				StateMachineQualifiedArn: qualifiedArn,
-				ScheduleNames:            []string{},
-			}).Return(stefunny.Schedules{}, nil).Times(1)
+			if !c.skipTrigger {
+				mocks.eventBridge.EXPECT().SearchRelatedRules(gomock.Any(), &stefunny.SearchRelatedRulesInput{
+					StateMachineQualifiedArn: qualifiedArn,
+					RuleNames:                []string{},
+				}).Return(currentRules, nil).Times(1)
+				mocks.scheduler.EXPECT().SearchRelatedSchedules(gomock.Any(), &stefunny.SearchRelatedSchedulesInput{
+					StateMachineQualifiedArn: qualifiedArn,
+					ScheduleNames:            []string{},
+				}).Return(stefunny.Schedules{}, nil).Times(1)
+			}
 
 			app := newMockApp(t, "testdata/stefunny.yaml", mocks)
 			err = app.Diff(ctx, stefunny.DiffOption{
-				Unified:  true,
-				ExitCode: c.exitCode,
+				Unified:     true,
+				ExitCode:    c.exitCode,
+				SkipTrigger: c.skipTrigger,
 			})
 			if c.wantErrHasDiff {
 				require.ErrorIs(t, err, stefunny.ErrHasDiff)
@@ -110,4 +128,29 @@ func TestDiff(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDiff_QualifierStateMachineNotFound(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctx := context.Background()
+
+	mocks := NewMocks(t)
+	defer mocks.Finish()
+	mocks.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
+		Name:      "Hello",
+		Qualifier: "not-exist-qualifier",
+	}).Return(nil, stefunny.ErrStateMachineDoesNotExist).Times(1)
+	mocks.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
+		Name: "Hello",
+	}).Return(nil, stefunny.ErrStateMachineDoesNotExist).Times(1)
+
+	app := newMockApp(t, "testdata/stefunny.yaml", mocks)
+	var err error
+	require.NotPanics(t, func() {
+		err = app.Diff(ctx, stefunny.DiffOption{
+			Unified:   true,
+			Qualifier: "not-exist-qualifier",
+		})
+	})
+	require.NoError(t, err)
 }

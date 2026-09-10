@@ -9,9 +9,10 @@ import (
 
 // DiffOption configures App.Diff.
 type DiffOption struct {
-	Unified   bool   `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
-	Qualifier string `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
-	ExitCode  bool   `name:"exit-code" help:"exit with code 2 if there are differences" default:"false" json:"exit_code,omitempty"`
+	Unified     bool   `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
+	Qualifier   string `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
+	ExitCode    bool   `name:"exit-code" help:"exit with code 2 if there are differences" default:"false" json:"exit_code,omitempty"`
+	SkipTrigger bool   `name:"skip-trigger" help:"Skip trigger diff" default:"false" json:"skip_trigger,omitempty"`
 }
 
 // ErrHasDiff is returned by App.Diff when DiffOption.ExitCode is set and a
@@ -19,7 +20,9 @@ type DiffOption struct {
 var ErrHasDiff = errors.New("there are differences")
 
 // Diff prints the diff between the config and the deployed state machine,
-// EventBridge rules and EventBridge Scheduler schedules. Returns ErrHasDiff
+// EventBridge rules and EventBridge Scheduler schedules. If opt.SkipTrigger
+// is set, the EventBridge rules and EventBridge Scheduler schedules diff is
+// skipped, matching the scope of DeployOption.SkipTrigger. Returns ErrHasDiff
 // if opt.ExitCode is set and a difference was found.
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	sfnSvc, err := app.sfnService(ctx)
@@ -62,52 +65,54 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		fmt.Println(ds)
 		hasDiff = true
 	}
-	var currentRules EventBridgeRules
-	newRules := app.cfg.NewEventBridgeRules()
-	if currentStateMachine != nil {
-		eventBridgeSvc, err := app.eventBridgeService(ctx)
-		if err != nil {
-			return err
+	if !opt.SkipTrigger {
+		var currentRules EventBridgeRules
+		newRules := app.cfg.NewEventBridgeRules()
+		if currentStateMachine != nil {
+			eventBridgeSvc, err := app.eventBridgeService(ctx)
+			if err != nil {
+				return err
+			}
+			currentRules, err = eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
+				StateMachineQualifiedArn: stateMachineArn,
+				RuleNames:                newRules.Names(),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to search related rules: %w", err)
+			}
 		}
-		currentRules, err = eventBridgeSvc.SearchRelatedRules(ctx, &SearchRelatedRulesInput{
-			StateMachineQualifiedArn: stateMachineArn,
-			RuleNames:                newRules.Names(),
+		newRules.AppendTags(map[string]string{
+			tagManagedBy: appName,
 		})
-		if err != nil {
-			return fmt.Errorf("failed to search related rules: %w", err)
+		newRules.SetStateMachineQualifiedArn(stateMachineArn)
+		newRules.SyncState(currentRules)
+		ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
+		if ds != "" {
+			fmt.Println(ds)
+			hasDiff = true
 		}
-	}
-	newRules.AppendTags(map[string]string{
-		tagManagedBy: appName,
-	})
-	newRules.SetStateMachineQualifiedArn(stateMachineArn)
-	newRules.SyncState(currentRules)
-	ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
-	if ds != "" {
-		fmt.Println(ds)
-		hasDiff = true
-	}
-	var currentSchedules Schedules
-	newSchedules := app.cfg.NewSchedules()
-	if currentStateMachine != nil {
-		schedulerSvc, err := app.schedulerService(ctx)
-		if err != nil {
-			return err
+		var currentSchedules Schedules
+		newSchedules := app.cfg.NewSchedules()
+		if currentStateMachine != nil {
+			schedulerSvc, err := app.schedulerService(ctx)
+			if err != nil {
+				return err
+			}
+			currentSchedules, err = schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
+				StateMachineQualifiedArn: stateMachineArn,
+				ScheduleNames:            newSchedules.Names(),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to search related schedules: %w", err)
+			}
 		}
-		currentSchedules, err = schedulerSvc.SearchRelatedSchedules(ctx, &SearchRelatedSchedulesInput{
-			StateMachineQualifiedArn: stateMachineArn,
-			ScheduleNames:            newSchedules.Names(),
-		})
-		if err != nil {
-			return fmt.Errorf("failed to search related schedules: %w", err)
+		newSchedules.SetStateMachineQualifiedArn(stateMachineArn)
+		newSchedules.SyncState(currentSchedules)
+		ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
+		if ds != "" {
+			fmt.Println(ds)
+			hasDiff = true
 		}
-	}
-	newSchedules.SetStateMachineQualifiedArn(stateMachineArn)
-	newSchedules.SyncState(currentSchedules)
-	ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
-	if ds != "" {
-		fmt.Println(ds)
-		hasDiff = true
 	}
 	if opt.ExitCode && hasDiff {
 		return ErrHasDiff

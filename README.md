@@ -273,9 +273,12 @@ Flags:
   -u, --[no-]unified              output in unified format
       --qualifier=""              qualifier for state machine
       --exit-code                 exit with code 2 if there are differences
+      --skip-trigger              Skip trigger diff
 ```
 
 `stefunny diff` shows the diff of the state machine definition and triggers (EventBridge rules / EventBridge Scheduler schedules) between the config and the deployed resources.
+
+`--skip-trigger` skips the trigger diff (EventBridge rules / EventBridge Scheduler schedules), mirroring `deploy --skip-trigger`. Use it when triggers are managed outside of stefunny (e.g. by Terraform), so `diff --exit-code` reflects only what `deploy --skip-trigger` would actually change.
 
 With `--exit-code`, the exit status reports whether a diff was found, matching [lambroll](https://github.com/fujiwara/lambroll)'s `diff --exit-code`: exit code `0` when there is no diff, `2` when there is a diff, and any other non-zero code on an actual error. This lets CI gate `deploy` on whether anything changed, without `deploy` itself having to decide:
 
