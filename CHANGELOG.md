@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.0](https://github.com/mashiike/stefunny/compare/v0.10.0...v0.11.0) - 2026-09-10
+
+- feat(diff): add --skip-trigger flag to mirror deploy scope by @mashiike in https://github.com/mashiike/stefunny/pull/364
+- chore(deps): bump go.uber.org/mock from 0.5.0 to 0.6.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/362
+- chore(deps): bump github.com/aws/aws-sdk-go-v2 from 1.45.1 to 1.46.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/359
+
 ## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-09-03
 
 - Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
