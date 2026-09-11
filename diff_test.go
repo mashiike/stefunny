@@ -24,12 +24,27 @@ func TestDiff(t *testing.T) {
 		roleArn        string
 		orphanRule     bool
 		skipTrigger    bool
+		liveOnlyTag    bool
+		tagStrategy    *string
 		wantErrHasDiff bool
 	}{
 		{
 			casename:       "no diff, exit-code on",
 			exitCode:       true,
 			wantErrHasDiff: false,
+		},
+		{
+			casename:       "live-only tag, default strategy (append_only), exit-code on",
+			exitCode:       true,
+			liveOnlyTag:    true,
+			wantErrHasDiff: false,
+		},
+		{
+			casename:       "live-only tag, sync, exit-code on",
+			exitCode:       true,
+			liveOnlyTag:    true,
+			tagStrategy:    aws.String("sync"),
+			wantErrHasDiff: true,
 		},
 		{
 			casename:       "state machine diff, exit-code on",
@@ -84,6 +99,12 @@ func TestDiff(t *testing.T) {
 			if c.roleArn != "" {
 				current.RoleArn = aws.String(c.roleArn)
 			}
+			if c.liveOnlyTag {
+				current.Tags = append(append([]sfntypes.Tag{}, current.Tags...), sfntypes.Tag{
+					Key:   aws.String("Terraform"),
+					Value: aws.String("owned"),
+				})
+			}
 
 			currentRules := stefunny.EventBridgeRules{}
 			if c.orphanRule {
@@ -120,6 +141,7 @@ func TestDiff(t *testing.T) {
 				Unified:     true,
 				ExitCode:    c.exitCode,
 				SkipTrigger: c.skipTrigger,
+				TagStrategy: c.tagStrategy,
 			})
 			if c.wantErrHasDiff {
 				require.ErrorIs(t, err, stefunny.ErrHasDiff)

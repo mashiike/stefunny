@@ -25,5 +25,8 @@ Flags:
       --trigger-enabled           Enable trigger
       --trigger-disabled          Disable trigger
       --[no-]unified              when dry run, output unified diff
+      --tag-strategy=TAG-STRATEGY
+                                  tag strategy for state machine (append_only,
+                                  sync, none)
 
 stefunny: error: --trigger-enabled and --trigger-disabled can't be used together

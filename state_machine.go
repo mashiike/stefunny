@@ -20,6 +20,15 @@ type StateMachine struct {
 	DefinitionPath  *string
 }
 
+// DiffStringOption configures StateMachine.DiffString.
+type DiffStringOption struct {
+	Unified bool
+	// TagStrategy is used by StateMachine.DiffString to project the tag
+	// set diff would compare against what deploy would actually leave in
+	// place under the same strategy.
+	TagStrategy TagStrategy
+}
+
 func (s *StateMachine) Source() string {
 	if s == nil {
 		return knownAfterDeployArn
@@ -82,6 +91,71 @@ func (s *StateMachine) AppendTags(tags map[string]string) {
 	s.Tags = append(s.Tags, notExists...)
 }
 
+// projectedTags returns the tag set the live resource is expected to have
+// immediately after a deploy under tagStrategy, given its current tags and
+// the tags desired by config. When exists is false the state machine does
+// not exist yet, so tags come from CreateStateMachineInput.Tags regardless
+// of strategy: creation is a separate API call from TagResource/
+// UntagResource, and strategy only governs those.
+func projectedTags(exists bool, currentTags, desiredTags []sfntypes.Tag, tagStrategy TagStrategy) []sfntypes.Tag {
+	if !exists {
+		return desiredTags
+	}
+	switch tagStrategy {
+	case TagStrategySync:
+		return syncMergeTags(currentTags, desiredTags)
+	case TagStrategyNone:
+		return currentTags
+	default:
+		return appendOnlyMergeTags(currentTags, desiredTags)
+	}
+}
+
+// syncMergeTags returns desiredTags with any AWS-reserved tag (an "aws:"
+// prefixed key, see
+// https://docs.aws.amazon.com/step-functions/latest/dg/service-quotas.html#sfn-limits-tagging)
+// that exists only in currentTags appended, keeping its current value.
+// UntagResource cannot remove such a tag, so a sync that dropped it here
+// would make diff report a removal deploy can never perform. Neither input
+// is mutated.
+func syncMergeTags(currentTags, desiredTags []sfntypes.Tag) []sfntypes.Tag {
+	desiredKeys := make(map[string]struct{}, len(desiredTags))
+	for _, tag := range desiredTags {
+		desiredKeys[coalesce(tag.Key)] = struct{}{}
+	}
+	merged := make([]sfntypes.Tag, len(desiredTags), len(desiredTags)+len(currentTags))
+	copy(merged, desiredTags)
+	for _, tag := range currentTags {
+		key := coalesce(tag.Key)
+		if _, ok := desiredKeys[key]; ok {
+			continue
+		}
+		if isAWSReservedTagKey(key) {
+			merged = append(merged, tag)
+		}
+	}
+	return merged
+}
+
+// appendOnlyMergeTags returns desiredTags with any tag that exists only in
+// currentTags appended, keeping its current value. Neither input is
+// mutated.
+func appendOnlyMergeTags(currentTags, desiredTags []sfntypes.Tag) []sfntypes.Tag {
+	desiredKeys := make(map[string]struct{}, len(desiredTags))
+	for _, tag := range desiredTags {
+		desiredKeys[coalesce(tag.Key)] = struct{}{}
+	}
+	merged := make([]sfntypes.Tag, len(desiredTags), len(desiredTags)+len(currentTags))
+	copy(merged, desiredTags)
+	for _, tag := range currentTags {
+		if _, ok := desiredKeys[coalesce(tag.Key)]; ok {
+			continue
+		}
+		merged = append(merged, tag)
+	}
+	return merged
+}
+
 func (s *StateMachine) DeleteTag(key string) {
 	for i, tag := range s.Tags {
 		if coalesce(tag.Key) == key {
@@ -109,15 +183,26 @@ func (s *StateMachine) String() string {
 	return builder.String()
 }
 
-func (s *StateMachine) DiffString(newStateMachine *StateMachine, unified bool) string {
+// DiffString renders the diff between s (the current state, possibly nil)
+// and newStateMachine (the desired state). The tag portion of the diff
+// reflects the tag set opt.TagStrategy would actually leave in place, not
+// newStateMachine's raw tags, so it stays consistent with what a deploy
+// under the same strategy would do.
+func (s *StateMachine) DiffString(newStateMachine *StateMachine, opt DiffStringOption) string {
 	var builder strings.Builder
 	from := s.Source()
 	to := newStateMachine.Source()
+	var currentTags []sfntypes.Tag
+	if s != nil {
+		currentTags = s.Tags
+	}
+	projected := *newStateMachine
+	projected.Tags = projectedTags(s != nil, currentTags, newStateMachine.Tags, opt.TagStrategy)
 	builder.WriteString(
 		JSONDiffString(
 			s.configureJSON(),
-			newStateMachine.configureJSON(),
-			JSONDiffUnified(unified),
+			projected.configureJSON(),
+			JSONDiffUnified(opt.Unified),
 			JSONDiffFromURI(from),
 			JSONDiffToURI(to),
 		),
@@ -132,7 +217,7 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine, unified bool) s
 		JSONDiffString(
 			def,
 			coalesce(newStateMachine.Definition),
-			JSONDiffUnified(unified),
+			JSONDiffUnified(opt.Unified),
 			JSONDiffFromURI(from),
 			JSONDiffToURI(to),
 		),

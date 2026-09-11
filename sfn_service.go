@@ -44,12 +44,13 @@ type SFnClient interface {
 	StopExecution(ctx context.Context, params *sfn.StopExecutionInput, optFns ...func(*sfn.Options)) (*sfn.StopExecutionOutput, error)
 	GetExecutionHistory(ctx context.Context, params *sfn.GetExecutionHistoryInput, optFns ...func(*sfn.Options)) (*sfn.GetExecutionHistoryOutput, error)
 	TagResource(ctx context.Context, params *sfn.TagResourceInput, optFns ...func(*sfn.Options)) (*sfn.TagResourceOutput, error)
+	UntagResource(ctx context.Context, params *sfn.UntagResourceInput, optFns ...func(*sfn.Options)) (*sfn.UntagResourceOutput, error)
 }
 
 type SFnService interface {
 	DescribeStateMachine(ctx context.Context, params *DescribeStateMachineInput) (*StateMachine, error)
 	GetStateMachineArn(ctx context.Context, params *GetStateMachineArnInput) (string, error)
-	DeployStateMachine(ctx context.Context, stateMachine *StateMachine) (*DeployStateMachineOutput, error)
+	DeployStateMachine(ctx context.Context, stateMachine *StateMachine, tagStrategy TagStrategy) (*DeployStateMachineOutput, error)
 	DeleteStateMachine(ctx context.Context, stateMachine *StateMachine) error
 	RollbackStateMachine(ctx context.Context, stateMachine *StateMachine, keepVersion bool, dryRun bool) error
 	ListStateMachineVersions(ctx context.Context, stateMachine *StateMachine) (*ListStateMachineVersionsOutput, error)
@@ -191,7 +192,12 @@ type DeployStateMachineOutput struct {
 	StateMachineVersionArn *string
 }
 
-func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine *StateMachine) (*DeployStateMachineOutput, error) {
+// DeployStateMachine creates or updates the state machine. tagStrategy
+// governs the update path only (see updateStateMachineTags); a create
+// always tags the new resource with stateMachine.Tags regardless of
+// tagStrategy, since creation is a single API call rather than the
+// TagResource/UntagResource calls tagStrategy reconciles.
+func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, tagStrategy TagStrategy) (*DeployStateMachineOutput, error) {
 	var output *DeployStateMachineOutput
 	stateMachine.AppendTags(map[string]string{
 		tagManagedBy: appName,
@@ -217,7 +223,7 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 		stateMachine.Status = sfntypes.StateMachineStatusActive
 	} else {
 		var err error
-		output, err = svc.updateStateMachine(ctx, stateMachine)
+		output, err = svc.updateStateMachine(ctx, stateMachine, tagStrategy)
 		if err != nil {
 			return nil, err
 		}
@@ -233,7 +239,7 @@ func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine 
 	return output, nil
 }
 
-func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine *StateMachine) (*DeployStateMachineOutput, error) {
+func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine *StateMachine, tagStrategy TagStrategy) (*DeployStateMachineOutput, error) {
 	log.Println("[debug] try update state machine")
 	output, err := svc.client.UpdateStateMachine(ctx, &sfn.UpdateStateMachineInput{
 		StateMachineArn:      stateMachine.StateMachineArn,
@@ -250,21 +256,78 @@ func (svc *SFnServiceImpl) updateStateMachine(ctx context.Context, stateMachine 
 	log.Printf("[debug] revision_id = `%s`", coalesce(output.RevisionId))
 	log.Println("[debug] finish update state machine")
 
-	log.Println("[debug] try update state machine tags")
-	_, err = svc.client.TagResource(ctx, &sfn.TagResourceInput{
-		ResourceArn: stateMachine.StateMachineArn,
-		Tags:        stateMachine.Tags,
-	})
-	if err != nil {
+	if err := svc.updateStateMachineTags(ctx, stateMachine, tagStrategy); err != nil {
 		return nil, err
 	}
-	log.Println("[debug] finish update state machine tags")
 	return &DeployStateMachineOutput{
 		StateMachineArn:        stateMachine.StateMachineArn,
 		StateMachineVersionArn: output.StateMachineVersionArn,
 		CreationDate:           stateMachine.CreationDate,
 		UpdateDate:             output.UpdateDate,
 	}, nil
+}
+
+// updateStateMachineTags reconciles the live resource's tags with
+// stateMachine.Tags under tagStrategy. TagStrategyNone makes no API call at
+// all. TagStrategySync additionally removes any live tag not present in
+// stateMachine.Tags (except AWS-reserved tags, which UntagResource cannot
+// remove; see isAWSReservedTagKey) before setting the desired tags.
+func (svc *SFnServiceImpl) updateStateMachineTags(ctx context.Context, stateMachine *StateMachine, tagStrategy TagStrategy) error {
+	if tagStrategy == TagStrategyNone {
+		log.Println("[debug] tag strategy is none, skip tag update")
+		return nil
+	}
+	if tagStrategy == TagStrategySync {
+		if err := svc.untagRemovedKeys(ctx, stateMachine); err != nil {
+			return err
+		}
+	}
+	log.Println("[debug] try update state machine tags")
+	if _, err := svc.client.TagResource(ctx, &sfn.TagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		Tags:        stateMachine.Tags,
+	}); err != nil {
+		return fmt.Errorf("failed to tag resource: %w", err)
+	}
+	log.Println("[debug] finish update state machine tags")
+	return nil
+}
+
+// untagRemovedKeys removes any tag currently on the live resource that is
+// not present in stateMachine.Tags. AWS-reserved tags (an "aws:" prefixed
+// key) are left alone, since UntagResource cannot remove them; see
+// isAWSReservedTagKey.
+func (svc *SFnServiceImpl) untagRemovedKeys(ctx context.Context, stateMachine *StateMachine) error {
+	tagsOutput, err := svc.client.ListTagsForResource(ctx, &sfn.ListTagsForResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to list tags for resource: %w", err)
+	}
+	desiredKeys := make(map[string]struct{}, len(stateMachine.Tags))
+	for _, tag := range stateMachine.Tags {
+		desiredKeys[coalesce(tag.Key)] = struct{}{}
+	}
+	removeKeys := make([]string, 0, len(tagsOutput.Tags))
+	for _, tag := range tagsOutput.Tags {
+		key := coalesce(tag.Key)
+		if _, ok := desiredKeys[key]; !ok && !isAWSReservedTagKey(key) {
+			removeKeys = append(removeKeys, key)
+		}
+	}
+	if len(removeKeys) == 0 {
+		log.Println("[debug] no tags to remove")
+		return nil
+	}
+	log.Printf("[debug] try untag state machine tags: %v", removeKeys)
+	if _, err := svc.client.UntagResource(ctx, &sfn.UntagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		TagKeys:     removeKeys,
+	}); err != nil {
+		return fmt.Errorf("failed to untag resource: %w", err)
+	}
+	log.Println("[debug] finish untag state machine tags")
+	return nil
 }
 
 func (svc *SFnServiceImpl) describeStateMachineAlias(ctx context.Context, aliasArn string) (*sfn.DescribeStateMachineAliasOutput, error) {

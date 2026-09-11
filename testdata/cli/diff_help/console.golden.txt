@@ -18,3 +18,6 @@ Flags:
       --qualifier=""              qualifier for state machine
       --exit-code                 exit with code 2 if there are differences
       --skip-trigger              Skip trigger diff
+      --tag-strategy=TAG-STRATEGY
+                                  tag strategy for state machine (append_only,
+                                  sync, none)

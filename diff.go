@@ -9,10 +9,11 @@ import (
 
 // DiffOption configures App.Diff.
 type DiffOption struct {
-	Unified     bool   `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
-	Qualifier   string `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
-	ExitCode    bool   `name:"exit-code" help:"exit with code 2 if there are differences" default:"false" json:"exit_code,omitempty"`
-	SkipTrigger bool   `name:"skip-trigger" help:"Skip trigger diff" default:"false" json:"skip_trigger,omitempty"`
+	Unified     bool    `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
+	Qualifier   string  `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
+	ExitCode    bool    `name:"exit-code" help:"exit with code 2 if there are differences" default:"false" json:"exit_code,omitempty"`
+	SkipTrigger bool    `name:"skip-trigger" help:"Skip trigger diff" default:"false" json:"skip_trigger,omitempty"`
+	TagStrategy *string `name:"tag-strategy" help:"tag strategy for state machine (append_only, sync, none)" enum:"append_only,sync,none" json:"tag_strategy,omitempty"`
 }
 
 // ErrHasDiff is returned by App.Diff when DiffOption.ExitCode is set and a
@@ -22,8 +23,11 @@ var ErrHasDiff = errors.New("there are differences")
 // Diff prints the diff between the config and the deployed state machine,
 // EventBridge rules and EventBridge Scheduler schedules. If opt.SkipTrigger
 // is set, the EventBridge rules and EventBridge Scheduler schedules diff is
-// skipped, matching the scope of DeployOption.SkipTrigger. Returns ErrHasDiff
-// if opt.ExitCode is set and a difference was found.
+// skipped, matching the scope of DeployOption.SkipTrigger. The state
+// machine's tag diff is computed under opt.TagStrategy (see TagStrategy),
+// matching what DeployOption.TagStrategy would actually apply, so a tag
+// that deploy would never touch never counts toward the diff. Returns
+// ErrHasDiff if opt.ExitCode is set and a difference was found.
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	sfnSvc, err := app.sfnService(ctx)
 	if err != nil {
@@ -59,8 +63,12 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 	newStateMachine.AppendTags(map[string]string{
 		tagManagedBy: appName,
 	})
+	tagStrategy := resolveTagStrategy(opt.TagStrategy)
 	hasDiff := false
-	ds := strings.TrimSpace(currentStateMachine.DiffString(newStateMachine, opt.Unified))
+	ds := strings.TrimSpace(currentStateMachine.DiffString(newStateMachine, DiffStringOption{
+		Unified:     opt.Unified,
+		TagStrategy: tagStrategy,
+	}))
 	if ds != "" {
 		fmt.Println(ds)
 		hasDiff = true
