@@ -16,13 +16,14 @@ import (
 const dryRunStr = "DRY RUN"
 
 type CLI struct {
-	LogLevel  string   `name:"log-level" help:"Set log level (debug, info, notice, warn, error)" default:"info" env:"STEFUNNY_LOG_LEVEL" json:"log_level,omitempty"`
-	Config    string   `name:"config" short:"c" help:"Path to config file" default:"stefunny.yaml" env:"STEFUNNY_CONFIG" type:"path" json:"config,omitempty"`
-	TFState   string   `name:"tfstate" help:"URL to terraform.tfstate referenced in config" env:"STEFUNNY_TFSTATE" json:"tfstate,omitempty"`
-	ExtStr    []string `name:"ext-str" help:"external string values for Jsonnet" default:"" json:"ext_str,omitempty"`
-	ExtCode   []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
-	AWSRegion string   `name:"region" help:"AWS region" default:"" env:"AWS_REGION" json:"region,omitempty"`
-	AliasName string   `name:"alias" help:"Alias name for state machine" default:"current" env:"STEFUNNY_ALIAS" json:"alias,omitempty"`
+	LogLevel        string   `name:"log-level" help:"Set log level (debug, info, notice, warn, error)" default:"info" env:"STEFUNNY_LOG_LEVEL" json:"log_level,omitempty"`
+	Config          string   `name:"config" short:"c" help:"Path to config file" default:"stefunny.yaml" env:"STEFUNNY_CONFIG" type:"path" json:"config,omitempty"`
+	TFState         string   `name:"tfstate" help:"URL to terraform.tfstate referenced in config" env:"STEFUNNY_TFSTATE" json:"tfstate,omitempty"`
+	ExtStr          []string `name:"ext-str" help:"external string values for Jsonnet" default:"" json:"ext_str,omitempty"`
+	ExtCode         []string `name:"ext-code" help:"external code values for Jsonnet" default:"" json:"ext_code,omitempty"`
+	AWSRegion       string   `name:"region" help:"AWS region" default:"" env:"AWS_REGION" json:"region,omitempty"`
+	AliasName       string   `name:"alias" help:"Alias name for state machine" default:"current" env:"STEFUNNY_ALIAS" json:"alias,omitempty"`
+	ManagedByTagKey string   `name:"managed-by-tag-key" help:"Tag key used to mark resources managed by stefunny" default:"ManagedBy" env:"STEFUNNY_MANAGED_BY_TAG_KEY" json:"managed_by_tag_key,omitempty"`
 
 	Version  struct{}              `cmd:"" help:"Show version" json:"version,omitempty"`
 	Init     InitOption            `cmd:"" help:"Initialize stefunny configuration" json:"init,omitempty"`
@@ -229,6 +230,7 @@ func (cli *CLI) Main(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
+		app.SetManagedByTagKey(cli.ManagedByTagKey)
 		cli.Init.TFState = cli.TFState
 		return app.Init(ctx, cli.Init)
 	}
@@ -238,6 +240,7 @@ func (cli *CLI) Main(ctx context.Context, args []string) error {
 		return err
 	}
 	app.SetAliasName(cli.AliasName)
+	app.SetManagedByTagKey(cli.ManagedByTagKey)
 	switch cmd {
 	case "deploy":
 		return app.Deploy(ctx, cli.Deploy.DeployOption())

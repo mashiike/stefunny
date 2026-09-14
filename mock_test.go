@@ -43,6 +43,8 @@ func newMockApp(t *testing.T, path string, m *mocks) *stefunny.App {
 	cfg, err := l.Load(ctx, path)
 	require.NoError(t, err)
 	m.sfn.EXPECT().SetAliasName("current").Return().AnyTimes()
+	m.sfn.EXPECT().SetManagedByTagKey("ManagedBy").Return().AnyTimes()
+	m.eventBridge.EXPECT().SetManagedByTagKey("ManagedBy").Return().AnyTimes()
 	app, err := stefunny.New(
 		ctx, cfg,
 		stefunny.WithSFnService(m.sfn),

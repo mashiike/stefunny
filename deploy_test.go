@@ -21,11 +21,12 @@ import (
 
 func TestDeploy(t *testing.T) {
 	cases := []struct {
-		casename    string
-		path        string
-		DryRun      bool
-		TagStrategy *string
-		setupMocks  func(*testing.T, *mocks)
+		casename        string
+		path            string
+		DryRun          bool
+		TagStrategy     *string
+		ManagedByTagKey string
+		setupMocks      func(*testing.T, *mocks)
 	}{
 		{
 			casename: "default_config dryrun",
@@ -202,6 +203,69 @@ func TestDeploy(t *testing.T) {
 						return assert.Contains(t, *input.Name, "Hello")
 					},
 				), stefunny.TagStrategyNone).Return(
+					&stefunny.DeployStateMachineOutput{
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
+						UpdateDate:      aws.Time(time.Now()),
+						CreationDate:    aws.Time(time.Now()),
+					},
+					nil,
+				).Times(1)
+				m.sfn.EXPECT().GetStateMachineArn(gomock.Any(), &stefunny.GetStateMachineArnInput{
+					Name: "Hello",
+				}).Return(
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello",
+					nil,
+				).Times(2)
+				m.eventBridge.EXPECT().DeployRules(
+					gomock.Any(),
+					"arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test",
+					stefunny.EventBridgeRules{},
+					true,
+				).Return(
+					nil,
+				).Times(1)
+				m.scheduler.EXPECT().DeploySchedules(gomock.Any(), "arn:aws:states:us-east-1:000000000000:stateMachine:Hello:test", stefunny.Schedules{}, true).Return(
+					nil,
+				).Times(1)
+			},
+		},
+		{
+			casename:        "default_config custom managed-by-tag-key",
+			path:            "testdata/stefunny.yaml",
+			DryRun:          false,
+			ManagedByTagKey: "Owner",
+			setupMocks: func(t *testing.T, m *mocks) {
+				m.sfn.EXPECT().SetManagedByTagKey("Owner").Return()
+				m.eventBridge.EXPECT().SetManagedByTagKey("Owner").Return()
+				m.sfn.EXPECT().SetAliasName("test").Return()
+				m.sfn.EXPECT().DescribeStateMachine(gomock.Any(), &stefunny.DescribeStateMachineInput{
+					Name: "Hello",
+				}).Return(
+					&stefunny.StateMachine{
+						CreateStateMachineInput: sfn.CreateStateMachineInput{
+							Name:       aws.String("Hello"),
+							RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+							Definition: aws.String(`{}`),
+						},
+						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
+						Status:          sfntypes.StateMachineStatusActive,
+						CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+					},
+					nil,
+				).Times(1)
+				m.sfn.EXPECT().DeployStateMachine(gomock.Any(), gomock.Cond(
+					func(input *stefunny.StateMachine) bool {
+						if !assert.Contains(t, *input.Name, "Hello") {
+							return false
+						}
+						for _, tag := range input.Tags {
+							if aws.ToString(tag.Key) == "Owner" && aws.ToString(tag.Value) == "stefunny" {
+								return true
+							}
+						}
+						return assert.Fail(t, "Owner tag not found on state machine passed to DeployStateMachine")
+					},
+				), stefunny.TagStrategyAppendOnly).Return(
 					&stefunny.DeployStateMachineOutput{
 						StateMachineArn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Hello"),
 						UpdateDate:      aws.Time(time.Now()),
@@ -504,6 +568,9 @@ func TestDeploy(t *testing.T) {
 			}
 			app := newMockApp(t, c.path, mocks)
 			app.SetAliasName("test")
+			if c.ManagedByTagKey != "" {
+				app.SetManagedByTagKey(c.ManagedByTagKey)
+			}
 			err := app.Deploy(context.Background(), stefunny.DeployOption{
 				DryRun:      c.DryRun,
 				TagStrategy: c.TagStrategy,

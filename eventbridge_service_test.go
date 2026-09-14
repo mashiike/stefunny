@@ -420,3 +420,148 @@ func TestEventBridgeService__DeployRules(t *testing.T) {
 	)
 	require.NoError(t, err)
 }
+
+func TestEventBridgeService__PutRule_CustomManagedByTagKey(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockEventBridgeClient(ctrl)
+	defer ctrl.Finish()
+
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
+		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
+			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Custom:current"
+		},
+	)).Return(&eventbridge.ListRuleNamesByTargetOutput{}, nil).Times(1)
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
+		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
+			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Custom"
+		},
+	)).Return(&eventbridge.ListRuleNamesByTargetOutput{}, nil).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
+		Name: aws.String("Custom"),
+	}).Return(
+		nil,
+		&smithy.GenericAPIError{Code: "ResourceNotFoundException"},
+	).Times(1)
+	m.EXPECT().PutRule(gomock.Any(), &eventbridge.PutRuleInput{
+		Name:         aws.String("Custom"),
+		State:        eventbridgetypes.RuleStateEnabled,
+		EventBusName: aws.String("default"),
+		Tags: []eventbridgetypes.Tag{
+			{
+				Key:   aws.String("Owner"),
+				Value: aws.String("stefunny"),
+			},
+		},
+	}).Return(
+		&eventbridge.PutRuleOutput{
+			RuleArn: aws.String("arn:aws:events:us-east-1:000000000000:rule/Custom"),
+		},
+		nil,
+	).Times(1)
+	m.EXPECT().PutTargets(gomock.Any(), &eventbridge.PutTargetsInput{
+		Rule: aws.String("Custom"),
+		Targets: []eventbridgetypes.Target{
+			{
+				Id:  aws.String("stefunny-managed"),
+				Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Custom:current"),
+			},
+		},
+	}).Return(&eventbridge.PutTargetsOutput{}, nil).Times(1)
+	m.EXPECT().TagResource(gomock.Any(), &eventbridge.TagResourceInput{
+		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Custom"),
+		Tags: []eventbridgetypes.Tag{
+			{
+				Key:   aws.String("Owner"),
+				Value: aws.String("stefunny"),
+			},
+		},
+	}).Return(&eventbridge.TagResourceOutput{}, nil).Times(1)
+
+	ctx := context.Background()
+	svc := stefunny.NewEventBridgeService(m)
+	svc.SetManagedByTagKey("Owner")
+	err := svc.DeployRules(ctx, "arn:aws:states:us-east-1:000000000000:stateMachine:Custom:current",
+		stefunny.EventBridgeRules{
+			{
+				PutRuleInput: eventbridge.PutRuleInput{
+					Name:         aws.String("Custom"),
+					State:        eventbridgetypes.RuleStateEnabled,
+					EventBusName: aws.String("default"),
+				},
+				Target: eventbridgetypes.Target{
+					Id: aws.String("stefunny-managed"),
+				},
+				AdditionalTargets: []eventbridgetypes.Target{},
+			},
+		},
+		true,
+	)
+	require.NoError(t, err)
+}
+
+func TestEventBridgeService__DeleteRule_CustomManagedByTagKey_SkipsUnrelatedTag(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockEventBridgeClient(ctrl)
+	defer ctrl.Finish()
+
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
+		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
+			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Custom:current"
+		},
+	)).Return(
+		&eventbridge.ListRuleNamesByTargetOutput{RuleNames: []string{"Old"}},
+		nil,
+	).Times(1)
+	m.EXPECT().ListRuleNamesByTarget(gomock.Any(), gomock.Cond(
+		func(input *eventbridge.ListRuleNamesByTargetInput) bool {
+			return input.TargetArn != nil && *input.TargetArn == "arn:aws:states:us-east-1:000000000000:stateMachine:Custom"
+		},
+	)).Return(&eventbridge.ListRuleNamesByTargetOutput{}, nil).Times(1)
+	m.EXPECT().DescribeRule(gomock.Any(), &eventbridge.DescribeRuleInput{
+		Name: aws.String("Old"),
+	}).Return(
+		&eventbridge.DescribeRuleOutput{
+			Name:         aws.String("Old"),
+			State:        eventbridgetypes.RuleStateEnabled,
+			Arn:          aws.String("arn:aws:events:us-east-1:000000000000:rule/Old"),
+			EventBusName: aws.String("default"),
+		},
+		nil,
+	).Times(1)
+	m.EXPECT().ListTagsForResource(gomock.Any(), &eventbridge.ListTagsForResourceInput{
+		ResourceARN: aws.String("arn:aws:events:us-east-1:000000000000:rule/Old"),
+	}).Return(
+		&eventbridge.ListTagsForResourceOutput{
+			Tags: []eventbridgetypes.Tag{
+				{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			},
+		},
+		nil,
+	).Times(1)
+	m.EXPECT().ListTargetsByRule(gomock.Any(), gomock.Cond(
+		func(input *eventbridge.ListTargetsByRuleInput) bool {
+			return *input.Rule == "Old"
+		},
+	)).Return(
+		&eventbridge.ListTargetsByRuleOutput{
+			Targets: []eventbridgetypes.Target{
+				{
+					Id:  aws.String("stefunny-managed"),
+					Arn: aws.String("arn:aws:states:us-east-1:000000000000:stateMachine:Custom:current"),
+				},
+			},
+		},
+		nil,
+	).Times(1)
+
+	ctx := context.Background()
+	svc := stefunny.NewEventBridgeService(m)
+	svc.SetManagedByTagKey("Owner")
+	err := svc.DeployRules(ctx, "arn:aws:states:us-east-1:000000000000:stateMachine:Custom:current",
+		stefunny.EventBridgeRules{},
+		true,
+	)
+	require.NoError(t, err)
+}

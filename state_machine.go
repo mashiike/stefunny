@@ -20,13 +20,18 @@ type StateMachine struct {
 	DefinitionPath  *string
 }
 
-// DiffStringOption configures StateMachine.DiffString.
+// DiffStringOption configures the DiffString methods of StateMachine and
+// EventBridgeRule(s). Not every field applies to every method: TagStrategy
+// is StateMachine-only, ManagedByTagKey is EventBridgeRule(s)-only.
 type DiffStringOption struct {
 	Unified bool
 	// TagStrategy is used by StateMachine.DiffString to project the tag
 	// set diff would compare against what deploy would actually leave in
 	// place under the same strategy.
 	TagStrategy TagStrategy
+	// ManagedByTagKey is used by EventBridgeRules.DiffString to decide
+	// whether a rule slated for deletion is one stefunny manages.
+	ManagedByTagKey string
 }
 
 func (s *StateMachine) Source() string {
@@ -163,15 +168,6 @@ func (s *StateMachine) DeleteTag(key string) {
 			return
 		}
 	}
-}
-
-func (s *StateMachine) IsManagedBy() bool {
-	for _, tag := range s.Tags {
-		if coalesce(tag.Key) == tagManagedBy && coalesce(tag.Value) == appName {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *StateMachine) String() string {

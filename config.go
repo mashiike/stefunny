@@ -518,6 +518,7 @@ type Config struct {
 	mu                 sync.Mutex
 	versionConstraints gv.Constraints `yaml:"-,omitempty"`
 	awsCfg             *aws.Config    `yaml:"-"`
+	managedByTagKey    string
 }
 
 type TFStateConfig struct {
@@ -734,12 +735,26 @@ func (cfg *Config) StateMachineDefinition() string {
 	return *cfg.StateMachine.Value.Definition
 }
 
+// ManagedByTagKey returns the tag key stefunny uses to mark resources it
+// manages, defaulting to tagManagedBy when unset.
+func (cfg *Config) ManagedByTagKey() string {
+	if cfg.managedByTagKey == "" {
+		return tagManagedBy
+	}
+	return cfg.managedByTagKey
+}
+
+// SetManagedByTagKey overrides the tag key ManagedByTagKey returns.
+func (cfg *Config) SetManagedByTagKey(key string) {
+	cfg.managedByTagKey = key
+}
+
 func (cfg *Config) NewStateMachine() *StateMachine {
 	stateMachine := &StateMachine{
 		CreateStateMachineInput: cfg.StateMachine.Value,
 	}
 	stateMachine.AppendTags(map[string]string{
-		tagManagedBy: appName,
+		cfg.ManagedByTagKey(): appName,
 	})
 	stateMachine.AppendTags(cfg.Tags)
 
@@ -759,7 +774,7 @@ func (cfg *Config) NewEventBridgeRules() EventBridgeRules {
 	for k, v := range cfg.Tags {
 		tags[k] = v
 	}
-	tags[tagManagedBy] = appName
+	tags[cfg.ManagedByTagKey()] = appName
 	rules := make(EventBridgeRules, 0, len(cfg.Trigger.Event))
 	for i, e := range cfg.Trigger.Event {
 		rule := &EventBridgeRule{

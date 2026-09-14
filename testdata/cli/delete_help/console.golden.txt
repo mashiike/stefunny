@@ -13,6 +13,9 @@ Flags:
       --ext-code=,...             external code values for Jsonnet
       --region=""                 AWS region ($AWS_REGION)
       --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+      --managed-by-tag-key="ManagedBy"
+                                  Tag key used to mark resources managed by
+                                  stefunny ($STEFUNNY_MANAGED_BY_TAG_KEY)
 
       --dry-run                   Dry run
       --force                     delete without confirmation

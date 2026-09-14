@@ -575,6 +575,18 @@ func (mr *MockSFnServiceMockRecorder) SetAliasName(aliasName any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAliasName", reflect.TypeOf((*MockSFnService)(nil).SetAliasName), aliasName)
 }
 
+// SetManagedByTagKey mocks base method.
+func (m *MockSFnService) SetManagedByTagKey(key string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetManagedByTagKey", key)
+}
+
+// SetManagedByTagKey indicates an expected call of SetManagedByTagKey.
+func (mr *MockSFnServiceMockRecorder) SetManagedByTagKey(key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedByTagKey", reflect.TypeOf((*MockSFnService)(nil).SetManagedByTagKey), key)
+}
+
 // StartExecution mocks base method.
 func (m *MockSFnService) StartExecution(ctx context.Context, stateMachine *stefunny.StateMachine, params *stefunny.StartExecutionInput) (*stefunny.StartExecutionOutput, error) {
 	m.ctrl.T.Helper()

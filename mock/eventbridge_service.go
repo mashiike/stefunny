@@ -274,3 +274,15 @@ func (mr *MockEventBridgeServiceMockRecorder) SearchRelatedRules(ctx, params any
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchRelatedRules", reflect.TypeOf((*MockEventBridgeService)(nil).SearchRelatedRules), ctx, params)
 }
+
+// SetManagedByTagKey mocks base method.
+func (m *MockEventBridgeService) SetManagedByTagKey(key string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetManagedByTagKey", key)
+}
+
+// SetManagedByTagKey indicates an expected call of SetManagedByTagKey.
+func (mr *MockEventBridgeServiceMockRecorder) SetManagedByTagKey(key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedByTagKey", reflect.TypeOf((*MockEventBridgeService)(nil).SetManagedByTagKey), key)
+}

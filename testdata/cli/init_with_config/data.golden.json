@@ -3,6 +3,7 @@
   "config": "config.yaml",
   "region": "us-east-1",
   "alias": "current",
+  "managed_by_tag_key": "ManagedBy",
   "version": {},
   "init": {
     "state_machine_name": "test"

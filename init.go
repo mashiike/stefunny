@@ -75,7 +75,10 @@ func (app *App) makeConfig(ctx context.Context, defPath string, skipTrigger bool
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe state machine: %w", err)
 	}
-	stateMachine.DeleteTag(tagManagedBy)
+	stateMachine.DeleteTag(app.cfg.ManagedByTagKey())
+	if app.cfg.ManagedByTagKey() != tagManagedBy {
+		stateMachine.DeleteTag(tagManagedBy)
+	}
 	cfg.StateMachine.Value = stateMachine.CreateStateMachineInput
 	cfg.StateMachine.SetDetinitionPath(defPath)
 	cfg.StateMachine.SetDefinition(coalesce(stateMachine.Definition))
@@ -114,7 +117,10 @@ func (app *App) makeTrigerConfig(ctx context.Context, stateMachine *StateMachine
 	trigger := &TriggerConfig{}
 	if len(rules) > 0 {
 		for _, rule := range rules {
-			rule.DeleteTag(tagManagedBy)
+			rule.DeleteTag(app.cfg.ManagedByTagKey())
+			if app.cfg.ManagedByTagKey() != tagManagedBy {
+				rule.DeleteTag(tagManagedBy)
+			}
 			rule.Target.Arn = nil
 			eventsRule := TriggerEventConfig{
 				KeysToSnakeCase: KeysToSnakeCase[TriggerEventConfigInner]{

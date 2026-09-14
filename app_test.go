@@ -27,6 +27,7 @@ func TestApp_LazyServiceConstruction(t *testing.T) {
 	require.Nil(t, app.sfnSvc, "sfnSvc must not be constructed until first use")
 
 	app.SetAliasName("stage")
+	app.SetManagedByTagKey("Owner")
 	require.Nil(t, app.sfnSvc, "SetAliasName before first use must not force construction")
 
 	svc1, err := app.sfnService(ctx)
@@ -34,6 +35,7 @@ func TestApp_LazyServiceConstruction(t *testing.T) {
 	impl, ok := svc1.(*SFnServiceImpl)
 	require.True(t, ok)
 	require.Equal(t, "stage", impl.aliasName, "alias set before construction must propagate to the lazily-created service")
+	require.Equal(t, "Owner", impl.managedByTagKey, "managed-by tag key set before construction must propagate to the lazily-created service")
 
 	svc2, err := app.sfnService(ctx)
 	require.NoError(t, err)

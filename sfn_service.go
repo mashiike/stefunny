@@ -58,11 +58,13 @@ type SFnService interface {
 	StartExecution(ctx context.Context, stateMachine *StateMachine, params *StartExecutionInput) (*StartExecutionOutput, error)
 	GetExecutionHistory(ctx context.Context, executionArn string) ([]HistoryEvent, error)
 	SetAliasName(aliasName string)
+	SetManagedByTagKey(key string)
 }
 
 type SFnServiceImpl struct {
 	client                               SFnClient
 	aliasName                            string
+	managedByTagKey                      string
 	cacheStateMachineArnByName           map[string]string
 	cacheStateMachineAliasByAliasArn     map[string]*sfn.DescribeStateMachineAliasOutput
 	cacheStateMachineVersionByVersionArn map[string]*sfn.DescribeStateMachineOutput
@@ -77,6 +79,7 @@ func NewSFnService(client SFnClient) *SFnServiceImpl {
 	return &SFnServiceImpl{
 		client:                               client,
 		aliasName:                            defaultAliasName,
+		managedByTagKey:                      tagManagedBy,
 		cacheStateMachineArnByName:           make(map[string]string),
 		cacheStateMachineAliasByAliasArn:     make(map[string]*sfn.DescribeStateMachineAliasOutput),
 		cacheStateMachineVersionByVersionArn: make(map[string]*sfn.DescribeStateMachineOutput),
@@ -92,6 +95,12 @@ func NewSFnService(client SFnClient) *SFnServiceImpl {
 
 func (svc *SFnServiceImpl) SetAliasName(aliasName string) {
 	svc.aliasName = aliasName
+}
+
+// SetManagedByTagKey overrides the tag key DeployStateMachine uses to mark
+// state machines stefunny manages.
+func (svc *SFnServiceImpl) SetManagedByTagKey(key string) {
+	svc.managedByTagKey = key
 }
 
 type DescribeStateMachineInput struct {
@@ -200,7 +209,7 @@ type DeployStateMachineOutput struct {
 func (svc *SFnServiceImpl) DeployStateMachine(ctx context.Context, stateMachine *StateMachine, tagStrategy TagStrategy) (*DeployStateMachineOutput, error) {
 	var output *DeployStateMachineOutput
 	stateMachine.AppendTags(map[string]string{
-		tagManagedBy: appName,
+		svc.managedByTagKey: appName,
 	})
 	if stateMachine.StateMachineArn == nil {
 		log.Println("[debug] try create state machine")

@@ -43,9 +43,9 @@ func (rule *EventBridgeRule) SetStateMachineQualifiedArn(stateMachineArn string)
 	}
 }
 
-func (rule *EventBridgeRule) IsManagedBy() bool {
+func (rule *EventBridgeRule) IsManagedBy(key string) bool {
 	for _, tag := range rule.Tags {
-		if coalesce(tag.Key) == tagManagedBy && coalesce(tag.Value) == appName {
+		if coalesce(tag.Key) == key && coalesce(tag.Value) == appName {
 			return true
 		}
 	}
@@ -103,7 +103,7 @@ func (rule *EventBridgeRule) String() string {
 	return builder.String()
 }
 
-func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, unified bool) string {
+func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, opt DiffStringOption) string {
 	var builder strings.Builder
 	from := rule.Source()
 	to := newRule.Source()
@@ -112,7 +112,7 @@ func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, unified bool) 
 			rule.configureJSON(), newRule.configureJSON(),
 			JSONDiffFromURI(from),
 			JSONDiffToURI(to),
-			JSONDiffUnified(unified),
+			JSONDiffUnified(opt.Unified),
 		),
 	)
 	return builder.String()
@@ -170,26 +170,26 @@ func (rules EventBridgeRules) SyncState(other EventBridgeRules) {
 	}
 }
 
-func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, unified bool) string {
+func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, opt DiffStringOption) string {
 	result := sliceDiff(rules, newRules, func(r *EventBridgeRule) string {
 		return coalesce(r.Name)
 	})
 	var builder strings.Builder
 	var zero *EventBridgeRule
 	for _, delete := range result.Delete {
-		if !delete.IsManagedBy() {
+		if !delete.IsManagedBy(opt.ManagedByTagKey) {
 			log.Printf("[warn] rule %s is not managed by %s, suppressed diff", coalesce(delete.Name), appName)
 			continue
 		}
-		builder.WriteString(delete.DiffString(zero, unified))
+		builder.WriteString(delete.DiffString(zero, opt))
 		builder.WriteRune('\n')
 	}
 	for _, c := range result.Change {
-		builder.WriteString(c.Before.DiffString(c.After, unified))
+		builder.WriteString(c.Before.DiffString(c.After, opt))
 		builder.WriteRune('\n')
 	}
 	for _, add := range result.Add {
-		builder.WriteString(zero.DiffString(add, unified))
+		builder.WriteString(zero.DiffString(add, opt))
 		builder.WriteRune('\n')
 	}
 	return builder.String()

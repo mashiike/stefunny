@@ -34,6 +34,7 @@ var (
 type EventBridgeService interface {
 	SearchRelatedRules(ctx context.Context, params *SearchRelatedRulesInput) (EventBridgeRules, error)
 	DeployRules(ctx context.Context, stateMachineArn string, rules EventBridgeRules, keepState bool) error
+	SetManagedByTagKey(key string)
 }
 
 var _ EventBridgeService = (*EventBridgeServiceImpl)(nil)
@@ -43,6 +44,7 @@ type EventBridgeServiceImpl struct {
 	cacheRuleByName    map[string]*eventbridge.DescribeRuleOutput
 	cacheTargetsByName map[string]*eventbridge.ListTargetsByRuleOutput
 	cacheTagsByName    map[string]*eventbridge.ListTagsForResourceOutput
+	managedByTagKey    string
 }
 
 func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
@@ -51,7 +53,14 @@ func NewEventBridgeService(client EventBridgeClient) *EventBridgeServiceImpl {
 		cacheRuleByName:    make(map[string]*eventbridge.DescribeRuleOutput),
 		cacheTargetsByName: make(map[string]*eventbridge.ListTargetsByRuleOutput),
 		cacheTagsByName:    make(map[string]*eventbridge.ListTagsForResourceOutput),
+		managedByTagKey:    tagManagedBy,
 	}
+}
+
+// SetManagedByTagKey overrides the tag key putRule and deleteRule use to
+// mark and recognize rules stefunny manages.
+func (svc *EventBridgeServiceImpl) SetManagedByTagKey(key string) {
+	svc.managedByTagKey = key
 }
 
 type SearchRelatedRulesInput struct {
@@ -247,7 +256,7 @@ func (svc *EventBridgeServiceImpl) DeployRules(ctx context.Context, stateMachine
 func (svc *EventBridgeServiceImpl) putRule(ctx context.Context, rule *EventBridgeRule) error {
 	log.Println("[debug] deploy put rule")
 	rule.AppendTags(map[string]string{
-		tagManagedBy: appName,
+		svc.managedByTagKey: appName,
 	})
 	putRuleOutput, err := svc.client.PutRule(ctx, &rule.PutRuleInput)
 	if err != nil {
@@ -273,7 +282,7 @@ func (svc *EventBridgeServiceImpl) putRule(ctx context.Context, rule *EventBridg
 	}
 	log.Println("[debug] deploy update tag")
 	rule.AppendTags(map[string]string{
-		tagManagedBy: appName,
+		svc.managedByTagKey: appName,
 	})
 	_, err = svc.client.TagResource(ctx, &eventbridge.TagResourceInput{
 		ResourceARN: putRuleOutput.RuleArn,
@@ -286,7 +295,7 @@ func (svc *EventBridgeServiceImpl) putRule(ctx context.Context, rule *EventBridg
 }
 
 func (svc *EventBridgeServiceImpl) deleteRule(ctx context.Context, rule *EventBridgeRule) error {
-	if !rule.IsManagedBy() {
+	if !rule.IsManagedBy(svc.managedByTagKey) {
 		log.Printf("[warn] event bridge rule `%s` that %s does not manage. skip delete this rule", coalesce(rule.Name), appName)
 		return nil
 	}

@@ -120,6 +120,9 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	}
 	tagStrategy := resolveTagStrategy(opt.TagStrategy)
 	if opt.DryRun {
+		newStateMachine.AppendTags(map[string]string{
+			app.cfg.ManagedByTagKey(): appName,
+		})
 		diffString := stateMachine.DiffString(newStateMachine, DiffStringOption{
 			Unified:     opt.Unified,
 			TagStrategy: tagStrategy,
@@ -186,7 +189,10 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		if keepState {
 			newRules.SyncState(currentRules)
 		}
-		diffString := currentRules.DiffString(newRules, opt.Unified)
+		diffString := currentRules.DiffString(newRules, DiffStringOption{
+			Unified:         opt.Unified,
+			ManagedByTagKey: app.cfg.ManagedByTagKey(),
+		})
 		log.Printf("[notice] change related rules %s\n", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil

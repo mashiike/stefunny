@@ -61,7 +61,7 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		stateMachineArn = "[known after deploy]:" + app.StateMachineAliasName()
 	}
 	newStateMachine.AppendTags(map[string]string{
-		tagManagedBy: appName,
+		app.cfg.ManagedByTagKey(): appName,
 	})
 	tagStrategy := resolveTagStrategy(opt.TagStrategy)
 	hasDiff := false
@@ -90,11 +90,14 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 			}
 		}
 		newRules.AppendTags(map[string]string{
-			tagManagedBy: appName,
+			app.cfg.ManagedByTagKey(): appName,
 		})
 		newRules.SetStateMachineQualifiedArn(stateMachineArn)
 		newRules.SyncState(currentRules)
-		ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
+		ds = strings.TrimSpace(currentRules.DiffString(newRules, DiffStringOption{
+			Unified:         opt.Unified,
+			ManagedByTagKey: app.cfg.ManagedByTagKey(),
+		}))
 		if ds != "" {
 			fmt.Println(ds)
 			hasDiff = true
