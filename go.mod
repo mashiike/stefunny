@@ -23,6 +23,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-version v1.7.0
 	github.com/hexops/gotextdiff v1.0.3
+	github.com/itchyny/gojq v0.12.17
 	github.com/kylelemons/godebug v1.1.0
 	github.com/motemen/go-testutil v0.0.0-20231019055648-af6add1c10c8
 	github.com/olekukonko/tablewriter v1.1.4
@@ -96,7 +97,6 @@ require (
 	github.com/hashicorp/go-slug v0.16.4 // indirect
 	github.com/hashicorp/go-tfe v1.75.0 // indirect
 	github.com/hashicorp/jsonapi v1.4.2 // indirect
-	github.com/itchyny/gojq v0.12.17 // indirect
 	github.com/itchyny/timefmt-go v0.1.6 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

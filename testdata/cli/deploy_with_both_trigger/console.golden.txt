@@ -13,6 +13,9 @@ Flags:
       --ext-code=,...             external code values for Jsonnet
       --region=""                 AWS region ($AWS_REGION)
       --alias="current"           Alias name for state machine ($STEFUNNY_ALIAS)
+      --managed-by-tag-key="ManagedBy"
+                                  Tag key used to mark resources managed by
+                                  stefunny ($STEFUNNY_MANAGED_BY_TAG_KEY)
 
       --dry-run                   Dry run
       --skip-state-machine        Skip deploy state machine
@@ -25,5 +28,8 @@ Flags:
       --trigger-enabled           Enable trigger
       --trigger-disabled          Disable trigger
       --[no-]unified              when dry run, output unified diff
+      --tag-strategy=TAG-STRATEGY
+                                  tag strategy for state machine (append_only,
+                                  sync, none)
 
 stefunny: error: --trigger-enabled and --trigger-disabled can't be used together

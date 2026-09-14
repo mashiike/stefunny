@@ -165,6 +165,17 @@ tfstate:
 	require.Equal(t, definitionPath, *cfg.NewStateMachine().DefinitionPath)
 }
 
+func TestConfig_ManagedByTagKey_DefaultsToManagedBy(t *testing.T) {
+	cfg := stefunny.NewDefaultConfig()
+	require.Equal(t, "ManagedBy", cfg.ManagedByTagKey())
+}
+
+func TestConfig_ManagedByTagKey_ReturnsSetValue(t *testing.T) {
+	cfg := stefunny.NewDefaultConfig()
+	cfg.SetManagedByTagKey("Owner")
+	require.Equal(t, "Owner", cfg.ManagedByTagKey())
+}
+
 func TestConfigLoadInValid(t *testing.T) {
 	cases := []struct {
 		casename string

@@ -10,14 +10,15 @@ import (
 )
 
 type DeployCommandOption struct {
-	DryRun             bool   `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
-	SkipStateMachine   bool   `name:"skip-state-machine" help:"Skip deploy state machine" json:"skip_state_machine,omitempty"`
-	SkipTrigger        bool   `name:"skip-trigger" help:"Skip deploy trigger" json:"skip_trigger,omitempty"`
-	VersionDescription string `name:"version-description" help:"Version description" json:"version_description,omitempty"`
-	KeepVersions       int    `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
-	TriggerEnabled     bool   `name:"trigger-enabled" help:"Enable trigger" xor:"trigger" json:"trigger_enabled,omitempty"`
-	TriggerDisabled    bool   `name:"trigger-disabled" help:"Disable trigger" xor:"trigger" json:"trigger_disabled,omitempty"`
-	Unified            bool   `name:"unified" help:"when dry run, output unified diff" negatable:"" default:"true" json:"unified,omitempty"`
+	DryRun             bool    `name:"dry-run" help:"Dry run" json:"dry_run,omitempty"`
+	SkipStateMachine   bool    `name:"skip-state-machine" help:"Skip deploy state machine" json:"skip_state_machine,omitempty"`
+	SkipTrigger        bool    `name:"skip-trigger" help:"Skip deploy trigger" json:"skip_trigger,omitempty"`
+	VersionDescription string  `name:"version-description" help:"Version description" json:"version_description,omitempty"`
+	KeepVersions       int     `help:"Number of latest versions to keep. Older versions will be deleted. (Optional value: default 0)" default:"0" json:"keep_versions,omitempty"`
+	TriggerEnabled     bool    `name:"trigger-enabled" help:"Enable trigger" xor:"trigger" json:"trigger_enabled,omitempty"`
+	TriggerDisabled    bool    `name:"trigger-disabled" help:"Disable trigger" xor:"trigger" json:"trigger_disabled,omitempty"`
+	Unified            bool    `name:"unified" help:"when dry run, output unified diff" negatable:"" default:"true" json:"unified,omitempty"`
+	TagStrategy        *string `name:"tag-strategy" help:"tag strategy for state machine (append_only, sync, none)" enum:"append_only,sync,none" json:"tag_strategy,omitempty"`
 }
 
 func (cmd *DeployCommandOption) DeployOption() DeployOption {
@@ -36,6 +37,7 @@ func (cmd *DeployCommandOption) DeployOption() DeployOption {
 		KeepVersions:       cmd.KeepVersions,
 		TriggerEnabled:     enabled,
 		Unified:            cmd.Unified,
+		TagStrategy:        cmd.TagStrategy,
 	}
 }
 
@@ -69,6 +71,7 @@ type DeployOption struct {
 	VersionDescription string
 	KeepVersions       int
 	Unified            bool
+	TagStrategy        *string
 }
 
 func (opt DeployOption) DryRunString() string {
@@ -115,8 +118,18 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	} else {
 		newStateMachine.StateMachineArn = stateMachine.StateMachineArn
 	}
+	tagStrategy := resolveTagStrategy(opt.TagStrategy)
 	if opt.DryRun {
-		diffString := stateMachine.DiffString(newStateMachine, opt.Unified)
+		newStateMachine.AppendTags(map[string]string{
+			app.cfg.ManagedByTagKey(): appName,
+		})
+		diffString, err := stateMachine.DiffString(newStateMachine, DiffStringOption{
+			Unified:     opt.Unified,
+			TagStrategy: tagStrategy,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to diff state machine: %w", err)
+		}
 		log.Printf("[notice] change state machine %s\n", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil
@@ -124,7 +137,7 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 	if opt.VersionDescription != "" {
 		newStateMachine.VersionDescription = aws.String(opt.VersionDescription)
 	}
-	output, err := sfnSvc.DeployStateMachine(ctx, newStateMachine)
+	output, err := sfnSvc.DeployStateMachine(ctx, newStateMachine, tagStrategy)
 	if err != nil {
 		return err
 	}
@@ -179,7 +192,13 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		if keepState {
 			newRules.SyncState(currentRules)
 		}
-		diffString := currentRules.DiffString(newRules, opt.Unified)
+		diffString, err := currentRules.DiffString(newRules, DiffStringOption{
+			Unified:         opt.Unified,
+			ManagedByTagKey: app.cfg.ManagedByTagKey(),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to diff event bridge rules: %w", err)
+		}
 		log.Printf("[notice] change related rules %s\n", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil
@@ -237,7 +256,12 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 		if keepState {
 			newSchedules.SyncState(currentSchedules)
 		}
-		diffString := currentSchedules.DiffString(newSchedules, opt.Unified)
+		diffString, err := currentSchedules.DiffString(newSchedules, DiffStringOption{
+			Unified: opt.Unified,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to diff schedules: %w", err)
+		}
 		log.Printf("[notice] change related schedules %s", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil

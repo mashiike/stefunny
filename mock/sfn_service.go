@@ -362,6 +362,26 @@ func (mr *MockSFnClientMockRecorder) TagResource(ctx, params any, optFns ...any)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TagResource", reflect.TypeOf((*MockSFnClient)(nil).TagResource), varargs...)
 }
 
+// UntagResource mocks base method.
+func (m *MockSFnClient) UntagResource(ctx context.Context, params *sfn.UntagResourceInput, optFns ...func(*sfn.Options)) (*sfn.UntagResourceOutput, error) {
+	m.ctrl.T.Helper()
+	varargs := []any{ctx, params}
+	for _, a := range optFns {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "UntagResource", varargs...)
+	ret0, _ := ret[0].(*sfn.UntagResourceOutput)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UntagResource indicates an expected call of UntagResource.
+func (mr *MockSFnClientMockRecorder) UntagResource(ctx, params any, optFns ...any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	varargs := append([]any{ctx, params}, optFns...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UntagResource", reflect.TypeOf((*MockSFnClient)(nil).UntagResource), varargs...)
+}
+
 // UpdateStateMachine mocks base method.
 func (m *MockSFnClient) UpdateStateMachine(ctx context.Context, params *sfn.UpdateStateMachineInput, optFns ...func(*sfn.Options)) (*sfn.UpdateStateMachineOutput, error) {
 	m.ctrl.T.Helper()
@@ -441,18 +461,18 @@ func (mr *MockSFnServiceMockRecorder) DeleteStateMachine(ctx, stateMachine any) 
 }
 
 // DeployStateMachine mocks base method.
-func (m *MockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine) (*stefunny.DeployStateMachineOutput, error) {
+func (m *MockSFnService) DeployStateMachine(ctx context.Context, stateMachine *stefunny.StateMachine, tagStrategy stefunny.TagStrategy) (*stefunny.DeployStateMachineOutput, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeployStateMachine", ctx, stateMachine)
+	ret := m.ctrl.Call(m, "DeployStateMachine", ctx, stateMachine, tagStrategy)
 	ret0, _ := ret[0].(*stefunny.DeployStateMachineOutput)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // DeployStateMachine indicates an expected call of DeployStateMachine.
-func (mr *MockSFnServiceMockRecorder) DeployStateMachine(ctx, stateMachine any) *gomock.Call {
+func (mr *MockSFnServiceMockRecorder) DeployStateMachine(ctx, stateMachine, tagStrategy any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeployStateMachine", reflect.TypeOf((*MockSFnService)(nil).DeployStateMachine), ctx, stateMachine)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeployStateMachine", reflect.TypeOf((*MockSFnService)(nil).DeployStateMachine), ctx, stateMachine, tagStrategy)
 }
 
 // DescribeStateMachine mocks base method.
@@ -553,6 +573,18 @@ func (m *MockSFnService) SetAliasName(aliasName string) {
 func (mr *MockSFnServiceMockRecorder) SetAliasName(aliasName any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetAliasName", reflect.TypeOf((*MockSFnService)(nil).SetAliasName), aliasName)
+}
+
+// SetManagedByTagKey mocks base method.
+func (m *MockSFnService) SetManagedByTagKey(key string) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetManagedByTagKey", key)
+}
+
+// SetManagedByTagKey indicates an expected call of SetManagedByTagKey.
+func (mr *MockSFnServiceMockRecorder) SetManagedByTagKey(key any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetManagedByTagKey", reflect.TypeOf((*MockSFnService)(nil).SetManagedByTagKey), key)
 }
 
 // StartExecution mocks base method.

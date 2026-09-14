@@ -5,14 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/itchyny/gojq"
 )
 
 // DiffOption configures App.Diff.
 type DiffOption struct {
-	Unified     bool   `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
-	Qualifier   string `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
-	ExitCode    bool   `name:"exit-code" help:"exit with code 2 if there are differences" default:"false" json:"exit_code,omitempty"`
-	SkipTrigger bool   `name:"skip-trigger" help:"Skip trigger diff" default:"false" json:"skip_trigger,omitempty"`
+	Unified     bool    `name:"unified" help:"output in unified format" short:"u" default:"true" negatable:"" json:"unified,omitempty"`
+	Qualifier   string  `name:"qualifier" help:"qualifier for state machine" default:"" json:"qualifier,omitempty"`
+	ExitCode    bool    `name:"exit-code" help:"exit with code 2 if there are differences" default:"false" json:"exit_code,omitempty"`
+	SkipTrigger bool    `name:"skip-trigger" help:"Skip trigger diff" default:"false" json:"skip_trigger,omitempty"`
+	TagStrategy *string `name:"tag-strategy" help:"tag strategy for state machine (append_only, sync, none)" enum:"append_only,sync,none" json:"tag_strategy,omitempty"`
+	Ignore      string  `name:"ignore" help:"jq query for paths to ignore in the diff, except the state machine definition (e.g. '.Tags.Foo')" json:"ignore,omitempty"`
 }
 
 // ErrHasDiff is returned by App.Diff when DiffOption.ExitCode is set and a
@@ -22,9 +26,20 @@ var ErrHasDiff = errors.New("there are differences")
 // Diff prints the diff between the config and the deployed state machine,
 // EventBridge rules and EventBridge Scheduler schedules. If opt.SkipTrigger
 // is set, the EventBridge rules and EventBridge Scheduler schedules diff is
-// skipped, matching the scope of DeployOption.SkipTrigger. Returns ErrHasDiff
-// if opt.ExitCode is set and a difference was found.
+// skipped, matching the scope of DeployOption.SkipTrigger. The state
+// machine's tag diff is computed under opt.TagStrategy (see TagStrategy),
+// matching what DeployOption.TagStrategy would actually apply, so a tag
+// that deploy would never touch never counts toward the diff. If
+// opt.Ignore is set, paths it matches are excluded from every comparison
+// except the state machine's Definition; an invalid jq query returns an
+// error before any AWS call is made. Returns ErrHasDiff if opt.ExitCode is
+// set and a difference was found.
 func (app *App) Diff(ctx context.Context, opt DiffOption) error {
+	if opt.Ignore != "" {
+		if _, err := gojq.Parse(opt.Ignore); err != nil {
+			return fmt.Errorf("invalid ignore query %q: %w", opt.Ignore, err)
+		}
+	}
 	sfnSvc, err := app.sfnService(ctx)
 	if err != nil {
 		return err
@@ -57,10 +72,19 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		stateMachineArn = "[known after deploy]:" + app.StateMachineAliasName()
 	}
 	newStateMachine.AppendTags(map[string]string{
-		tagManagedBy: appName,
+		app.cfg.ManagedByTagKey(): appName,
 	})
+	tagStrategy := resolveTagStrategy(opt.TagStrategy)
 	hasDiff := false
-	ds := strings.TrimSpace(currentStateMachine.DiffString(newStateMachine, opt.Unified))
+	ds, err := currentStateMachine.DiffString(newStateMachine, DiffStringOption{
+		Unified:     opt.Unified,
+		TagStrategy: tagStrategy,
+		Ignore:      opt.Ignore,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to diff state machine: %w", err)
+	}
+	ds = strings.TrimSpace(ds)
 	if ds != "" {
 		fmt.Println(ds)
 		hasDiff = true
@@ -82,11 +106,19 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 			}
 		}
 		newRules.AppendTags(map[string]string{
-			tagManagedBy: appName,
+			app.cfg.ManagedByTagKey(): appName,
 		})
 		newRules.SetStateMachineQualifiedArn(stateMachineArn)
 		newRules.SyncState(currentRules)
-		ds = strings.TrimSpace(currentRules.DiffString(newRules, opt.Unified))
+		ds, err = currentRules.DiffString(newRules, DiffStringOption{
+			Unified:         opt.Unified,
+			ManagedByTagKey: app.cfg.ManagedByTagKey(),
+			Ignore:          opt.Ignore,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to diff event bridge rules: %w", err)
+		}
+		ds = strings.TrimSpace(ds)
 		if ds != "" {
 			fmt.Println(ds)
 			hasDiff = true
@@ -108,7 +140,14 @@ func (app *App) Diff(ctx context.Context, opt DiffOption) error {
 		}
 		newSchedules.SetStateMachineQualifiedArn(stateMachineArn)
 		newSchedules.SyncState(currentSchedules)
-		ds = strings.TrimSpace(currentSchedules.DiffString(newSchedules, opt.Unified))
+		ds, err = currentSchedules.DiffString(newSchedules, DiffStringOption{
+			Unified: opt.Unified,
+			Ignore:  opt.Ignore,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to diff schedules: %w", err)
+		}
+		ds = strings.TrimSpace(ds)
 		if ds != "" {
 			fmt.Println(ds)
 			hasDiff = true

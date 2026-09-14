@@ -19,17 +19,34 @@ func TestDiff(t *testing.T) {
 	const qualifiedArn = stateMachineArn + ":current"
 
 	cases := []struct {
-		casename       string
-		exitCode       bool
-		roleArn        string
-		orphanRule     bool
-		skipTrigger    bool
-		wantErrHasDiff bool
+		casename        string
+		exitCode        bool
+		roleArn         string
+		orphanRule      bool
+		skipTrigger     bool
+		liveOnlyTag     bool
+		tagStrategy     *string
+		managedByTagKey string
+		ignore          string
+		wantErrHasDiff  bool
 	}{
 		{
 			casename:       "no diff, exit-code on",
 			exitCode:       true,
 			wantErrHasDiff: false,
+		},
+		{
+			casename:       "live-only tag, default strategy (append_only), exit-code on",
+			exitCode:       true,
+			liveOnlyTag:    true,
+			wantErrHasDiff: false,
+		},
+		{
+			casename:       "live-only tag, sync, exit-code on",
+			exitCode:       true,
+			liveOnlyTag:    true,
+			tagStrategy:    aws.String("sync"),
+			wantErrHasDiff: true,
 		},
 		{
 			casename:       "state machine diff, exit-code on",
@@ -63,6 +80,33 @@ func TestDiff(t *testing.T) {
 			skipTrigger:    true,
 			wantErrHasDiff: true,
 		},
+		{
+			casename:        "custom managed-by-tag-key, no diff, exit-code on",
+			exitCode:        true,
+			managedByTagKey: "Owner",
+			wantErrHasDiff:  false,
+		},
+		{
+			casename:        "custom managed-by-tag-key, orphan rule tagged with the custom key, exit-code on",
+			exitCode:        true,
+			orphanRule:      true,
+			managedByTagKey: "Owner",
+			wantErrHasDiff:  true,
+		},
+		{
+			casename:       "state machine diff, ignore matches the diff path, exit-code on",
+			exitCode:       true,
+			roleArn:        "arn:aws:iam::999999999999:role/other-role",
+			ignore:         ".RoleArn",
+			wantErrHasDiff: false,
+		},
+		{
+			casename:       "state machine diff, ignore does not match the diff path, exit-code on",
+			exitCode:       true,
+			roleArn:        "arn:aws:iam::999999999999:role/other-role",
+			ignore:         ".Type",
+			wantErrHasDiff: true,
+		},
 	}
 
 	for _, c := range cases {
@@ -74,6 +118,9 @@ func TestDiff(t *testing.T) {
 			l := stefunny.NewConfigLoader(nil, nil)
 			cfg, err := l.Load(ctx, "testdata/stefunny.yaml")
 			require.NoError(t, err)
+			if c.managedByTagKey != "" {
+				cfg.SetManagedByTagKey(c.managedByTagKey)
+			}
 			newSM := cfg.NewStateMachine()
 
 			current := &stefunny.StateMachine{
@@ -84,15 +131,25 @@ func TestDiff(t *testing.T) {
 			if c.roleArn != "" {
 				current.RoleArn = aws.String(c.roleArn)
 			}
+			if c.liveOnlyTag {
+				current.Tags = append(append([]sfntypes.Tag{}, current.Tags...), sfntypes.Tag{
+					Key:   aws.String("Terraform"),
+					Value: aws.String("owned"),
+				})
+			}
 
 			currentRules := stefunny.EventBridgeRules{}
 			if c.orphanRule {
+				managedByTagKey := "ManagedBy"
+				if c.managedByTagKey != "" {
+					managedByTagKey = c.managedByTagKey
+				}
 				currentRules = stefunny.EventBridgeRules{
 					{
 						PutRuleInput: eventbridge.PutRuleInput{
 							Name: aws.String("Hello-orphan"),
 							Tags: []eventbridgetypes.Tag{
-								{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+								{Key: aws.String(managedByTagKey), Value: aws.String("stefunny")},
 							},
 						},
 					},
@@ -116,10 +173,17 @@ func TestDiff(t *testing.T) {
 			}
 
 			app := newMockApp(t, "testdata/stefunny.yaml", mocks)
+			if c.managedByTagKey != "" {
+				mocks.sfn.EXPECT().SetManagedByTagKey(c.managedByTagKey).Return()
+				mocks.eventBridge.EXPECT().SetManagedByTagKey(c.managedByTagKey).Return()
+				app.SetManagedByTagKey(c.managedByTagKey)
+			}
 			err = app.Diff(ctx, stefunny.DiffOption{
 				Unified:     true,
 				ExitCode:    c.exitCode,
 				SkipTrigger: c.skipTrigger,
+				TagStrategy: c.tagStrategy,
+				Ignore:      c.ignore,
 			})
 			if c.wantErrHasDiff {
 				require.ErrorIs(t, err, stefunny.ErrHasDiff)
@@ -153,4 +217,20 @@ func TestDiff_QualifierStateMachineNotFound(t *testing.T) {
 		})
 	})
 	require.NoError(t, err)
+}
+
+func TestDiff_InvalidIgnoreQuery(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctx := context.Background()
+
+	mocks := NewMocks(t)
+	defer mocks.Finish()
+
+	app := newMockApp(t, "testdata/stefunny.yaml", mocks)
+	err := app.Diff(ctx, stefunny.DiffOption{
+		Unified: true,
+		Ignore:  ".foo[",
+	})
+	require.Error(t, err)
+	require.NotErrorIs(t, err, stefunny.ErrHasDiff)
 }

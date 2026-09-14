@@ -2,6 +2,7 @@ package stefunny_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -99,4 +100,47 @@ logging_configuration:
 	actualJSON, err := json.Marshal(stefunny.NewKeysToSnakeCase(expected))
 	require.NoError(t, err)
 	require.JSONEq(t, string(jsonBs), string(actualJSON))
+}
+
+func TestJSONDiffString__Ignore(t *testing.T) {
+	from := `{"Name":"foo","Tags":{"Foo":"bar","Env":"dev"}}`
+	to := `{"Name":"foo","Tags":{"Foo":"baz","Env":"prod"}}`
+
+	t.Run("差分が消える", func(t *testing.T) {
+		ds, err := stefunny.JSONDiffString(from, to, stefunny.JSONDiffUnified(false), stefunny.JSONDiffIgnore(".Tags.Foo"))
+		require.NoError(t, err)
+		require.NotContains(t, ds, `"Foo"`)
+		require.Contains(t, ds, `"Env"`)
+	})
+
+	t.Run("存在しないパスをignoreしてもno-opでエラーにならない", func(t *testing.T) {
+		ds, err := stefunny.JSONDiffString(from, to, stefunny.JSONDiffUnified(false), stefunny.JSONDiffIgnore(".NoSuchKey.Deep.Path"))
+		require.NoError(t, err)
+		require.Contains(t, ds, `"Foo"`)
+		require.Contains(t, ds, `"Env"`)
+	})
+
+	t.Run("jqクエリの構文エラーはエラーを返す", func(t *testing.T) {
+		_, err := stefunny.JSONDiffString(from, to, stefunny.JSONDiffUnified(false), stefunny.JSONDiffIgnore(".foo["))
+		require.Error(t, err)
+	})
+
+	t.Run("構文は正しいがdelのパスとして無効なクエリは実行時エラーを返す", func(t *testing.T) {
+		_, err := stefunny.JSONDiffString(from, to, stefunny.JSONDiffUnified(false), stefunny.JSONDiffIgnore(".Tags | keys"))
+		require.Error(t, err)
+	})
+
+	t.Run("片側にしか存在しないキーをignoreすると差分が消える", func(t *testing.T) {
+		from := `{"Name":"foo","Tags":{"Foo":"bar"}}`
+		to := `{"Name":"foo","Tags":{"Foo":"bar","Env":"prod"}}`
+		ds, err := stefunny.JSONDiffString(from, to, stefunny.JSONDiffUnified(false), stefunny.JSONDiffIgnore(".Tags.Env"))
+		require.NoError(t, err)
+		require.Empty(t, strings.TrimSpace(ds))
+	})
+
+	t.Run("null入力にignoreを指定してもエラーにならない", func(t *testing.T) {
+		ds, err := stefunny.JSONDiffString("", "", stefunny.JSONDiffUnified(false), stefunny.JSONDiffIgnore(".Tags.Foo"))
+		require.NoError(t, err)
+		require.Empty(t, strings.TrimSpace(ds))
+	})
 }

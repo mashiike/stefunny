@@ -27,6 +27,7 @@ func TestApp_LazyServiceConstruction(t *testing.T) {
 	require.Nil(t, app.sfnSvc, "sfnSvc must not be constructed until first use")
 
 	app.SetAliasName("stage")
+	app.SetManagedByTagKey("Owner")
 	require.Nil(t, app.sfnSvc, "SetAliasName before first use must not force construction")
 
 	svc1, err := app.sfnService(ctx)
@@ -34,10 +35,34 @@ func TestApp_LazyServiceConstruction(t *testing.T) {
 	impl, ok := svc1.(*SFnServiceImpl)
 	require.True(t, ok)
 	require.Equal(t, "stage", impl.aliasName, "alias set before construction must propagate to the lazily-created service")
+	require.Equal(t, "Owner", impl.managedByTagKey, "managed-by tag key set before construction must propagate to the lazily-created service")
 
 	svc2, err := app.sfnService(ctx)
 	require.NoError(t, err)
 	require.Same(t, svc1, svc2, "subsequent calls must reuse the same constructed service")
+}
+
+func TestNew_PreservesManagedByTagKeyFromConfig(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-east-1")
+	t.Setenv("AWS_ACCESS_KEY_ID", "dummy")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "dummy")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+	cfg := NewDefaultConfig()
+	cfg.SetManagedByTagKey("Owner")
+
+	ctx := context.Background()
+	app, err := New(ctx, cfg)
+	require.NoError(t, err)
+	require.Equal(t, "Owner", cfg.ManagedByTagKey(), "New must not reset a ManagedByTagKey already set on cfg")
+
+	svc, err := app.sfnService(ctx)
+	require.NoError(t, err)
+	impl, ok := svc.(*SFnServiceImpl)
+	require.True(t, ok)
+	require.Equal(t, "Owner", impl.managedByTagKey, "cfg's ManagedByTagKey must propagate to the lazily-created service")
 }
 
 func TestApp_LazyServiceConstruction_Error(t *testing.T) {

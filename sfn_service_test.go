@@ -404,7 +404,7 @@ func TestSFnService_DeployStateMachine_CreateNewMachine(t *testing.T) {
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	actual, err := svc.DeployStateMachine(ctx, stateMachine)
+	actual, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategyAppendOnly)
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.DeployStateMachineOutput{
 		StateMachineArn:        aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
@@ -450,7 +450,7 @@ func TestSFnService_DeployStateMachine_CreateStateMachineFailed(t *testing.T) {
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DeployStateMachine(ctx, stateMachine)
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategyAppendOnly)
 	require.ErrorIs(t, err, expectedErr)
 }
 
@@ -543,7 +543,7 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	actual, err := svc.DeployStateMachine(ctx, stateMachine)
+	actual, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategyAppendOnly)
 	require.NoError(t, err)
 	require.EqualValues(t, &stefunny.DeployStateMachineOutput{
 		StateMachineArn:        stateMachine.StateMachineArn,
@@ -551,6 +551,381 @@ func TestSFnService_DeployStateMachine_UpdateStateMachine(t *testing.T) {
 		CreationDate:           stateMachine.CreationDate,
 		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
 	}, actual)
+}
+
+func TestSFnService_DeployStateMachine_UpdateStateMachine_TagStrategySync(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
+	stateMachine := &stefunny.StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:       aws.String("Hello"),
+			Definition: aws.String(`{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}`),
+			Type:       sfntypes.StateMachineTypeStandard,
+			RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+			Tags: []sfntypes.Tag{
+				{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			},
+		},
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:          sfntypes.StateMachineStatusActive,
+	}
+
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.ListTagsForResourceOutput{
+		Tags: []sfntypes.Tag{
+			{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			{Key: aws.String("Terraform"), Value: aws.String("owned")},
+		},
+	}, nil).Times(1)
+
+	m.EXPECT().UntagResource(gomock.Any(), &sfn.UntagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		TagKeys:     []string{"Terraform"},
+	}).Return(&sfn.UntagResourceOutput{}, nil).Times(1)
+
+	m.EXPECT().TagResource(gomock.Any(), &sfn.TagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		Tags:        stateMachine.CreateStateMachineInput.Tags,
+	}).Return(&sfn.TagResourceOutput{}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.DescribeStateMachineOutput{
+		Name:            stateMachine.Name,
+		StateMachineArn: stateMachine.StateMachineArn,
+		Definition:      stateMachine.Definition,
+		CreationDate:    stateMachine.CreationDate,
+		Status:          sfntypes.StateMachineStatusActive,
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}).Return(&sfn.DescribeStateMachineAliasOutput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}, nil).Times(1)
+
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+				Weight:                 100,
+			},
+		},
+	}).Return(&sfn.UpdateStateMachineAliasOutput{}, nil).Times(1)
+
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategySync)
+	require.NoError(t, err)
+}
+
+func TestSFnService_DeployStateMachine_UpdateStateMachine_TagStrategySync_KeepsAWSReservedTag(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
+	stateMachine := &stefunny.StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:       aws.String("Hello"),
+			Definition: aws.String(`{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}`),
+			Type:       sfntypes.StateMachineTypeStandard,
+			RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+			Tags: []sfntypes.Tag{
+				{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			},
+		},
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:          sfntypes.StateMachineStatusActive,
+	}
+
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.ListTagsForResourceOutput{
+		Tags: []sfntypes.Tag{
+			{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			{Key: aws.String("Terraform"), Value: aws.String("owned")},
+			{Key: aws.String("aws:cloudformation:stack-name"), Value: aws.String("my-stack")},
+		},
+	}, nil).Times(1)
+
+	// UntagResource must only be asked to remove "Terraform": the aws:
+	// prefixed tag cannot be removed via the API and must be left alone.
+	m.EXPECT().UntagResource(gomock.Any(), &sfn.UntagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		TagKeys:     []string{"Terraform"},
+	}).Return(&sfn.UntagResourceOutput{}, nil).Times(1)
+
+	m.EXPECT().TagResource(gomock.Any(), &sfn.TagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		Tags:        stateMachine.CreateStateMachineInput.Tags,
+	}).Return(&sfn.TagResourceOutput{}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.DescribeStateMachineOutput{
+		Name:            stateMachine.Name,
+		StateMachineArn: stateMachine.StateMachineArn,
+		Definition:      stateMachine.Definition,
+		CreationDate:    stateMachine.CreationDate,
+		Status:          sfntypes.StateMachineStatusActive,
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}).Return(&sfn.DescribeStateMachineAliasOutput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}, nil).Times(1)
+
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+				Weight:                 100,
+			},
+		},
+	}).Return(&sfn.UpdateStateMachineAliasOutput{}, nil).Times(1)
+
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategySync)
+	require.NoError(t, err)
+}
+
+func TestSFnService_DeployStateMachine_UpdateStateMachine_TagStrategySync_NoTagsToRemove(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
+	stateMachine := &stefunny.StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:       aws.String("Hello"),
+			Definition: aws.String(`{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}`),
+			Type:       sfntypes.StateMachineTypeStandard,
+			RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+			Tags: []sfntypes.Tag{
+				{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			},
+		},
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:          sfntypes.StateMachineStatusActive,
+	}
+
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.ListTagsForResourceOutput{
+		Tags: []sfntypes.Tag{
+			{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+		},
+	}, nil).Times(1)
+
+	// UntagResource is not EXPECTed: live tags already match stateMachine.Tags
+	// exactly, so there is nothing to remove.
+	m.EXPECT().TagResource(gomock.Any(), &sfn.TagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		Tags:        stateMachine.CreateStateMachineInput.Tags,
+	}).Return(&sfn.TagResourceOutput{}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.DescribeStateMachineOutput{
+		Name:            stateMachine.Name,
+		StateMachineArn: stateMachine.StateMachineArn,
+		Definition:      stateMachine.Definition,
+		CreationDate:    stateMachine.CreationDate,
+		Status:          sfntypes.StateMachineStatusActive,
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}).Return(&sfn.DescribeStateMachineAliasOutput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}, nil).Times(1)
+
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+				Weight:                 100,
+			},
+		},
+	}).Return(&sfn.UpdateStateMachineAliasOutput{}, nil).Times(1)
+
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategySync)
+	require.NoError(t, err)
+}
+
+func TestSFnService_DeployStateMachine_UpdateStateMachine_TagStrategySync_ListTagsForResourceFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
+	stateMachine := &stefunny.StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:       aws.String("Hello"),
+			Definition: aws.String(`{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}`),
+			Type:       sfntypes.StateMachineTypeStandard,
+			RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+			Tags: []sfntypes.Tag{
+				{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			},
+		},
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:          sfntypes.StateMachineStatusActive,
+	}
+
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+	}).Return(nil, errors.New("list tags failed")).Times(1)
+
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategySync)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "list tags failed")
+}
+
+func TestSFnService_DeployStateMachine_UpdateStateMachine_TagStrategySync_UntagResourceFailed(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
+	stateMachine := &stefunny.StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:       aws.String("Hello"),
+			Definition: aws.String(`{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}`),
+			Type:       sfntypes.StateMachineTypeStandard,
+			RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+			Tags: []sfntypes.Tag{
+				{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			},
+		},
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:          sfntypes.StateMachineStatusActive,
+	}
+
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().ListTagsForResource(gomock.Any(), &sfn.ListTagsForResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.ListTagsForResourceOutput{
+		Tags: []sfntypes.Tag{
+			{Key: aws.String("ManagedBy"), Value: aws.String("stefunny")},
+			{Key: aws.String("Terraform"), Value: aws.String("owned")},
+		},
+	}, nil).Times(1)
+
+	m.EXPECT().UntagResource(gomock.Any(), &sfn.UntagResourceInput{
+		ResourceArn: stateMachine.StateMachineArn,
+		TagKeys:     []string{"Terraform"},
+	}).Return(nil, errors.New("untag failed")).Times(1)
+
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategySync)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "untag failed")
+}
+
+func TestSFnService_DeployStateMachine_UpdateStateMachine_TagStrategyNone(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctrl := gomock.NewController(t)
+	m := mock.NewMockSFnClient(ctrl)
+	defer ctrl.Finish()
+
+	stateMachine := &stefunny.StateMachine{
+		CreateStateMachineInput: sfn.CreateStateMachineInput{
+			Name:       aws.String("Hello"),
+			Definition: aws.String(`{"StartAt":"Hello","States":{"Hello":{"Type":"Pass","End":true}}}`),
+			Type:       sfntypes.StateMachineTypeStandard,
+			RoleArn:    aws.String("arn:aws:iam::123456789012:role/service-role/StatesExecutionRole-us-east-1"),
+		},
+		StateMachineArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello"),
+		CreationDate:    aws.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+		Status:          sfntypes.StateMachineStatusActive,
+	}
+
+	m.EXPECT().UpdateStateMachine(gomock.Any(), gomock.Any()).Return(&sfn.UpdateStateMachineOutput{
+		RevisionId:             aws.String("1"),
+		StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+		UpdateDate:             aws.Time(time.Date(2021, 1, 2, 0, 0, 0, 0, time.UTC)),
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachine(gomock.Any(), &sfn.DescribeStateMachineInput{
+		StateMachineArn: stateMachine.StateMachineArn,
+	}).Return(&sfn.DescribeStateMachineOutput{
+		Name:            stateMachine.Name,
+		StateMachineArn: stateMachine.StateMachineArn,
+		Definition:      stateMachine.Definition,
+		CreationDate:    stateMachine.CreationDate,
+		Status:          sfntypes.StateMachineStatusActive,
+	}, nil).Times(1)
+
+	m.EXPECT().DescribeStateMachineAlias(gomock.Any(), &sfn.DescribeStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}).Return(&sfn.DescribeStateMachineAliasOutput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+	}, nil).Times(1)
+
+	m.EXPECT().UpdateStateMachineAlias(gomock.Any(), &sfn.UpdateStateMachineAliasInput{
+		StateMachineAliasArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:current"),
+		RoutingConfiguration: []sfntypes.RoutingConfigurationListItem{
+			{
+				StateMachineVersionArn: aws.String("arn:aws:states:us-east-1:123456789012:stateMachine:Hello:2"),
+				Weight:                 100,
+			},
+		},
+	}).Return(&sfn.UpdateStateMachineAliasOutput{}, nil).Times(1)
+
+	svc := stefunny.NewSFnService(m)
+	ctx := context.Background()
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategyNone)
+	require.NoError(t, err)
 }
 
 func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
@@ -592,7 +967,7 @@ func TestSFnService_DeployStateMachine_UpdateStateMachineFailed(t *testing.T) {
 
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DeployStateMachine(ctx, stateMachine)
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategyAppendOnly)
 	require.ErrorIs(t, err, expectedErr)
 }
 
@@ -640,7 +1015,7 @@ func TestSFnService_DeployStateMachine_TagResourceFailed(t *testing.T) {
 	m.EXPECT().TagResource(gomock.Any(), gomock.Any()).Return(nil, expectedErr).Times(1)
 	svc := stefunny.NewSFnService(m)
 	ctx := context.Background()
-	_, err := svc.DeployStateMachine(ctx, stateMachine)
+	_, err := svc.DeployStateMachine(ctx, stateMachine, stefunny.TagStrategyAppendOnly)
 	require.ErrorIs(t, err, expectedErr)
 }
 

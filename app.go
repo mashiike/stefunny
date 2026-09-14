@@ -44,6 +44,7 @@ func (app *App) sfnService(ctx context.Context) (SFnService, error) {
 	client := app.cfg.NewStepFunctionsClientFromConfig(awsCfg)
 	svc := NewSFnService(client)
 	svc.SetAliasName(app.aliasName)
+	svc.SetManagedByTagKey(app.cfg.ManagedByTagKey())
 	app.sfnSvc = svc
 	return app.sfnSvc, nil
 }
@@ -59,7 +60,9 @@ func (app *App) eventBridgeService(ctx context.Context) (EventBridgeService, err
 		return nil, fmt.Errorf("failed to get EventBridge client: %w", err)
 	}
 	client := app.cfg.NewEventBridgeClientFromConfig(awsCfg)
-	app.eventbridgeSvc = NewEventBridgeService(client)
+	svc := NewEventBridgeService(client)
+	svc.SetManagedByTagKey(app.cfg.ManagedByTagKey())
+	app.eventbridgeSvc = svc
 	return app.eventbridgeSvc, nil
 }
 
@@ -139,6 +142,23 @@ func (app *App) StateMachineAliasName() string {
 	return app.aliasName
 }
 
+// SetManagedByTagKey overrides the tag key App uses to mark and recognize
+// resources it manages, falling back to tagManagedBy when key is empty. It
+// propagates to cfg and to any already-constructed sfnSvc/eventbridgeSvc.
+func (app *App) SetManagedByTagKey(key string) {
+	app.mu.Lock()
+	defer app.mu.Unlock()
+	app.cfg.SetManagedByTagKey(key)
+	key = app.cfg.ManagedByTagKey()
+	if app.sfnSvc != nil {
+		app.sfnSvc.SetManagedByTagKey(key)
+	}
+	if app.eventbridgeSvc != nil {
+		app.eventbridgeSvc.SetManagedByTagKey(key)
+	}
+	log.Printf("[debug] set managed by tag key %s", key)
+}
+
 // New creates a new App
 func New(_ context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 	app := &App{
@@ -148,5 +168,6 @@ func New(_ context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 		opt(app)
 	}
 	app.SetAliasName("")
+	app.SetManagedByTagKey(cfg.ManagedByTagKey())
 	return app, nil
 }
