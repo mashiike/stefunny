@@ -177,17 +177,22 @@ func (rules EventBridgeRules) SyncState(other EventBridgeRules) {
 
 // DiffString renders the diff between rules (the current state) and
 // newRules (the desired state), matched by name. A rule slated for
-// deletion is skipped unless it is managed by opt.ManagedByTagKey.
-// opt.Ignore excludes matching paths from each rule's comparison. Returns
-// an error if opt.Ignore is an invalid jq query.
+// deletion is skipped unless it is managed by opt.ManagedByTagKey, which
+// defaults to tagManagedBy when left at its zero value. opt.Ignore
+// excludes matching paths from each rule's comparison. Returns an error
+// if opt.Ignore is an invalid jq query.
 func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, opt DiffStringOption) (string, error) {
+	managedByTagKey := opt.ManagedByTagKey
+	if managedByTagKey == "" {
+		managedByTagKey = tagManagedBy
+	}
 	result := sliceDiff(rules, newRules, func(r *EventBridgeRule) string {
 		return coalesce(r.Name)
 	})
 	var builder strings.Builder
 	var zero *EventBridgeRule
 	for _, delete := range result.Delete {
-		if !delete.IsManagedBy(opt.ManagedByTagKey) {
+		if !delete.IsManagedBy(managedByTagKey) {
 			log.Printf("[warn] rule %s is not managed by %s, suppressed diff", coalesce(delete.Name), appName)
 			continue
 		}

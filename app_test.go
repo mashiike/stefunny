@@ -42,6 +42,29 @@ func TestApp_LazyServiceConstruction(t *testing.T) {
 	require.Same(t, svc1, svc2, "subsequent calls must reuse the same constructed service")
 }
 
+func TestNew_PreservesManagedByTagKeyFromConfig(t *testing.T) {
+	t.Setenv("AWS_REGION", "us-east-1")
+	t.Setenv("AWS_ACCESS_KEY_ID", "dummy")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "dummy")
+	t.Setenv("AWS_SESSION_TOKEN", "")
+	t.Setenv("AWS_PROFILE", "")
+	t.Setenv("AWS_EC2_METADATA_DISABLED", "true")
+
+	cfg := NewDefaultConfig()
+	cfg.SetManagedByTagKey("Owner")
+
+	ctx := context.Background()
+	app, err := New(ctx, cfg)
+	require.NoError(t, err)
+	require.Equal(t, "Owner", cfg.ManagedByTagKey(), "New must not reset a ManagedByTagKey already set on cfg")
+
+	svc, err := app.sfnService(ctx)
+	require.NoError(t, err)
+	impl, ok := svc.(*SFnServiceImpl)
+	require.True(t, ok)
+	require.Equal(t, "Owner", impl.managedByTagKey, "cfg's ManagedByTagKey must propagate to the lazily-created service")
+}
+
 func TestApp_LazyServiceConstruction_Error(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "")

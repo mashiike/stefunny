@@ -32,7 +32,8 @@ type DiffStringOption struct {
 	// place under the same strategy.
 	TagStrategy TagStrategy
 	// ManagedByTagKey is used by EventBridgeRules.DiffString to decide
-	// whether a rule slated for deletion is one stefunny manages.
+	// whether a rule slated for deletion is one stefunny manages. The
+	// zero value falls back to tagManagedBy.
 	ManagedByTagKey string
 	// Ignore is a jq query for paths to exclude from the diff. It applies
 	// to StateMachine's configuration comparison and to

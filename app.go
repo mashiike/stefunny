@@ -168,6 +168,6 @@ func New(_ context.Context, cfg *Config, opts ...NewAppOption) (*App, error) {
 		opt(app)
 	}
 	app.SetAliasName("")
-	app.SetManagedByTagKey("")
+	app.SetManagedByTagKey(cfg.ManagedByTagKey())
 	return app, nil
 }
