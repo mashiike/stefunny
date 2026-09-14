@@ -20,9 +20,11 @@ type StateMachine struct {
 	DefinitionPath  *string
 }
 
-// DiffStringOption configures the DiffString methods of StateMachine and
-// EventBridgeRule(s). Not every field applies to every method: TagStrategy
-// is StateMachine-only, ManagedByTagKey is EventBridgeRule(s)-only.
+// DiffStringOption configures the DiffString methods of StateMachine,
+// EventBridgeRule(s) and Schedule(s). Not every field applies to every
+// method: TagStrategy is StateMachine-only, ManagedByTagKey is
+// EventBridgeRule(s)-only, and Ignore does not apply to StateMachine's
+// Definition comparison.
 type DiffStringOption struct {
 	Unified bool
 	// TagStrategy is used by StateMachine.DiffString to project the tag
@@ -32,6 +34,11 @@ type DiffStringOption struct {
 	// ManagedByTagKey is used by EventBridgeRules.DiffString to decide
 	// whether a rule slated for deletion is one stefunny manages.
 	ManagedByTagKey string
+	// Ignore is a jq query for paths to exclude from the diff. It applies
+	// to StateMachine's configuration comparison and to
+	// EventBridgeRule(s)/Schedule(s)'s comparison, but not to
+	// StateMachine's Definition comparison.
+	Ignore string
 }
 
 func (s *StateMachine) Source() string {
@@ -183,8 +190,10 @@ func (s *StateMachine) String() string {
 // and newStateMachine (the desired state). The tag portion of the diff
 // reflects the tag set opt.TagStrategy would actually leave in place, not
 // newStateMachine's raw tags, so it stays consistent with what a deploy
-// under the same strategy would do.
-func (s *StateMachine) DiffString(newStateMachine *StateMachine, opt DiffStringOption) string {
+// under the same strategy would do. opt.Ignore applies to the
+// configuration comparison only, not to the Definition comparison.
+// Returns an error if opt.Ignore is an invalid jq query.
+func (s *StateMachine) DiffString(newStateMachine *StateMachine, opt DiffStringOption) (string, error) {
 	var builder strings.Builder
 	from := s.Source()
 	to := newStateMachine.Source()
@@ -194,31 +203,36 @@ func (s *StateMachine) DiffString(newStateMachine *StateMachine, opt DiffStringO
 	}
 	projected := *newStateMachine
 	projected.Tags = projectedTags(s != nil, currentTags, newStateMachine.Tags, opt.TagStrategy)
-	builder.WriteString(
-		JSONDiffString(
-			s.configureJSON(),
-			projected.configureJSON(),
-			JSONDiffUnified(opt.Unified),
-			JSONDiffFromURI(from),
-			JSONDiffToURI(to),
-		),
+	configDiff, err := JSONDiffString(
+		s.configureJSON(),
+		projected.configureJSON(),
+		JSONDiffUnified(opt.Unified),
+		JSONDiffFromURI(from),
+		JSONDiffToURI(to),
+		JSONDiffIgnore(opt.Ignore),
 	)
+	if err != nil {
+		return "", fmt.Errorf("diff state machine configuration: %w", err)
+	}
+	builder.WriteString(configDiff)
 	def := "null"
 	if s != nil {
 		def = coalesce(s.Definition)
 	}
 	from = s.DefinitionSource()
 	to = newStateMachine.DefinitionSource()
-	builder.WriteString(
-		JSONDiffString(
-			def,
-			coalesce(newStateMachine.Definition),
-			JSONDiffUnified(opt.Unified),
-			JSONDiffFromURI(from),
-			JSONDiffToURI(to),
-		),
+	defDiff, err := JSONDiffString(
+		def,
+		coalesce(newStateMachine.Definition),
+		JSONDiffUnified(opt.Unified),
+		JSONDiffFromURI(from),
+		JSONDiffToURI(to),
 	)
-	return builder.String()
+	if err != nil {
+		return "", fmt.Errorf("diff state machine definition: %w", err)
+	}
+	builder.WriteString(defDiff)
+	return builder.String(), nil
 }
 
 func (s *StateMachine) configureJSON() string {

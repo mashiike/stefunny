@@ -123,10 +123,13 @@ func (app *App) deployStateMachine(ctx context.Context, opt DeployOption) error 
 		newStateMachine.AppendTags(map[string]string{
 			app.cfg.ManagedByTagKey(): appName,
 		})
-		diffString := stateMachine.DiffString(newStateMachine, DiffStringOption{
+		diffString, err := stateMachine.DiffString(newStateMachine, DiffStringOption{
 			Unified:     opt.Unified,
 			TagStrategy: tagStrategy,
 		})
+		if err != nil {
+			return fmt.Errorf("failed to diff state machine: %w", err)
+		}
 		log.Printf("[notice] change state machine %s\n", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil
@@ -189,10 +192,13 @@ func (app *App) deployEventBridgeRules(ctx context.Context, opt DeployOption) er
 		if keepState {
 			newRules.SyncState(currentRules)
 		}
-		diffString := currentRules.DiffString(newRules, DiffStringOption{
+		diffString, err := currentRules.DiffString(newRules, DiffStringOption{
 			Unified:         opt.Unified,
 			ManagedByTagKey: app.cfg.ManagedByTagKey(),
 		})
+		if err != nil {
+			return fmt.Errorf("failed to diff event bridge rules: %w", err)
+		}
 		log.Printf("[notice] change related rules %s\n", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil
@@ -250,7 +256,12 @@ func (app *App) deploySchedules(ctx context.Context, opt DeployOption) error {
 		if keepState {
 			newSchedules.SyncState(currentSchedules)
 		}
-		diffString := currentSchedules.DiffString(newSchedules, opt.Unified)
+		diffString, err := currentSchedules.DiffString(newSchedules, DiffStringOption{
+			Unified: opt.Unified,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to diff schedules: %w", err)
+		}
 		log.Printf("[notice] change related schedules %s", opt.DryRunString())
 		fmt.Println(diffString)
 		return nil

@@ -12,6 +12,7 @@ import (
 	"github.com/hexops/gotextdiff"
 	"github.com/hexops/gotextdiff/myers"
 	"github.com/hexops/gotextdiff/span"
+	"github.com/itchyny/gojq"
 	"github.com/kylelemons/godebug/diff"
 	"github.com/serenize/snaker"
 )
@@ -35,6 +36,7 @@ type jsonDiffParams struct {
 	unified bool
 	fromURI string
 	toURI   string
+	ignore  string
 }
 
 type JSONDiffOption func(*jsonDiffParams)
@@ -57,9 +59,25 @@ func JSONDiffUnified(b bool) JSONDiffOption {
 	}
 }
 
-func JSONDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
+// JSONDiffIgnore sets a jq query whose matched paths are removed from both
+// sides before they are compared. query is wrapped as del(<query>); an
+// empty query disables filtering.
+func JSONDiffIgnore(query string) JSONDiffOption {
+	return func(p *jsonDiffParams) {
+		p.ignore = query
+	}
+}
+
+// JSONDiffString renders a color-highlighted diff between fromStr and
+// toStr, applying opts (see JSONDiffFromURI, JSONDiffToURI, JSONDiffUnified,
+// JSONDiffIgnore). Returns an error if a JSONDiffIgnore query is invalid or
+// fails to apply.
+func JSONDiffString(fromStr, toStr string, opts ...JSONDiffOption) (string, error) {
 	var b strings.Builder
-	str := jsonDiffString(fromStr, toStr, opts...)
+	str, err := jsonDiffString(fromStr, toStr, opts...)
+	if err != nil {
+		return "", err
+	}
 	for _, line := range strings.Split(str, "\n") {
 		if strings.HasPrefix(line, "-") {
 			b.WriteString(color.RedString(line) + "\n")
@@ -69,15 +87,21 @@ func JSONDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
 			b.WriteString(line + "\n")
 		}
 	}
-	return b.String()
+	return b.String(), nil
 }
 
-func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
+func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) (string, error) {
 	var params jsonDiffParams
 	for _, opt := range opts {
 		opt(&params)
 	}
 	fromStr = toDiffString(fromStr)
+	if params.ignore != "" {
+		var err error
+		if fromStr, err = applyJQIgnore(fromStr, params.ignore); err != nil {
+			return "", fmt.Errorf("apply ignore query to %s: %w", params.fromURI, err)
+		}
+	}
 	if fromStr != "" {
 		var fromBuf bytes.Buffer
 		if err := json.Indent(&fromBuf, []byte(fromStr), "", "  "); err != nil {
@@ -86,6 +110,12 @@ func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
 		fromStr = fromBuf.String()
 	}
 	toStr = toDiffString(toStr)
+	if params.ignore != "" {
+		var err error
+		if toStr, err = applyJQIgnore(toStr, params.ignore); err != nil {
+			return "", fmt.Errorf("apply ignore query to %s: %w", params.toURI, err)
+		}
+	}
 	if toStr != "" {
 		var toBuf bytes.Buffer
 		if err := json.Indent(&toBuf, []byte(toStr), "", "  "); err != nil {
@@ -111,14 +141,62 @@ func jsonDiffString(fromStr, toStr string, opts ...JSONDiffOption) string {
 
 	if params.unified {
 		edits := myers.ComputeEdits(span.URIFromPath(params.fromURI), fromStr, toStr)
-		return fmt.Sprint(gotextdiff.ToUnified(params.fromURI, params.toURI, fromStr, edits))
+		return fmt.Sprint(gotextdiff.ToUnified(params.fromURI, params.toURI, fromStr, edits)), nil
 	}
 
 	ds := diff.Diff(fromStr, toStr)
 	if ds == "" {
-		return ds
+		return ds, nil
 	}
-	return fmt.Sprintf("--- %s\n+++ %s\n%s", params.fromURI, params.toURI, ds)
+	return fmt.Sprintf("--- %s\n+++ %s\n%s", params.fromURI, params.toURI, ds), nil
+}
+
+func applyJQIgnore(s, query string) (string, error) {
+	if s == "" {
+		return s, nil
+	}
+	var v interface{}
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return "", fmt.Errorf("unmarshal json: %w", err)
+	}
+	filtered, err := deleteByJQ(v, query)
+	if err != nil {
+		return "", err
+	}
+	bs, err := json.Marshal(filtered)
+	if err != nil {
+		return "", fmt.Errorf("marshal json: %w", err)
+	}
+	return string(bs), nil
+}
+
+func deleteByJQ(v interface{}, query string) (interface{}, error) {
+	pathQuery, err := gojq.Parse(query)
+	if err != nil {
+		return nil, fmt.Errorf("parse jq query %q: %w", query, err)
+	}
+	q := &gojq.Query{
+		Term: &gojq.Term{
+			Type: gojq.TermTypeFunc,
+			Func: &gojq.Func{
+				Name: "del",
+				Args: []*gojq.Query{pathQuery},
+			},
+		},
+	}
+	iter := q.Run(v)
+	result := v
+	for {
+		next, ok := iter.Next()
+		if !ok {
+			break
+		}
+		if err, ok := next.(error); ok {
+			return nil, fmt.Errorf("run jq query %q: %w", query, err)
+		}
+		result = next
+	}
+	return result, nil
 }
 
 func marshalJSON(s interface{}, overrides ...any) (*bytes.Buffer, error) {

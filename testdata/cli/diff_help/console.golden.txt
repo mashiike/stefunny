@@ -24,3 +24,6 @@ Flags:
       --tag-strategy=TAG-STRATEGY
                                   tag strategy for state machine (append_only,
                                   sync, none)
+      --ignore=STRING             jq query for paths to ignore in the diff,
+                                  except the state machine definition (e.g.
+                                  '.Tags.Foo')

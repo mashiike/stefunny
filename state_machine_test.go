@@ -134,7 +134,9 @@ func TestStateMachine_DiffString_TagStrategy_ConfigOnlyTag(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(string(c.tagStrategy), func(t *testing.T) {
-			ds := strings.TrimSpace(current.DiffString(desired, DiffStringOption{TagStrategy: c.tagStrategy}))
+			raw, err := current.DiffString(desired, DiffStringOption{TagStrategy: c.tagStrategy})
+			require.NoError(t, err)
+			ds := strings.TrimSpace(raw)
 			if c.wantDiff {
 				require.NotEmpty(t, ds)
 			} else {

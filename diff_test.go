@@ -27,6 +27,7 @@ func TestDiff(t *testing.T) {
 		liveOnlyTag     bool
 		tagStrategy     *string
 		managedByTagKey string
+		ignore          string
 		wantErrHasDiff  bool
 	}{
 		{
@@ -91,6 +92,20 @@ func TestDiff(t *testing.T) {
 			orphanRule:      true,
 			managedByTagKey: "Owner",
 			wantErrHasDiff:  true,
+		},
+		{
+			casename:       "state machine diff, ignore matches the diff path, exit-code on",
+			exitCode:       true,
+			roleArn:        "arn:aws:iam::999999999999:role/other-role",
+			ignore:         ".RoleArn",
+			wantErrHasDiff: false,
+		},
+		{
+			casename:       "state machine diff, ignore does not match the diff path, exit-code on",
+			exitCode:       true,
+			roleArn:        "arn:aws:iam::999999999999:role/other-role",
+			ignore:         ".Type",
+			wantErrHasDiff: true,
 		},
 	}
 
@@ -168,6 +183,7 @@ func TestDiff(t *testing.T) {
 				ExitCode:    c.exitCode,
 				SkipTrigger: c.skipTrigger,
 				TagStrategy: c.tagStrategy,
+				Ignore:      c.ignore,
 			})
 			if c.wantErrHasDiff {
 				require.ErrorIs(t, err, stefunny.ErrHasDiff)
@@ -201,4 +217,20 @@ func TestDiff_QualifierStateMachineNotFound(t *testing.T) {
 		})
 	})
 	require.NoError(t, err)
+}
+
+func TestDiff_InvalidIgnoreQuery(t *testing.T) {
+	LoggerSetup(t, "debug")
+	ctx := context.Background()
+
+	mocks := NewMocks(t)
+	defer mocks.Finish()
+
+	app := newMockApp(t, "testdata/stefunny.yaml", mocks)
+	err := app.Diff(ctx, stefunny.DiffOption{
+		Unified: true,
+		Ignore:  ".foo[",
+	})
+	require.Error(t, err)
+	require.NotErrorIs(t, err, stefunny.ErrHasDiff)
 }

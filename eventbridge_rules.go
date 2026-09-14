@@ -103,19 +103,24 @@ func (rule *EventBridgeRule) String() string {
 	return builder.String()
 }
 
-func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, opt DiffStringOption) string {
-	var builder strings.Builder
+// DiffString renders the diff between rule (the current state, possibly
+// nil) and newRule (the desired state). opt.Ignore excludes matching paths
+// from the comparison. Returns an error if opt.Ignore is an invalid jq
+// query.
+func (rule *EventBridgeRule) DiffString(newRule *EventBridgeRule, opt DiffStringOption) (string, error) {
 	from := rule.Source()
 	to := newRule.Source()
-	builder.WriteString(
-		JSONDiffString(
-			rule.configureJSON(), newRule.configureJSON(),
-			JSONDiffFromURI(from),
-			JSONDiffToURI(to),
-			JSONDiffUnified(opt.Unified),
-		),
+	ds, err := JSONDiffString(
+		rule.configureJSON(), newRule.configureJSON(),
+		JSONDiffFromURI(from),
+		JSONDiffToURI(to),
+		JSONDiffUnified(opt.Unified),
+		JSONDiffIgnore(opt.Ignore),
 	)
-	return builder.String()
+	if err != nil {
+		return "", fmt.Errorf("diff event bridge rule: %w", err)
+	}
+	return ds, nil
 }
 
 func (rule *EventBridgeRule) SetEnabled(enabled bool) {
@@ -170,7 +175,12 @@ func (rules EventBridgeRules) SyncState(other EventBridgeRules) {
 	}
 }
 
-func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, opt DiffStringOption) string {
+// DiffString renders the diff between rules (the current state) and
+// newRules (the desired state), matched by name. A rule slated for
+// deletion is skipped unless it is managed by opt.ManagedByTagKey.
+// opt.Ignore excludes matching paths from each rule's comparison. Returns
+// an error if opt.Ignore is an invalid jq query.
+func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, opt DiffStringOption) (string, error) {
 	result := sliceDiff(rules, newRules, func(r *EventBridgeRule) string {
 		return coalesce(r.Name)
 	})
@@ -181,18 +191,30 @@ func (rules EventBridgeRules) DiffString(newRules EventBridgeRules, opt DiffStri
 			log.Printf("[warn] rule %s is not managed by %s, suppressed diff", coalesce(delete.Name), appName)
 			continue
 		}
-		builder.WriteString(delete.DiffString(zero, opt))
+		ds, err := delete.DiffString(zero, opt)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(ds)
 		builder.WriteRune('\n')
 	}
 	for _, c := range result.Change {
-		builder.WriteString(c.Before.DiffString(c.After, opt))
+		ds, err := c.Before.DiffString(c.After, opt)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(ds)
 		builder.WriteRune('\n')
 	}
 	for _, add := range result.Add {
-		builder.WriteString(zero.DiffString(add, opt))
+		ds, err := zero.DiffString(add, opt)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(ds)
 		builder.WriteRune('\n')
 	}
-	return builder.String()
+	return builder.String(), nil
 }
 
 func (rules EventBridgeRules) Names() []string {

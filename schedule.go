@@ -92,18 +92,25 @@ func (s *Schedule) String() string {
 	return builder.String()
 }
 
-func (s *Schedule) DiffString(newSchedule *Schedule, unified bool) string {
-	var builder strings.Builder
+// DiffString renders the diff between s (the current state, possibly nil)
+// and newSchedule (the desired state). opt.Ignore excludes matching paths
+// from the comparison. Returns an error if opt.Ignore is an invalid jq
+// query.
+func (s *Schedule) DiffString(newSchedule *Schedule, opt DiffStringOption) (string, error) {
 	from := s.Source()
 	to := newSchedule.Source()
 
-	builder.WriteString(JSONDiffString(
+	ds, err := JSONDiffString(
 		s.configureJSON(), newSchedule.configureJSON(),
 		JSONDiffFromURI(from),
 		JSONDiffToURI(to),
-		JSONDiffUnified(unified),
-	))
-	return builder.String()
+		JSONDiffUnified(opt.Unified),
+		JSONDiffIgnore(opt.Ignore),
+	)
+	if err != nil {
+		return "", fmt.Errorf("diff schedule: %w", err)
+	}
+	return ds, nil
 }
 
 func (s *Schedule) SetEnabled(enabled bool) {
@@ -147,25 +154,41 @@ func (s Schedules) SyncState(other Schedules) {
 	}
 }
 
-func (s Schedules) DiffString(newSchedules Schedules, unified bool) string {
+// DiffString renders the diff between s (the current state) and
+// newSchedules (the desired state), matched by name. opt.Ignore excludes
+// matching paths from each schedule's comparison. Returns an error if
+// opt.Ignore is an invalid jq query.
+func (s Schedules) DiffString(newSchedules Schedules, opt DiffStringOption) (string, error) {
 	result := sliceDiff(s, newSchedules, func(schedule *Schedule) string {
 		return coalesce(schedule.Name)
 	})
 	var builder strings.Builder
 	var zero *Schedule
 	for _, schedule := range result.Delete {
-		builder.WriteString(schedule.DiffString(zero, unified))
+		ds, err := schedule.DiffString(zero, opt)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(ds)
 		builder.WriteRune('\n')
 	}
 	for _, change := range result.Change {
-		builder.WriteString(change.Before.DiffString(change.After, unified))
+		ds, err := change.Before.DiffString(change.After, opt)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(ds)
 		builder.WriteRune('\n')
 	}
 	for _, schedule := range result.Add {
-		builder.WriteString(zero.DiffString(schedule, unified))
+		ds, err := zero.DiffString(schedule, opt)
+		if err != nil {
+			return "", err
+		}
+		builder.WriteString(ds)
 		builder.WriteRune('\n')
 	}
-	return builder.String()
+	return builder.String(), nil
 }
 
 func (s Schedules) FilterPassed() (result, passed Schedules) {
