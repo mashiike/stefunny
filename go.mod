@@ -21,7 +21,7 @@ require (
 	github.com/goccy/go-yaml v1.15.23
 	github.com/google/go-jsonnet v0.22.0
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/go-version v1.8.0
+	github.com/hashicorp/go-version v1.9.0
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/itchyny/gojq v0.12.19
 	github.com/kylelemons/godebug v1.1.0
