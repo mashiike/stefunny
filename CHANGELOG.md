@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.11.0](https://github.com/mashiike/stefunny/compare/v0.10.0...v0.11.0) - 2026-09-15
+
+- feat(diff): add --skip-trigger flag to mirror deploy scope by @mashiike in https://github.com/mashiike/stefunny/pull/364
+- chore(deps): bump go.uber.org/mock from 0.5.0 to 0.6.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/362
+- chore(deps): bump github.com/aws/aws-sdk-go-v2 from 1.45.1 to 1.46.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/359
+- feat(diff,deploy): tag-aware diff/deploy reconciliation (#352) by @mashiike in https://github.com/mashiike/stefunny/pull/366
+- chore(deps): bump golang.org/x/term from 0.43.0 to 0.45.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/361
+- chore(deps): bump the aws-sdk-go-v2 group across 1 directory with 6 updates by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/358
+- chore(deps): bump google.golang.org/grpc from 1.83.1 to 1.83.2 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/363
+- chore(deps): bump github.com/fujiwara/tfstate-lookup from 1.5.0 to 1.12.1 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/360
+- chore(deps): bump github.com/aws/aws-sdk-go-v2 from 1.46.0 to 1.47.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/371
+- chore(deps): bump github.com/hashicorp/go-version from 1.8.0 to 1.9.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/370
+- chore(deps): bump github.com/goccy/go-yaml from 1.15.23 to 1.19.2 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/369
+
 ## [v0.10.0](https://github.com/mashiike/stefunny/compare/v0.9.4...v0.10.0) - 2026-09-03
 
 - Lazily resolve AWS config, add a caller_identity jsonnet/template function by @mashiike in https://github.com/mashiike/stefunny/pull/341
