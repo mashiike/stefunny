@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.11.1](https://github.com/mashiike/stefunny/compare/v0.11.0...v0.11.1) - 2026-09-28
+
+- chore(deps): bump the aws-sdk-go-v2 group across 1 directory with 6 updates by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/367
+- chore(deps): bump golang.org/x/term from 0.45.0 to 0.46.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/368
+- chore(deps): bump go.opentelemetry.io/otel/sdk from 1.44.0 to 1.45.0 by @dependabot[bot] in https://github.com/mashiike/stefunny/pull/372
+
 ## [v0.11.0](https://github.com/mashiike/stefunny/compare/v0.10.0...v0.11.0) - 2026-09-15
 
 - feat(diff): add --skip-trigger flag to mirror deploy scope by @mashiike in https://github.com/mashiike/stefunny/pull/364
