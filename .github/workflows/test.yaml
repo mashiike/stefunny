@@ -10,6 +10,9 @@ on:
       - synchronize
       - reopened
 
+env:
+  TASK_VERSION: v3.54.0
+
 jobs:
   test:
     strategy:
@@ -28,6 +31,30 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v7
 
+      - name: Install Task
+        run: go install "github.com/go-task/task/v3/cmd/task@${TASK_VERSION}"
+
+      - name: Check generated files are up to date
+        run: task check:generated
+
       - name: Build & Test
-        run: |
-          go test -race ./... -timeout 30s
+        run: task test
+
+  vuln:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          # Latest patch release, so stdlib fixes are picked up
+          go-version: "1.26"
+
+      - name: Install Task
+        run: go install "github.com/go-task/task/v3/cmd/task@${TASK_VERSION}"
+
+      - name: Run govulncheck
+        run: task vuln
