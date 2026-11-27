@@ -1,0 +1,65 @@
+# https://taskfile.dev
+# Install: `go install github.com/go-task/task/v3/cmd/task@latest` (or `brew install go-task`)
+version: "3"
+
+vars:
+  # Keep in sync with .github/workflows/reviewdog.yaml
+  GOLANGCI_LINT_VERSION: v2.10.1
+  GOVULNCHECK_VERSION: v1.10.0
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the stefunny binary into ./dist/stefunny
+    cmds:
+      - go build -o ./dist/stefunny ./cmd/stefunny
+
+  test:
+    desc: Run unit tests (same as CI). Extra flags after `--`, e.g. `task test -- -run TestRender`
+    cmds:
+      - go test -race -timeout 30s {{.CLI_ARGS}} ./...
+
+  test:update-golden:
+    desc: Regenerate golden files under testdata/ (review the diff before committing)
+    cmds:
+      - go test . -update {{.CLI_ARGS}}
+
+  generate:
+    desc: Regenerate mocks under mock/ (mockgen via `go tool`)
+    cmds:
+      - go generate ./...
+
+  tidy:
+    desc: Run go mod tidy
+    cmds:
+      - go mod tidy
+
+  lint:
+    desc: Run golangci-lint with the version used in CI
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run --config=.golangci.yaml --timeout 5m {{.CLI_ARGS}}
+
+  vuln:
+    desc: Check for known vulnerabilities with govulncheck
+    cmds:
+      - go run golang.org/x/vuln/cmd/govulncheck@{{.GOVULNCHECK_VERSION}} ./...
+
+  check:generated:
+    desc: Fail if `go generate` or `go mod tidy` changes any tracked file
+    cmds:
+      - task: generate
+      - task: tidy
+      - git diff --exit-code -- go.mod go.sum mock/
+
+  check:
+    desc: Run everything CI checks (generated files, lint, test, vuln) before opening a PR
+    cmds:
+      - task: check:generated
+      - task: lint
+      - task: test
+      - task: vuln
