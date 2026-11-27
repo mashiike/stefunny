@@ -15,3 +15,6 @@
 # vendor/
 
 .envrc
+
+# Build output of `task build`
+/dist/
